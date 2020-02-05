@@ -1,0 +1,316 @@
+"""
+This file contains the CTAana class. It is dedicated to the construction of a 
+CTAana object, which defines how the CTA analysis of a cluster would proceed.
+
+"""
+
+#==================================================
+# Requested imports
+#==================================================
+
+import astropy.units as u
+from astropy.coordinates.sky_coordinate import SkyCoord
+
+from ClusterModel         import model          as model_cluster
+from ClusterSimCTA.Common import compact_source as model_ps
+from ClusterSimCTA.Common import obs_setup      as setup_obs
+from ClusterSimCTA.Ana    import clustana_title
+
+
+#==================================================
+# Cluster class
+#==================================================
+
+class CTAana():
+    """ 
+    CTAana class. 
+    This class defines a CTAana object. It contains modules that 
+    allow for the analysis of cluster.
+    
+    To do list
+    ----------
+    - Build the analysis
+    
+    Attributes
+    ----------  
+    - silent (bool): print information if False, or not otherwise.
+    - output_dir (str): directory where to output data files and plots.
+    - cluster (ClusterModel object): the cluster object which gather the
+    physical properties of clusters
+    - compact_source (CompactSource object): object from the class CompactSource
+    which gather the properties of compact sources (i.e. not the cluster)
+    in the region of interest
+    - setup_obs (ObsSetup object): object from the ObsSetup class
+    which gather the observation setup
+
+    Methods
+    ----------  
+    - stack the data
+    - compute residual map
+    - compute profile
+    - plots
+    - ...
+
+    """
+    
+    #==================================================
+    # Initialize the CTAana object
+    #==================================================
+
+    def __init__(self,
+                 silent=False,
+                 output_dir='./ClusterAna',
+                 cluster=model_cluster.Cluster(silent=True),
+                 compact_source=model_ps.CompactSource(),
+                 setup_obs=setup_obs.ObsSetup()):
+        """
+        Initialize the CTAsim object.
+        
+        Parameters
+        ----------
+        - silent (bool): set to true in order not to print informations when running 
+        - output_dir (str): where to save outputs
+        - cluster: cluster object can be passed here directly
+        - compact_source:  compact_source object can be passed here directly
+        - setup_obs: setup_obs object can be passed here directly
+        
+        """
+        
+        #---------- Print the code header at launch
+        if not silent:
+            clustana_title.show()
+        
+        #---------- Admin
+        self.silent     = silent
+        self.output_dir = output_dir
+        cluster.output_dir = output_dir
+        
+        #---------- Sky model
+        self.cluster        = cluster
+        self.compact_source = compact_source
+
+        #---------- Observations (including background)
+        self.setup_obs = setup_obs
+
+        #---------- Analysis parameters
+        self.map_reso     = 0.1*u.deg
+        self.map_coord    = SkyCoord(0.0, 0.0, frame="icrs", unit="deg")
+        self.map_fov      = 10*u.deg
+        self.map_coordsys = 'CEL'
+        self.map_proj     = 'TAN'
+        
+        self.method_stack  = True
+        self.method_binned = True
+        self.method_stat   = 'DEFAULT' # CSTAT, WSTAT, CHI2
+        self.method_onoff  = False
+
+
+        self.ebinalg  = 'LOG'
+        self.enumbins = 10
+        self.emin     = 50*u.GeV
+        self.emax     = 100*u.TeV
+        
+        
+    #==================================================
+    # 
+    #==================================================
+    
+    def run_analysis(self):
+        """
+        Run the standard cluster analysis.
+        
+        Parameters
+        ----------
+        
+        """
+
+        #----- Data preparation
+        self.data_preparation()
+        
+        #----- Likelihood analysis
+        self.likelihood_analysis()
+
+        #----- Imaging analysis
+        self.timing_analysis()
+         
+        #----- Spectral analysis
+        self.spectral_analysis()
+
+        #----- Profile analysis
+        self.profile_analysis()
+
+        #----- Imaging analysis
+        self.imaging_analysis()
+
+        #----- Output plots
+        self.plots()
+
+        
+    #==================================================
+    # Data preparation
+    #==================================================
+    
+    def data_preparation(self):
+        """
+        This fucntion is used to prepare the data to the 
+        analysis.
+        
+        Parameters
+        ----------
+        
+        """
+
+
+
+        
+
+
+        
+    #==================================================
+    # Run the likelihood analysis
+    #==================================================
+    
+    def likelihood_analysis(self):
+        """
+        Run the standard analysis. Output the fitted model
+        xml file.
+        
+        Parameters
+        ----------
+        
+        """
+
+
+    #==================================================
+    # Timing analysis
+    #==================================================
+    
+    def timing_analysis(self):
+        """
+        Compute the spectrum of the components of the model
+        
+        Parameters
+        ----------
+        
+        """
+
+
+        
+        
+    #==================================================
+    # Run the likelihood analysis
+    #==================================================
+    
+    def spectral_analysis(self):
+        """
+        Compute the spectrum of the components of the model
+        
+        Parameters
+        ----------
+        
+        """
+
+
+    #==================================================
+    # Run the likelihood analysis
+    #==================================================
+    
+    def profile_analysis(self):
+        """
+        Compute the maps
+        
+        Parameters
+        ----------
+        
+        """
+
+        
+    #==================================================
+    # Run the likelihood analysis
+    #==================================================
+    
+    def imaging_analysis(self):
+        """
+        Compute the maps
+        
+        Parameters
+        ----------
+        
+        """
+
+        
+    #==================================================
+    # Run the likelihood analysis
+    #==================================================
+    
+    def plots(self):
+        """
+        Show standard plots
+        
+        Parameters
+        ----------
+        
+        """
+
+
+        
+        
+
+
+
+
+
+
+
+
+
+
+
+        
+
+
+    #==================================================
+    # Save the simulation configuration
+    #==================================================
+    
+    def save_config(self):
+        """
+        Save the configuration for latter use
+        
+        Parameters
+        ----------
+
+        Outputs
+        -------
+        
+        """
+        
+        # Create the output directory if needed
+        if not os.path.exists(self.output_dir): os.mkdir(self.output_dir)
+
+        # Save
+        with open(self.output_dir+'/config.pkl', 'wb') as pfile:
+            pickle.dump(self.__dict__, pfile, pickle.HIGHEST_PROTOCOL)
+            
+            
+    #==================================================
+    # Load the simulation configuration
+    #==================================================
+    
+    def load_config(self, config_file):
+        """
+        Save the configuration for latter use
+        
+        Parameters
+        ----------
+        - config_file (str): the full name to the configuration file
+
+        Outputs
+        -------
+        
+        """
+
+        with open(config_file, 'rb') as pfile:
+            par = pickle.load(pfile)
+            
+        self.__dict__ = par
