@@ -16,7 +16,7 @@ import astropy.units as u
 from astropy.time import Time
 import copy
 
-from ClusterSimCTA.Common import background as model_bkg
+from ClusterPipe.Tools import background as model_bkg
 
 import cscripts
 import gammalib
@@ -42,12 +42,10 @@ class ObsSetup(object):
     - tmax (str): time of observation end
     - emin (quantity energy): minimum recorded energy
     - emax (quantity energy): maximum recorded energy
-    - edisp (Float): apply energy dispersion
     - deadc (float): Average deadtime correction factor
     - caldb (str): Calibration database
     - irf (str): Instrumental response function    
     - bkg (Background object): contain the background model
-    - seed (int): the seed used for simulations of observations
     
     Methods
     ----------  
@@ -82,12 +80,10 @@ class ObsSetup(object):
         self.tmax  = []
         self.emin  = []
         self.emax  = []
-        self.edisp = []
         self.deadc = []
         self.caldb = []
         self.irf   = []
         self.bkg   = []
-        self.seed  = []
         
         
     #==================================================
@@ -122,12 +118,10 @@ class ObsSetup(object):
             del self.tmax[idx]
             del self.emin[idx]
             del self.emax[idx]
-            del self.edisp[idx]
             del self.deadc[idx]
             del self.caldb[idx]
             del self.irf[idx]
             del self.bkg[idx]
-            del self.seed[idx]
             
             
     #==================================================
@@ -135,20 +129,18 @@ class ObsSetup(object):
     #==================================================
     
     def add_obs(self,
-                obsid='001',
-                name='Ptg001',
+                obsid='00001',
+                name='Ptg00001',
                 coord=SkyCoord(0*u.deg, 0*u.deg, frame='icrs'),
                 rad=8*u.deg,
                 tmin="2020-01-01T00:00:00.0",
                 tmax="2020-01-01T01:00:00.0",
                 emin=5e-2*u.TeV,
                 emax=1e+2*u.TeV,
-                edisp=False,
                 deadc=0.95,
                 caldb='prod3b-v2',
                 irf='North_z20_S_5h',
-                bkg=model_bkg.Background(),
-                seed=None):
+                background=None):
         """
         Add a new observation to the list.
         
@@ -162,21 +154,21 @@ class ObsSetup(object):
         - tmax (str): time of observation end
         - emin (quantity energy): minimum recorded energy
         - emax (quantity energy): maximum recorded energy
-        - edisp (Float): apply energy dispersion
         - deadc (float): Average deadtime correction factor
         - caldb (str): Calibration database
         - irf (str): Instrumental response function  
         - bkg (Background object): model of the background
-        - seed (int): the seed used for simulations of observations
         """
-        
+
+        if background is None:
+            background = copy.deepcopy(model_bkg.Background())
+                                                         
         #----- Check the user parameters
         self._check_parameters(obsid, name,
                                coord, rad,
                                tmin, tmax,
-                               emin, emax, edisp,
-                               deadc, caldb, irf,
-                               seed)
+                               emin, emax,
+                               deadc, caldb, irf)
         
         #----- Add the observation
         w = np.where(np.array(self.obsid).astype('str') == obsid)[0]
@@ -193,12 +185,10 @@ class ObsSetup(object):
             self.tmax.append(tmax)
             self.emin.append(emin)
             self.emax.append(emax)
-            self.edisp.append(edisp)
             self.deadc.append(deadc)
             self.caldb.append(caldb)
             self.irf.append(irf)
-            self.bkg.append(bkg)
-            self.seed.append(seed)
+            self.bkg.append(background)
             
 
     #==================================================
@@ -234,12 +224,10 @@ class ObsSetup(object):
             obj.tmax  = [self.tmax[idx]]
             obj.emin  = [self.emin[idx]]
             obj.emax  = [self.emax[idx]]
-            obj.edisp = [self.edisp[idx]]
             obj.deadc = [self.deadc[idx]]
             obj.caldb = [self.caldb[idx]]
             obj.irf   = [self.irf[idx]]
             obj.bkg   = [self.bkg[idx]]
-            obj.seed  = [self.seed[idx]]
 
             return obj
 
@@ -311,40 +299,82 @@ class ObsSetup(object):
             print('        tmax: '+self.tmax[k])
             print('        emin: '+str(self.emin[k].to_value('TeV'))+' TeV')
             print('        emax: '+str(self.emax[k].to_value('TeV'))+' TeV')
-            print('        Apply Edisp: '+str(self.edisp[k]))
             print('        deadc: '+str(self.deadc[k]))
             print('        caldb: '+self.caldb[k]) 
             print('        irf: '+self.irf[k])
-            print('        bkg: name '+self.bkg[k].name+', spatial type '+self.bkg[k].spatial['type']+', spectral type '+self.bkg[k].spectral['type'])
-            print('        seed: '+str(self.seed[k]))
+            print('        bkg: name '+self.bkg[k].name+', obsid '+str(self.bkg[k].obsid)+', spatial type '+self.bkg[k].spatial['type']+', spectral type '+self.bkg[k].spectral['type'])
 
+
+    #==================================================
+    # Match background obsID
+    #==================================================
+        
+    def match_bkg_id(self):
+        """
+        Match the background obsID
+            
+        Parameters
+        ----------
+        
+        """
+        
+        Nobs = len(self.obsid)
+        
+        for k in range(Nobs):
+            self.bkg[k].obsid = self.obsid[k]
+            self.bkg[k].name = self.bkg[k].name+'_'+self.obsid[k]
+            
 
     #==================================================
     # Write pointing
     #==================================================
     
-    def write_pnt(self, filename, obsid=None):
+    def write_pnt(self, filename, obsid=None, mjdref=51544.5):
         """
         Write a pointing file.
         
         Parameters
         ----------
         - filename (str): the full name of the file to be written
-        - obsid (str): the unique observation ID
+        - obsid (str or list): the unique observation ID
+        - mjdref (float): reference MJD used in ctools
         """
 
+        #----- Open the file and define columns
         f = open(filename, 'wb')
-        f.write('name, id, ra, dec, duration, emin, emax, rad, deadc, caldb, irf \n')
+        f.write('name, id, ra, dec, tmin, duration, emin, emax, rad, deadc, caldb, irf \n')
 
-        if obsid is not None:
-            w = np.where(np.array(self.obsid).astype('str') == obsid)[0]
-            if len(w) != 1: raise ValueError("The observation you are trying to write does not exist.")
-            idx = w[0]
+        #----- Get the index
+        if obsid is None:
+            idx_list = range(len(self.obsid))
+        else:
+            # check the input keyword
+            if type(obsid) is str:
+                obsid = [obsid]
+            if type(obsid) is not list:
+                raise TypeError("The obsid should be a str or a list of str")
 
+            # fill the list
+            idx_list = []
+            for i in range(len(obsid)):
+                w = np.where(np.array(self.obsid).astype('str') == obsid[i])[0]
+                if len(w) != 1:
+                    print("The observation '"+obsid[i]+"' does not exist, ignore it.")
+                else:
+                    idx = w[0]
+                    idx_list.append(idx)
+                    
+            # check that we have at least one observation
+            if len(idx_list) == 0:
+                raise ValueError("No observation in the final list.")
+                
+        #----- Build the file
+        for idx in idx_list:
             f.write(self.name[idx]+', '
                     +self.obsid[idx] +', '
                     +str(self.coord[idx].icrs.ra.to_value('deg'))+', '
                     +str(self.coord[idx].icrs.dec.to_value('deg'))+', '
+                    +str((Time(self.tmin[idx])-Time(mjdref, format='mjd', scale='tt')).sec)+', '
                     +str((Time(self.tmax[idx])-Time(self.tmin[idx])).sec)+', '
                     +str(self.emin[idx].to_value('TeV'))+', '
                     +str(self.emax[idx].to_value('TeV'))+', '
@@ -352,19 +382,6 @@ class ObsSetup(object):
                     +str(self.deadc[idx])+', '
                     +self.caldb[idx]+', '
                     +self.irf[idx]+' \n')            
-        else:
-            for idx in range(len(self.obsid)):
-                f.write(self.name[idx]+', '
-                        +self.obsid[idx] +', '
-                        +str(self.coord[idx].icrs.ra.to_value('deg'))+', '
-                        +str(self.coord[idx].icrs.dec.to_value('deg'))+', '
-                        +str((Time(self.tmax[idx])-Time(self.tmin[idx])).sec)+', '
-                        +str(self.emin[idx].to_value('TeV'))+', '
-                        +str(self.emax[idx].to_value('TeV'))+', '
-                        +str(self.rad[idx].to_value('deg'))+', '
-                        +str(self.deadc[idx])+', '
-                        +self.caldb[idx]+', '
-                        +self.irf[idx]+' \n')
         f.close()
 
 
@@ -389,21 +406,13 @@ class ObsSetup(object):
         cobs['outobs']   = file_obsdef
         cobs.execute()
         if not silent: print(cobs)
-
-        #----- Add extra information
-        #xml     = gammalib.GXml(file_obsdef)
-        #obslist = xml.element('observation_list')
-        #for idx in range(len(self.obsid)):
-        #    obs = obslist[idx]
-        #    obs.append('parameter name="EventList" file="'+os.path.dirname(file_obsdef)+'/EVENTS'+self.obsid[idx]+'.fits"')
-        #xml.save(file_obsdef)        
         
         
     #==================================================
     # Check that the parameters are ok
     #==================================================
         
-    def _check_parameters(self, obsid, name, coord, rad, tmin, tmax, emin, emax, edisp, deadc, caldb, irf, seed):
+    def _check_parameters(self, obsid, name, coord, rad, tmin, tmax, emin, emax, deadc, caldb, irf):
         """
         Check that the parameters are ok in terms of type and values
             
@@ -417,7 +426,6 @@ class ObsSetup(object):
         - tmax (str): time of observation end
         - emin (quantity energy): minimum recorded energy
         - emax (quantity energy): maximum recorded energy
-        - edisp (Float): apply energy dispersion
         - deadc (float): Average deadtime correction factor
         - caldb (str): Calibration database
         - irf (str): Instrumental response function
@@ -459,10 +467,6 @@ class ObsSetup(object):
         if emin >= emax:
             raise TypeError("The parameter 'emin' should be lower than 'emax'")
 
-        #----- edisp
-        if type(edisp) != bool:
-            raise TypeError("The parameter 'edisp' should be a boolean")
-
         #----- deadc
         if type(deadc) != float and type(deadc) != int and type(deadc) != np.float64:
             raise TypeError("The parameter 'deadc' should be a float")
@@ -478,6 +482,3 @@ class ObsSetup(object):
         if type(irf) != str:        
             raise TypeError("The parameter 'irf' should be a string")
         
-        #----- seed
-        if seed is not None and type(seed) != int:
-            raise TypeError("The parameter 'seed' should be a int")

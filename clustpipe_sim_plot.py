@@ -12,9 +12,9 @@ import astropy.units as u
 import numpy as np
 from astropy.io import fits
 
-from ClusterSimCTA.Ana import mapmaking
-from ClusterSimCTA.Common import plotting
-from ClusterSimCTA.Common import utilities
+from ClusterPipe.Tools import mapmaking
+from ClusterPipe.Tools import plotting
+from ClusterPipe.Tools import utilities
 
 
 #==================================================
@@ -29,7 +29,8 @@ def skymap_quicklook(output_file,
                      map_reso=0.01*u.deg,
                      smoothing_FWHM=0.0*u.deg,
                      bkgsubtract=False,
-                     silent=True):
+                     silent=True,
+                     MapCenteredOnTarget=True):
     """
     Sky maps to show the data.
     
@@ -45,6 +46,7 @@ def skymap_quicklook(output_file,
     - map_reso (quantity): skymap resolution, homogeneous to deg
     - smoothing_FWHM (quantity): apply smoothing to skymap
     - bkgsubtract (bool): apply IRF background subtraction in skymap
+    - MapCenteredOnTarget (bool): center the map on the cluster (or pointing)
 
     Outputs
     --------
@@ -68,11 +70,18 @@ def skymap_quicklook(output_file,
                                    setup_obs.emin[0].to_value('TeV'), setup_obs.emax[0].to_value('TeV'))
     PSF_tot = np.sqrt(CTA_PSF**2 + smoothing_FWHM.to_value('deg')**2)
 
+    #---------- Choose map center
+    if MapCenteredOnTarget:
+        cntr_ra  = cluster.coord.icrs.ra.to_value('deg')
+        cntr_dec = cluster.coord.icrs.dec.to_value('deg')
+    else:
+        cntr_ra  = setup_obs.coord[0].icrs.ra.to_value('deg')
+        cntr_dec = setup_obs.coord[0].icrs.dec.to_value('deg') 
+    
     #---------- Compute skymap
     skymap = mapmaking.skymap(output_file+'.fits', evfile,
                               setup_obs.caldb[0], setup_obs.irf[0],
-                              setup_obs.coord[0].icrs.ra.to_value('deg'),
-                              setup_obs.coord[0].icrs.dec.to_value('deg'),
+                              cntr_ra, cntr_dec,
                               npix=npix, reso=map_reso.to_value('deg'),
                               emin_TeV=setup_obs.emin[0].to_value('TeV'),
                               emax_TeV=setup_obs.emax[0].to_value('TeV'),
@@ -114,7 +123,8 @@ def main(output_dir,
          map_reso=0.01*u.deg,
          bkgsubtract=False,
          smoothing_FWHM=0.03*u.deg,
-         silent=False):
+         silent=False,
+         MapCenteredOnTarget=True):
     """
     Script of the simulation pipeline dedicated to plot validations of the results.
 
@@ -129,17 +139,21 @@ def main(output_dir,
     - map_reso (quantity): skymap resolution, homogeneous to deg
     - bkgsubtract (bool): apply IRF background subtraction in skymap
     - smoothing_FWHM (quantity): apply smoothing to skymap
-    
+    - silent (bool): print info or not
+    - MapCenteredOnTarget (bool): to center the skymaps on target 
+    or pointing
+
     Outputs
     --------
     - validation plots
     """
     
     #---------- Plot the events
-    plotting.events_quicklook(output_dir+'/Events.fits', output_dir+'/Events.png')
+    plotting.events_quicklook(output_dir+'/Events'+setup_obs.obsid[0]+'.fits', output_dir+'/Events'+setup_obs.obsid[0]+'.png')
     
     #---------- Skymaps    
-    skymap_quicklook(output_dir+'/Skymap', output_dir+'/Events.fits',
+    skymap_quicklook(output_dir+'/Skymap'+setup_obs.obsid[0],
+                     output_dir+'/Events'+setup_obs.obsid[0]+'.fits',
                      setup_obs, compact_source, cluster,
                      map_reso=map_reso, smoothing_FWHM=smoothing_FWHM, bkgsubtract=bkgsubtract,
-                     silent=silent)
+                     silent=silent, MapCenteredOnTarget=MapCenteredOnTarget)

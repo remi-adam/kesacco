@@ -114,6 +114,7 @@ class ClusterPipe(Admin, CTAsim, CTAana):
         self.method_onoff  = False
 
         # Spectrum related
+        self.edisp    = False
         self.ebinalg  = 'LOG'
         self.enumbins = 10
         self.emin     = 50*u.GeV

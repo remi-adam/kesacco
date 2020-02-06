@@ -25,6 +25,7 @@ class Background(object):
     Attributes
     ----------  
     - name     : the label of the given background 
+    - obsid (str): to match a given background to its obsID
     - spatial  : the spatial properties of the background
     - spectral : the spectral properties of the background
 
@@ -51,12 +52,14 @@ class Background(object):
         
         """
         
-        self.name     = 'Background'
-        self.spatial  = {'type':'CTAIrfBackground'}
-        self.spectral = {'type':'PowerLaw',
-                         'param':{'Prefactor':{'value':1.0, 'free':True},
-                                  'Index':{'value':0, 'free':True},
-                                  'PivotEnergy':{'value':1.0*u.TeV, 'free':False}}}
+        self.name       = 'Background'
+        self.obsid      = None
+        self.instrument = 'CTA'
+        self.spatial    = {'type':'CTAIrfBackground'}
+        self.spectral   = {'type':'PowerLaw',
+                           'param':{'Prefactor':{'value':1.0, 'free':True},
+                                    'Index':{'value':0, 'free':True},
+                                    'PivotEnergy':{'value':1.0*u.TeV, 'free':False}}}
         
         
     #==================================================
@@ -104,6 +107,9 @@ class Background(object):
         
         #----- First show the name
         print('--- name: '+self.name+' ---')
+
+        #----- Print obsid
+        print('--- ObsID: '+self.obsid+' ---')
 
         #----- Show the spatial component
         print('--- Spatial model: '+self.spatial['type'])

@@ -1,6 +1,6 @@
 """
-This file contains the CTAana class. It is dedicated to the construction of a 
-CTAana object, which defines how the CTA analysis of a cluster would proceed.
+This file contains the CTAana class. It is dedicated to run
+modules that allow for a user dedicated analysis.
 
 """
 
@@ -46,41 +46,6 @@ class CTAana(object):
         
         """
 
-        #----- Data preparation
-        self.data_preparation()
-        
-        #----- Likelihood analysis
-        self.likelihood_analysis()
-
-        #----- Imaging analysis
-        self.timing_analysis()
-         
-        #----- Spectral analysis
-        self.spectral_analysis()
-
-        #----- Profile analysis
-        self.profile_analysis()
-
-        #----- Imaging analysis
-        self.imaging_analysis()
-
-        #----- Output plots
-        self.plots()
-
-        
-    #==================================================
-    # Data preparation
-    #==================================================
-    
-    def run_prep_data(self):
-        """
-        This fucntion is used to prepare the data to the 
-        analysis.
-        
-        Parameters
-        ----------
-        
-        """
 
     #==================================================
     # Run the likelihood analysis
@@ -110,8 +75,6 @@ class CTAana(object):
         """
 
 
-        
-        
     #==================================================
     # Run the likelihood analysis
     #==================================================

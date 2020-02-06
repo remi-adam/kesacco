@@ -120,7 +120,7 @@ def compact_sources(model_tot, source_dict):
 # Background
 #==================================================
 
-def background(model_tot, bkg_dict, obsID=None):
+def background(model_tot, bkg_dict_in, setID=True):
     """
     Build a ctools model for the background.
     
@@ -129,52 +129,70 @@ def background(model_tot, bkg_dict, obsID=None):
     - model_tot: a gammalib.GModels object
     - bkg_dict (dictionary): the dictionary that 
     contain the background properties (from class 
-    Background)
+    Background). In case of multiple background this can be a list.
+    - setID (bool): decide to set or not an ID in the bkg model
     
     Outputs
     --------
     - the model is updated to include the background
     """
 
-    #----- Spectral model
-    # PowerLaw
-    if bkg_dict.spectral['type'] == 'PowerLaw':
-        prefact = bkg_dict.spectral['param']['Prefactor']['value']
-        index   = bkg_dict.spectral['param']['Index']['value']
-        pivot   = gammalib.GEnergy(bkg_dict.spectral['param']['PivotEnergy']['value'].to_value('TeV'), 'TeV')
-	spectral = gammalib.GModelSpectralPlaw(prefact, index, pivot)
+    #---------- Get the number of background
+    if type(bkg_dict_in) == list:
+        Nbkg = len(bkg_dict_in)
+    else:
+        Nbkg = 1
+
+    #---------- Add all bkg models
+    for i in range(Nbkg):
+        #---------- Select the background from the list or not
+        if type(bkg_dict_in) == list:
+            bkg_dict = bkg_dict_in[i]
+        else:
+            bkg_dict = bkg_dict_in
+
+        #----- Spectral model
+        
+        # PowerLaw
+        if bkg_dict.spectral['type'] == 'PowerLaw':
+            prefact = bkg_dict.spectral['param']['Prefactor']['value']
+            index   = bkg_dict.spectral['param']['Index']['value']
+            pivot   = gammalib.GEnergy(bkg_dict.spectral['param']['PivotEnergy']['value'].to_value('TeV'), 'TeV')
+	    spectral = gammalib.GModelSpectralPlaw(prefact, index, pivot)
         
         # PowerLawExpCutoff
-    elif bkg_dict.spectral['type'] == 'PowerLawExpCutoff':
-        prefact = bkg_dict.spectral['param']['Prefactor']['value']
-        index   = bkg_dict.spectral['param']['Index']['value']
-        pivot   = gammalib.GEnergy(bkg_dict.spectral['param']['PivotEnergy']['value'].to_value('TeV'), 'TeV')
-        cutoff   = gammalib.GEnergy(bkg_dict.spectral['param']['Cutoff']['value'].to_value('TeV'), 'TeV')
-	spectral = gammalib.GModelSpectralExpPlaw(prefact, index, pivot, cutoff)
+        elif bkg_dict.spectral['type'] == 'PowerLawExpCutoff':
+            prefact = bkg_dict.spectral['param']['Prefactor']['value']
+            index   = bkg_dict.spectral['param']['Index']['value']
+            pivot   = gammalib.GEnergy(bkg_dict.spectral['param']['PivotEnergy']['value'].to_value('TeV'), 'TeV')
+            cutoff   = gammalib.GEnergy(bkg_dict.spectral['param']['Cutoff']['value'].to_value('TeV'), 'TeV')
+	    spectral = gammalib.GModelSpectralExpPlaw(prefact, index, pivot, cutoff)
         
-    # Error
-    else:
-        raise ValueError('Spectral model not available')
+        # Error
+        else:
+            raise ValueError('Spectral model not available')
 
-    # Parameter management
-    spectral = manage_parameters(bkg_dict.spectral['param'], spectral)
+        # Parameter management
+        spectral = manage_parameters(bkg_dict.spectral['param'], spectral)
     
-    #----- Spatial model
-    # CTAIrfBackground
-    if bkg_dict.spatial['type'] == 'CTAIrfBackground':
+        #----- Spatial model
+        # CTAIrfBackground
+        if bkg_dict.spatial['type'] == 'CTAIrfBackground':
 
-        #----- Overal model for each source
-        model = gammalib.GCTAModelIrfBackground(spectral)
+            #----- Overal model for each source
+            model = gammalib.GCTAModelIrfBackground(spectral)
         
-    # Error
-    else:
-        raise ValueError('Spatial model not avaiable')
+        # Error
+        else:
+            raise ValueError('Spatial model not avaiable')
     
-    #----- Append model
-    model.name(bkg_dict.name)
-    if obsID is not None: model.ids(obsID)
+        #----- Append model
+        model.name(bkg_dict.name)
+        model.instruments(bkg_dict.instrument)
+        if setID:
+            if bkg_dict.obsid is not None: model.ids(bkg_dict.obsid)
     
-    model_tot.append(model)
+        model_tot.append(model)
 
 
 #==================================================

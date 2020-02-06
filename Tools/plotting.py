@@ -330,15 +330,13 @@ def events_quicklook(evfile, outfile):
         
         # Information
         plt.subplot(224)
-        i0 = 'ObsID: '+events_hdr1['OBS_ID']
-        i1 = 'Target: '+events_hdr1['OBJECT']
+        i1 = 'ObsID: '+events_hdr1['OBS_ID']
         i2 = 'Date obs: '+events_hdr1['DATE-OBS']+'-'+events_hdr1['TIME-OBS']
         i3 = 'Date end: '+events_hdr1['DATE-END']+'-'+events_hdr1['TIME-END']
         i4 = 'Live time: '+str(events_hdr1['LIVETIME'])+' '+events_hdr1['TIMEUNIT']
         t1 = 'Number of events: \n..... '+str(len(events_data1))
         t2 = 'Median energy: \n..... '+str(np.median(events_data1['ENERGY']))+events_hdr1['EUNIT']
         t3 = 'Median R.A.,Dec.: \n..... '+str(np.median(events_data1_reduce['RA']))+' deg \n..... '+str(np.median(events_data1_reduce['DEC']))+' deg'
-        plt.text(0.1, 0.90, i0, ha='left', rotation=0, wrap=True)
         plt.text(0.1, 0.85, i1, ha='left', rotation=0, wrap=True)
         plt.text(0.1, 0.80, i2, ha='left', rotation=0, wrap=True)
         plt.text(0.1, 0.75, i3, ha='left', rotation=0, wrap=True)

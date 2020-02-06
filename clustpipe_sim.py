@@ -11,13 +11,15 @@ is available.
 #==================================================
 
 import os
-import copy
 import numpy as np
 import astropy.units as u
+from astropy.io import fits
 from astropy.coordinates.sky_coordinate import SkyCoord
+from random import randint
+import gammalib
+import ctools
 
 from ClusterPipe.Tools import make_cluster_template
-from ClusterPipe       import clustpipe_sim_run
 from ClusterPipe       import clustpipe_sim_plot
 
 
@@ -37,79 +39,60 @@ class CTAsim(object):
     - run_sim_quicklook(self, obsID=None): perform quicklook analysis of event files and model
     
     """
-
+    
     #==================================================
-    # Run the observations
+    # Run observation simulation
     #==================================================
     
-    def run_sim_obs(self, obsID=None):
+    def run_sim_obs(self, obsID=None, seed=None):
         """
-        Run the observations
+        Run all the observations at once
         
         Parameters
         ----------
         - obsID (str or str list): list of runs to be observed
-        
+        - seed (int): the seed used for simulations of observations
         """
 
         #----- Create the output directory if needed
-        if not os.path.exists(self.output_dir):
-            os.mkdir(self.output_dir)
-            
-        if not os.path.exists(self.output_dir+'/ClusterModel'):
-            os.mkdir(self.output_dir+'/ClusterModel')
-            
-        #----- Get the obs ID to run (defaults is all of them)
-        obsID = self._check_obsID(obsID)
-            
-        if not self.silent:
-            print('----- ObsID to be observed:')
-            print(obsID)
+        if not os.path.exists(self.output_dir): os.mkdir(self.output_dir)
 
-        #----- Build the cluster template
-        # Make sure the cluster FoV matches all requested observations
+        #----- Get the obs ID to run
+        obsID = self._check_obsID(obsID)
+        if not self.silent: print('----- ObsID to be observed: '+str(obsID))
+
+        #----- Make sure the cluster FoV matches all requested observations
         self.match_cluster_to_pointing()
         
-        # Warning regarding pixel size
-        if (not self.silent) and (self.cluster.map_reso > 0.02*u.deg):
-            print('WARNING: the FITS map resolution is larger than 0.02 deg, i.e. the PSF at 100 TeV')
-        
-        # Make cluster templates        
-        make_cluster_template.make_map(self.cluster,
-                                       self.output_dir+'/ClusterModel/SimuMap.fits',
-                                       Egmin=self.obs_setup.get_emin(),
-                                       Egmax=self.obs_setup.get_emax(),
-                                       includeIC=True)
-        
-        make_cluster_template.make_spectrum(self.cluster,
-                                            self.output_dir+'/ClusterModel/SimuSpectrum.txt',
-                                            energy=np.logspace(-1,5,1000)*u.GeV,
-                                            includeIC=True)
-        
-        #----- Run the observations
-        Nobs_done = 0
-        for iobs in obsID:
-            
-            # Select the setup of the corresponding run
-            setup = self.obs_setup.select_obs(iobs)
-            
-            # Define the subdirectory for the run
-            output_dir = self.output_dir+'/ObsID'+iobs
-            if not os.path.exists(output_dir): os.mkdir(output_dir)
-            
-            # Run the simulation
-            clustpipe_sim_run.run(output_dir,
-                                  self.output_dir+'/ClusterModel/SimuMap.fits',
-                                  self.output_dir+'/ClusterModel/SimuSpectrum.txt',
-                                  self.cluster,
-                                  self.compact_source,
-                                  setup,
-                                  silent=self.silent)
-            
-            # Information
-            Nobs_done += 1
-            if not self.silent: print('----- Observation '+str(Nobs_done)+'/'+str(len(obsID))+' done')
+        #----- Make cluster templates
+        self._make_model(prefix='SimModel')
 
+        #----- Make observation files
+        self.obs_setup.write_pnt(self.output_dir+'/SimPnt.def', obsid=obsID)
+        self.obs_setup.run_csobsdef(self.output_dir+'/SimPnt.def', self.output_dir+'/SimObsDef.xml')
+
+        #----- Get the seed for reapeatable simu
+        if seed is None:
+            seed = randint(1, 1e6)
+        
+        #----- Run the observation
+        obssim = ctools.ctobssim()
+        obssim['inobs']      = self.output_dir+'/SimObsDef.xml'
+        obssim['inmodel']    = self.output_dir+'/SimModel.xml'
+        obssim['prefix']     = self.output_dir+'/TmpEvents'
+        obssim['outevents']  = self.output_dir+'/Events.xml'
+        obssim['edisp']      = self.edisp
+        obssim['startindex'] = 1
+        obssim['maxrate']    = 1e6
+        obssim['seed']       = seed
+        obssim.execute()
+        if not self.silent:
+            print('------- Simulation log -------')
+            print(obssim)
+            print('')
+
+        self._correct_eventfile_names(self.output_dir+'/Events.xml', prefix='Events')
+        
         
     #==================================================
     # Quicklook
@@ -119,7 +102,8 @@ class CTAsim(object):
                           ClusterModelOnly=False,
                           EventOnly=False,
                           bkgsubtract=None,
-                          smoothing_FWHM=0.03*u.deg):
+                          smoothing_FWHM=0.03*u.deg,
+                          MapCenteredOnTarget=True):
         """
         Provide quicklook analysis of the simulation
         
@@ -131,41 +115,73 @@ class CTAsim(object):
         related quicklook
         - bkgsubtract (bool): apply IRF background subtraction in skymap
         - smoothing_FWHM (quantity): apply smoothing to skymap
-        
+        - MapCenteredOnTarget (bool): to center the skymaps on target 
+        or pointing
+
         """
         
-        #----- Get the obs ID to run (defaults is all of them)
+        #----- Get the obs ID to run (defaults is all of them)        
         obsID = self._check_obsID(obsID)
-        
-        if not self.silent: print('----- ObsID to be quicklooked:')
-        if not self.silent: print(obsID)
-        
+        if not self.silent: print('----- ObsID to be observed: '+str(obsID))
+
         #----- Show the cluster model
         if not EventOnly:
             self.match_cluster_to_pointing()
-            self.cluster.output_dir = self.output_dir+'/ClusterModel'
+            self.cluster.output_dir = self.output_dir+'/SimModelPlots'
+            if not os.path.exists(self.cluster.output_dir): os.mkdir(self.cluster.output_dir)
             self.cluster.plot()
             
         #----- Run the quicklook for eventfiles
         if not ClusterModelOnly:
             Nobs_done = 0
             for iobs in obsID:
-                
-                # Define the subdirectory for the run
-                output_dir = self.output_dir+'/ObsID'+iobs
-                
-                # Run the simulation
-                clustpipe_sim_plot.main(output_dir,
+                clustpipe_sim_plot.main(self.output_dir,
                                         self.cluster,
                                         self.compact_source,
                                         self.obs_setup.select_obs(iobs),
                                         map_reso=self.cluster.map_reso,
                                         bkgsubtract=bkgsubtract,
                                         smoothing_FWHM=smoothing_FWHM,
-                                        silent=self.silent)
+                                        silent=self.silent,
+                                        MapCenteredOnTarget=MapCenteredOnTarget)
                 
                 # Information
                 Nobs_done += 1
-                if not self.silent: print('----- Quicklook '+str(Nobs_done)+'/'+str(len(obsID))+' done')
+                if not self.silent: print('----- Quicklook '+str(Nobs_done)+'/'+str(len(self.obs_setup.obsid))+' done')
             
-            
+    #==================================================
+    # Correct XML and file names for simulated events
+    #==================================================
+    
+    def _correct_eventfile_names(self, xmlfile, prefix='Events'):
+        """
+        Change the event filename and associated xml file
+        by naming them using the obsid
+        
+        Parameters
+        ----------
+        - xmlfile (str): the xml file name
+        
+        """
+        
+        xml     = gammalib.GXml(xmlfile)
+        obslist = xml.element('observation_list')
+        for i in range(len(obslist)):
+            obs = obslist[i]
+            obsid = obs.attribute('id')
+
+            # make sure the EventList key exist
+            killnum = None
+            for j in range(len(obs)):
+                if obs[j].attribute('name') == 'EventList': killnum = j
+
+            # In case there is one EventList, move the file and rename the xml
+            if killnum is not None:
+                file_in = obs[killnum].attribute('file')
+                file_out = os.path.dirname(file_in)+'/'+prefix+obsid+'.fits'
+                os.rename(file_in, file_out)
+                obs.remove(killnum)
+                obs.append('parameter name="EventList" file="'+file_out+'"')
+                
+        xml.save(xmlfile)      
+        
