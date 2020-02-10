@@ -20,6 +20,7 @@ import gammalib
 import ctools
 
 from ClusterPipe.Tools import make_cluster_template
+from ClusterPipe.Tools import plotting
 from ClusterPipe       import clustpipe_sim_plot
 
 
@@ -72,8 +73,7 @@ class CTAsim(object):
         self.obs_setup.run_csobsdef(self.output_dir+'/SimPnt.def', self.output_dir+'/SimObsDef.xml')
 
         #----- Get the seed for reapeatable simu
-        if seed is None:
-            seed = randint(1, 1e6)
+        if seed is None: seed = randint(1, 1e6)
         
         #----- Run the observation
         obssim = ctools.ctobssim()
@@ -99,8 +99,9 @@ class CTAsim(object):
     #==================================================
 
     def run_sim_quicklook(self, obsID=None,
-                          ClusterModelOnly=False,
-                          EventOnly=False,
+                          ShowSkyModel=True,
+                          ShowEvent=True,
+                          ShowObsDef=True,
                           bkgsubtract=None,
                           smoothing_FWHM=0.03*u.deg,
                           MapCenteredOnTarget=True):
@@ -110,9 +111,9 @@ class CTAsim(object):
         Parameters
         ----------
         - obsID (str or str list): list of runs to be observed
-        - ClusterModelOnly (bool): set to true to show only the model
-        - EventOnly (bool): set to true to show only the event file 
-        related quicklook
+        - ShowObsDef (bool): set to true to show the observation definition
+        - ShowCluster (bool): set to true to show the cluster model
+        - ShowEvent (bool): set to true to show the event file quicklook
         - bkgsubtract (bool): apply IRF background subtraction in skymap
         - smoothing_FWHM (quantity): apply smoothing to skymap
         - MapCenteredOnTarget (bool): to center the skymaps on target 
@@ -124,15 +125,21 @@ class CTAsim(object):
         obsID = self._check_obsID(obsID)
         if not self.silent: print('----- ObsID to be observed: '+str(obsID))
 
+        #----- Show the observing properties
+        if ShowObsDef:
+            plotting.show_pointings(self.output_dir+'/SimObsDef.xml', self.output_dir+'/SimObsPointing.png')
+            plotting.show_obsdef(self.output_dir+'/SimObsDef.xml', self.cluster.coord, self.output_dir+'/SimObsDef.png')
+            plotting.show_irf(self.obs_setup.caldb, self.obs_setup.irf, self.output_dir+'/SimObsIRF')
+        
         #----- Show the cluster model
-        if not EventOnly:
+        if ShowSkyModel:
             self.match_cluster_to_pointing()
             self.cluster.output_dir = self.output_dir+'/SimModelPlots'
             if not os.path.exists(self.cluster.output_dir): os.mkdir(self.cluster.output_dir)
             self.cluster.plot()
             
         #----- Run the quicklook for eventfiles
-        if not ClusterModelOnly:
+        if ShowEvent:
             Nobs_done = 0
             for iobs in obsID:
                 clustpipe_sim_plot.main(self.output_dir,

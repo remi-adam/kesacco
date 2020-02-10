@@ -9,9 +9,9 @@ with Ana and Sim modules.
 #==================================================
 
 import os
-
 import matplotlib
 import matplotlib.pyplot as plt
+import matplotlib.pylab as pl
 from matplotlib.colors import SymLogNorm
 import astropy.units as u
 from astropy.io import fits
@@ -19,6 +19,12 @@ from astropy.wcs import WCS
 import numpy as np
 from scipy import interpolate
 import scipy.ndimage as ndimage
+import random
+
+from ClusterPipe.Tools import plotting_irf
+from ClusterPipe.Tools import plotting_obsfile
+
+import gammalib
 
 #==================================================
 # Style
@@ -89,6 +95,105 @@ def get_cta_psf(caldb, irf, emin, emax, w8_slope=-2):
     PSF = np.sum(PSF_itpl[weng] * e_itpl[weng]**w8_slope) / np.sum(e_itpl[weng]**w8_slope)
     
     return PSF
+
+
+#==================================================
+#Show the IRF
+#==================================================
+
+def show_irf(caldb_in, irf_in, plotfile,
+             emin=None, emax=None,
+             tmin=None, tmax=None):
+    """
+    Show the IRF by calling the ctools function
+
+    Parameters
+    ----------
+    - caldb_in (str list): the calibration database
+    - irf_in (str list): input response function
+    - emin (min energy): minimal energy in TeV
+    - emax (max energy): maximal energy in TeV
+    - tmin (min energy): minimal angle in deg
+    - tmax (max energy): maximal angle in deg
+
+    """
+
+    set_default_plot_param()
+
+    # Select all the unique IRF
+    list_use  = []
+    caldb_use = []
+    irf_use   = []
+    for i in range(len(caldb_in)):
+        if caldb_in[i] + irf_in[i] not in list_use:
+            list_use.append(caldb_in[i] + irf_in[i])
+            caldb_use.append(caldb_in[i])
+            irf_use.append(irf_in[i])
+
+    # ----- Loop over all caldb+irf used
+    for i in range(len(caldb_use)):
+           
+        # Convert to gammalib format
+        caldb = gammalib.GCaldb('cta', caldb_use[i])
+        irf   = gammalib.GCTAResponseIrf(irf_use[i], caldb)
+
+        # Build selection string
+        selection  = ''
+        eselection = ''
+        tselection = ''
+        if emin != None and emax != None:
+            eselection += '%.3f-%.1f TeV' % (emin, emax)
+        elif emin != None:
+            eselection += ' >%.3f TeV' % (emin)
+        elif emax != None:
+            eselection += ' <%.1f TeV' % (emax)
+        if tmin != None and tmax != None:
+            tselection += '%.1f-%.1f deg' % (tmin, tmax)
+        elif tmin != None:
+            tselection += ' >%.1f deg' % (tmin)
+        elif tmax != None:
+            tselection += ' <%.1f deg' % (tmax)
+        if len(eselection) > 0 and len(tselection) > 0:
+            selection = ' (%s, %s)' % (eselection, tselection)
+        elif len(eselection) > 0:
+            selection = ' (%s)' % (eselection)
+        elif len(tselection) > 0:
+            selection = ' (%s)' % (tselection)
+
+        # Build title
+        mission    = irf.caldb().mission()
+        instrument = irf.caldb().instrument()
+        response   = irf.rspname()
+        title      = '%s "%s" Instrument Response Function "%s"%s' % \
+            (gammalib.toupper(mission), instrument, response, selection)
+
+        # Create figure
+        fig = plt.figure(figsize=(16,12))
+        
+        # Add title
+        fig.suptitle(title, fontsize=16)
+        
+        # Plot Aeff
+        ax1 = fig.add_subplot(231)
+        plotting_irf.plot_aeff(ax1, irf.aeff(), emin=emin, emax=emax, tmin=tmin, tmax=tmax)
+        
+        # Plot Psf
+        ax2 = fig.add_subplot(232)
+        plotting_irf.plot_psf(ax2, irf.psf(), emin=emin, emax=emax, tmin=tmin, tmax=tmax)
+        
+        # Plot Background
+        ax3 = fig.add_subplot(233)
+        plotting_irf.plot_bkg(ax3, irf.background(), emin=emin, emax=emax, tmin=tmin, tmax=tmax)
+        
+        # Plot Edisp
+        fig.add_subplot(234)
+        plotting_irf.plot_edisp(irf.edisp(), emin=emin, emax=emax, tmin=tmin, tmax=tmax)
+        
+        # Show plots or save it into file
+        plt.savefig(plotfile+'_'+list_use[i]+'.png')
+        plt.close()
+
+    return
 
 
 #==================================================
@@ -261,7 +366,7 @@ def show_map(mapfile, outfile,
 
     else :
         print('!!!!!!!!!! WARNING: empty map, '+str(outfile)+' was not created')
-
+        
         
 #==================================================
 # Quicklook of the event
@@ -353,4 +458,179 @@ def events_quicklook(evfile, outfile):
     except:
         print('')
         print('!!!!! Could not apply events_quicklook. Event file may be empty !!!!!')
+
         
+#==================================================
+# Get the pointing patern from a file
+#==================================================
+
+def get_pointings(filename):
+    """
+    Extract pointings from XML file
+
+    Parameters
+    ----------
+    filename : str
+        File name of observation definition XML file
+
+    Returns
+    -------
+    pnt : list of dict
+        Pointings
+    """
+    # Initialise pointings
+    pnt = []
+
+    # Open XML file
+    xml = gammalib.GXml(filename)
+
+    # Get observation list
+    obs = xml.element('observation_list')
+
+    # Get number of observations
+    nobs = obs.elements('observation')
+
+    # Loop over observations
+    for i in range(nobs):
+
+        # Get observation
+        run = obs.element('observation', i)
+
+        # Get pointing parameter
+        npars   = run.elements('parameter')
+        ra      = None
+        dec     = None
+        roi_ra  = None
+        roi_dec = None
+        roi_rad = None
+        evfile  = None
+        obsid   = run.attribute('id')
+        for k in range(npars):
+            par = run.element('parameter', k)
+            if par.attribute('name') == 'Pointing':
+                ra  = float(par.attribute('ra'))
+                dec = float(par.attribute('dec'))
+            elif par.attribute('name') == 'RegionOfInterest':
+                roi_ra  = float(par.attribute('ra'))
+                roi_dec = float(par.attribute('dec'))
+                roi_rad = float(par.attribute('rad'))
+            elif par.attribute('name') == 'EventList':
+                evfile = par.attribute('file')
+
+        # Add valid pointing
+        if ra != None:
+            p   = gammalib.GSkyDir()
+            p.radec_deg(ra, dec)
+            entry = {'l': p.l_deg(), 'b': p.b_deg(),
+                     'ra': ra, 'dec': dec,
+                     'roi_ra': roi_ra, 'roi_dec': roi_dec, 'roi_rad': roi_rad,
+                     'evfile': evfile, 'obsid':obsid}
+            pnt.append(entry)
+
+    return pnt
+
+
+#==================================================
+# Plot the pointings
+#==================================================
+
+def show_pointings(xml_file, plotfile):
+    """
+    Plot information
+
+    Parameters
+    ----------
+    pnt : list of dict
+        Pointings
+    plotfile : str
+        Plot filename
+    """
+
+    set_default_plot_param()
+
+    pnt = get_pointings(xml_file)
+    
+    # Create figure
+    plt.figure()
+    fig = plt.figure(1, figsize=(20, 20))
+    ax  = plt.subplot(111)
+    colors = pl.cm.jet(np.linspace(0,1,len(pnt)))
+
+    # Loop over pointings
+    xmin = []
+    xmax = []
+    ymin = []
+    ymax = []
+    i = 0
+    for p in pnt:
+        ra  = p['ra']
+        dec = p['dec']
+        roi_ra  = p['roi_ra']
+        roi_dec = p['roi_dec']
+        roi_rad = p['roi_rad']
+        obsid   = p['obsid']
+
+        #color = "#"+''.join([random.choice('0123456789ABCDEF') for j in range(6)])
+        color = colors[i]
+        
+        ax.scatter(ra, dec, s=150, marker='x', color=color)
+        circle = matplotlib.patches.Ellipse(xy=(roi_ra, roi_dec),
+                                            width=2*roi_rad/np.cos(dec*np.pi/180),
+                                            height=2*roi_rad,
+                                            alpha=0.1,
+                                            linewidth=1,
+                                            color=color,
+                                            edgecolor=color, label='ObsID'+obsid)
+        ax.add_patch(circle)
+        
+        xmin.append(roi_ra-roi_rad/np.cos(dec*np.pi/180))
+        xmax.append(roi_ra+roi_rad/np.cos(dec*np.pi/180))
+        ymin.append(roi_dec-roi_rad)
+        ymax.append(roi_dec+roi_rad)
+        i += 1
+
+    xctr = (np.amax(xmax) + np.amin(xmin)) / 2.0
+    yctr = (np.amax(ymax) + np.amin(ymin)) / 2.0
+    fovx = (np.amax(xmax) - np.amin(xmin))*1.1/np.cos(yctr*np.pi/180)
+    fovy = (np.amax(ymax) - np.amin(ymin))*1.1
+        
+    plt.xlim(xctr-fovx/2, xctr+fovx/2)
+    plt.ylim(yctr-fovy/2, yctr+fovy/2)
+    plt.legend()
+        
+    # Plot title and labels
+    plt.xlabel('R.A. (deg)')
+    plt.ylabel('Dec. (deg)')
+
+    # Show plots or save it into file
+    plt.savefig(plotfile)
+    plt.close()
+
+    return
+
+
+#==================================================
+# Plot the pointings
+#==================================================
+
+def show_obsdef(xml_file, coord, plotfile):
+    """
+    Plot information
+
+    Parameters
+    ----------
+    - xml_file (str) : Observation definition xml file
+    - coord (SkyCoord): coordinates of the target
+    - plotfile (str): Plot filename
+    """
+
+    set_default_plot_param()
+    info = plotting_obsfile.run_csobsinfo(xml_file,
+                                          coord.icrs.ra.to_value('deg'),
+                                          coord.icrs.dec.to_value('deg'))
+    plotting_obsfile.plot_information(info,
+                                      coord.icrs.ra.to_value('deg'),
+                                      coord.icrs.dec.to_value('deg'),
+                                      plotfile)
+    
+    return
