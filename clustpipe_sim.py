@@ -133,6 +133,7 @@ class CTAsim(object):
         
         #----- Show the cluster model
         if ShowSkyModel:
+            plotting.show_model_spectrum(self.output_dir+'/SimModel.xml', self.output_dir+'/SimModelSpectra.png')
             self.match_cluster_to_pointing()
             self.cluster.output_dir = self.output_dir+'/SimModelPlots'
             if not os.path.exists(self.cluster.output_dir): os.mkdir(self.cluster.output_dir)

@@ -108,7 +108,7 @@ def plot_aeff(sub, aeff, emin=None, emax=None, tmin=None, tmax=None,
         image.append(row)
 
     # Plot image
-    c    = sub.imshow(image, extent=[emin,emax,tmin,tmax], aspect=0.5, vmin=1e6, norm=LogNorm())
+    c    = sub.imshow(image, extent=[emin,emax,tmin,tmax], aspect=0.5, vmin=1e6, vmax=5e10, norm=LogNorm())
     cbar = plt.colorbar(c, orientation='horizontal', shrink=0.8)
     cbar.set_label('cm$^2$')
 
@@ -201,7 +201,7 @@ def plot_psf(sub, psf, emin=None, emax=None, tmin=None, tmax=None,
         image.append(row)
 
     # Plot image
-    c    = sub.imshow(image, extent=[emin,emax,tmin,tmax], aspect=0.5, vmin=0.0, vmax=18.0)
+    c    = sub.imshow(image, extent=[emin,emax,tmin,tmax], aspect=0.5, vmin=0.0, vmax=15.0)
     cbar = plt.colorbar(c, orientation='horizontal', shrink=0.8)
     tick_locator = ticker.MaxNLocator(nbins=5)
     cbar.locator = tick_locator
@@ -342,7 +342,7 @@ def plot_edisp(edisp, emin=None, emax=None, tmin=None, tmax=None,
     f1 = plt.subplot(223)
 
     # Plot image
-    c1    = f1.imshow(image_mean, extent=[emin,emax,tmin,tmax], aspect=0.5)
+    c1    = f1.imshow(image_mean, extent=[emin,emax,tmin,tmax], aspect=0.5, vmin=0, vmax=1.6)
     cbar1 = plt.colorbar(c1, orientation='horizontal', shrink=0.8)
     tick_locator = ticker.MaxNLocator(nbins=5)
     cbar1.locator = tick_locator
@@ -361,7 +361,7 @@ def plot_edisp(edisp, emin=None, emax=None, tmin=None, tmax=None,
     f2 = plt.subplot(224)
 
     # Plot image
-    c2    = f2.imshow(image_std, extent=[emin,emax,tmin,tmax], aspect=0.5)
+    c2    = f2.imshow(image_std, extent=[emin,emax,tmin,tmax], aspect=0.5, vmin=0, vmax=0.3)
     cbar2 = plt.colorbar(c2, orientation='horizontal', shrink=0.8)
     tick_locator = ticker.MaxNLocator(nbins=5)
     cbar2.locator = tick_locator
@@ -471,7 +471,7 @@ def plot_bkg(sub, bkg, emin=None, emax=None, tmin=None, tmax=None,
 
     # Plot image
     c    = sub.imshow(image, extent=[emin,emax,tmin,tmax], aspect=0.5,
-                      vmin=vmin, vmax=vmax, norm=LogNorm())
+                      vmin=1e-12, vmax=1, norm=LogNorm())
     cbar = plt.colorbar(c, orientation='horizontal', shrink=0.8)
     cbar.set_label('s$^{-1}$ MeV$^{-1}$ sr$^{-1}$')
 

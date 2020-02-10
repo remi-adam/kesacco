@@ -50,7 +50,7 @@ def set_default_plot_param():
                  'legend.frameon': True}
 
     plt.rcParams.update(dict_base)
-
+    
     
 #==================================================
 # Get the CTA PSF given the IRF
@@ -540,10 +540,8 @@ def show_pointings(xml_file, plotfile):
 
     Parameters
     ----------
-    pnt : list of dict
-        Pointings
-    plotfile : str
-        Plot filename
+    - xml_file (str) : Observation definition xml file
+    - plotfile (str): Plot filename
     """
 
     set_default_plot_param()
@@ -632,5 +630,63 @@ def show_obsdef(xml_file, coord, plotfile):
                                       coord.icrs.ra.to_value('deg'),
                                       coord.icrs.dec.to_value('deg'),
                                       plotfile)
+    
+    return
+
+
+#==================================================
+# Plot the spectrum of sources
+#==================================================
+
+def show_model_spectrum(xml_file, plotfile,
+                        emin=0.01, emax=100.0, enumbins=100):
+    """
+    Plot information
+
+    Parameters
+    ----------
+    - xml_file (str) : Observation definition xml file
+    - plotfile (str): Plot filename
+    - emin (min energy): minimal energy in TeV
+    - emax (max energy): maximal energy in TeV
+    - enumbins (int): number of energy bins
+
+    """
+
+    set_default_plot_param()
+
+    # Setup energy axis
+    e_min   = gammalib.GEnergy(emin, 'TeV')
+    e_max   = gammalib.GEnergy(emax, 'TeV')
+    ebounds = gammalib.GEbounds(enumbins, e_min, e_max)
+
+    # Read models XML file
+    models = gammalib.GModels(xml_file)
+
+    # Plot spectra in loop
+    plt.figure(figsize=(12,8))
+    plt.loglog()
+    plt.grid()
+    colors = pl.cm.jet(np.linspace(0,1,len(models)))
+    
+    for imod in range(len(models)):
+        model = models[imod]
+        if model.type() == 'DiffuseSource' or model.type() == 'PointSource':
+            spectrum = model.spectral()
+            # Setup lists of x and y values
+            x   = []
+            y   = []
+            for i in range(enumbins):
+                energy = ebounds.elogmean(i)
+                value  = spectrum.eval(energy)
+                x.append(energy.TeV())
+                y.append(value)
+            plt.loglog(x, y, linewidth=3, color=colors[imod], label=model.name()+' ('+spectrum.type()+')')
+
+    plt.xlabel('Energy (TeV)')
+    plt.ylabel(r'dN/dE (ph s$^{-1}$ cm$^{-2}$ MeV$^{-1}$)')
+    plt.legend()
+    plt.savefig(plotfile)
+    plt.close()
     
     return
