@@ -9,14 +9,8 @@ the ClusterPipe.
 #==================================================
 
 import os
-import copy
 import numpy as np
 import pickle
-import astropy.units as u
-import gammalib
-
-from ClusterPipe.Tools import make_cluster_template
-from ClusterPipe.Tools import build_ctools_model
 
 #==================================================
 # Cluster class
@@ -140,57 +134,3 @@ class Admin():
         self.__dict__ = par
 
         
-    #==================================================
-    # Data preparation
-    #==================================================
-    
-    def _make_model(self, prefix='Model', includeIC=True):
-        """
-        This function is used to construct the model.
-        
-        Parameters
-        ----------
-        - prefix (str): text to add as a prefix of the file names
-        - includeIC (bool): include inverse Compton in the model
-        
-        """
-        
-        #----- Make cluster template files
-        if (not self.silent) and (self.cluster.map_reso > 0.02*u.deg):
-            print('WARNING: the FITS map resolution is larger than 0.02 deg, i.e. the PSF at 100 TeV')
-        
-        make_cluster_template.make_map(self.cluster,
-                                       self.output_dir+'/'+prefix+'Map.fits',
-                                       Egmin=self.obs_setup.get_emin(),
-                                       Egmax=self.obs_setup.get_emax(),
-                                       includeIC=includeIC)
-        
-        make_cluster_template.make_spectrum(self.cluster,
-                                            self.output_dir+'/'+prefix+'Spectrum.txt',
-                                            energy=np.logspace(-1,5,1000)*u.GeV,
-                                            includeIC=includeIC)
-        
-        #----- Create the model
-        model_tot = gammalib.GModels()
-        build_ctools_model.cluster(model_tot,
-                                   self.output_dir+'/'+prefix+'Map.fits',
-                                   self.output_dir+'/'+prefix+'Spectrum.txt',
-                                   ClusterName=self.cluster.name)
-        build_ctools_model.compact_sources(model_tot, self.compact_source)
-        build_ctools_model.background(model_tot, self.obs_setup.bkg)
-        model_tot.save(self.output_dir+'/'+prefix+'.xml')
-        
-        
-    #==================================================
-    # Data preparation
-    #==================================================
-    
-    def run_prep_data(self):
-        """
-        This fucntion is used to prepare the data to the 
-        analysis.
-        
-        Parameters
-        ----------
-        
-        """

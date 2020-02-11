@@ -311,7 +311,9 @@ class ObsSetup(object):
         
     def match_bkg_id(self):
         """
-        Match the background obsID
+        Match the background obsID. In case the 
+        background names are not unique, add the obs 
+        id at the end of the name to make it unique.
             
         Parameters
         ----------
@@ -319,10 +321,21 @@ class ObsSetup(object):
         """
         
         Nobs = len(self.obsid)
-        
+
+        # Search if Background names are unique
+        list_name_bkg = []
+        for k in range(Nobs):
+            list_name_bkg.append(self.bkg[k].name)
+        if len(list_name_bkg) == len(set(list_name_bkg)):
+            AllNameUnique = True
+        else:
+            AllNameUnique = False
+
+        # Match the Id and Bkg names if needed
         for k in range(Nobs):
             self.bkg[k].obsid = self.obsid[k]
-            self.bkg[k].name = self.bkg[k].name+'_'+self.obsid[k]
+            if not AllNameUnique:
+                self.bkg[k].name = self.bkg[k].name+'_'+self.obsid[k]
             
 
     #==================================================

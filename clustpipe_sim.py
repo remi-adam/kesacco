@@ -11,15 +11,11 @@ is available.
 #==================================================
 
 import os
-import numpy as np
 import astropy.units as u
-from astropy.io import fits
-from astropy.coordinates.sky_coordinate import SkyCoord
 from random import randint
 import gammalib
 import ctools
 
-from ClusterPipe.Tools import make_cluster_template
 from ClusterPipe.Tools import plotting
 from ClusterPipe       import clustpipe_sim_plot
 
@@ -61,9 +57,10 @@ class CTAsim(object):
         #----- Get the obs ID to run
         obsID = self._check_obsID(obsID)
         if not self.silent: print('----- ObsID to be observed: '+str(obsID))
+        self.obs_setup.match_bkg_id() # make sure Bkg are unique
 
         #----- Make sure the cluster FoV matches all requested observations
-        self.match_cluster_to_pointing()
+        self._match_cluster_to_pointing()
         
         #----- Make cluster templates
         self._make_model(prefix='SimModel')
@@ -81,7 +78,7 @@ class CTAsim(object):
         obssim['inmodel']    = self.output_dir+'/SimModel.xml'
         obssim['prefix']     = self.output_dir+'/TmpEvents'
         obssim['outevents']  = self.output_dir+'/Events.xml'
-        obssim['edisp']      = self.edisp
+        obssim['edisp']      = self.spec_edisp
         obssim['startindex'] = 1
         obssim['maxrate']    = 1e6
         obssim['seed']       = seed
@@ -134,7 +131,7 @@ class CTAsim(object):
         #----- Show the cluster model
         if ShowSkyModel:
             plotting.show_model_spectrum(self.output_dir+'/SimModel.xml', self.output_dir+'/SimModelSpectra.png')
-            self.match_cluster_to_pointing()
+            self._match_cluster_to_pointing()
             self.cluster.output_dir = self.output_dir+'/SimModelPlots'
             if not os.path.exists(self.cluster.output_dir): os.mkdir(self.cluster.output_dir)
             self.cluster.plot()

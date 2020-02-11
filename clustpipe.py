@@ -10,24 +10,21 @@ is available. The class provides an analysis pipeline to reduce the events.
 # Requested imports
 #==================================================
 
-import os
-import copy
 import numpy as np
-import pickle
 import astropy.units as u
 from astropy.coordinates.sky_coordinate import SkyCoord
+import gammalib
 
 from ClusterModel      import model          as model_cluster
 from ClusterPipe.Tools import compact_source as model_compsource
 from ClusterPipe.Tools import obs_setup      as setup_observations
+from ClusterPipe.Tools import make_cluster_template
+from ClusterPipe.Tools import build_ctools_model
 from ClusterPipe.Tools import utilities
-
 from ClusterPipe.clustpipe_admin import Admin
 from ClusterPipe.clustpipe_sim   import CTAsim
 from ClusterPipe.clustpipe_ana   import CTAana
-
 from ClusterPipe import clustpipe_title
-
 
 #==================================================
 # ClusterPipe class
@@ -99,33 +96,36 @@ class ClusterPipe(Admin, CTAsim, CTAana):
         #---------- Observations (including background)
         self.obs_setup = obs_setup
         
-        #---------- Ananlysis parameters
+        #---------- Analysis parameters
         # Map related
         self.map_reso     = 0.1*u.deg
         self.map_coord    = SkyCoord(0.0, 0.0, frame="icrs", unit="deg")
         self.map_fov      = 10*u.deg
-        self.map_coordsys = 'CEL'
-        self.map_proj     = 'TAN'
         
         # Likelihood method related
         self.method_stack  = True
-        self.method_binned = True
+        self.method_binned = False
         self.method_stat   = 'DEFAULT' # CSTAT, WSTAT, CHI2
         self.method_onoff  = False
 
         # Spectrum related
-        self.edisp    = False
-        self.ebinalg  = 'LOG'
-        self.enumbins = 10
-        self.emin     = 50*u.GeV
-        self.emax     = 100*u.TeV
+        self.spec_edisp    = False
+        self.spec_ebinalg  = 'LOG'
+        self.spec_enumbins = 10
+        self.spec_emin     = 50*u.GeV
+        self.spec_emax     = 100*u.TeV
+
+        # Time related
+        self.time_tmin     = None
+        self.time_tmax     = None
+        self.time_phase    = None
         
         
     #==================================================
     # Load the simulation configuration
     #==================================================
     
-    def match_cluster_to_pointing(self, extra=1.1):
+    def _match_cluster_to_pointing(self, extra=1.1):
         """
         Match the cluster map and according to the pointing list.
         
@@ -154,4 +154,44 @@ class ClusterPipe(Admin, CTAsim, CTAana):
         self.cluster.map_coord = center_ptg
         self.cluster.map_fov   = fov
         
+        
+    #==================================================
+    # Make a model
+    #==================================================
+    
+    def _make_model(self, prefix='Model', includeIC=True):
+        """
+        This function is used to construct the model.
+        
+        Parameters
+        ----------
+        - prefix (str): text to add as a prefix of the file names
+        - includeIC (bool): include inverse Compton in the model
+        
+        """
+        
+        #----- Make cluster template files
+        if (not self.silent) and (self.cluster.map_reso > 0.02*u.deg):
+            print('WARNING: the FITS map resolution is larger than 0.02 deg, i.e. the PSF at 100 TeV')
+        
+        make_cluster_template.make_map(self.cluster,
+                                       self.output_dir+'/'+prefix+'Map.fits',
+                                       Egmin=self.obs_setup.get_emin(),
+                                       Egmax=self.obs_setup.get_emax(),
+                                       includeIC=includeIC)
+        
+        make_cluster_template.make_spectrum(self.cluster,
+                                            self.output_dir+'/'+prefix+'Spectrum.txt',
+                                            energy=np.logspace(-1,5,1000)*u.GeV,
+                                            includeIC=includeIC)
+        
+        #----- Create the model
+        model_tot = gammalib.GModels()
+        build_ctools_model.cluster(model_tot,
+                                   self.output_dir+'/'+prefix+'Map.fits',
+                                   self.output_dir+'/'+prefix+'Spectrum.txt',
+                                   ClusterName=self.cluster.name)
+        build_ctools_model.compact_sources(model_tot, self.compact_source)
+        build_ctools_model.background(model_tot, self.obs_setup.bkg)
+        model_tot.save(self.output_dir+'/'+prefix+'.xml')
         
