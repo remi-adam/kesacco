@@ -111,12 +111,20 @@ class CTAana(object):
         #----- Binning
         if self.method_binned:
             print('coucou')
+            binning(self.output_dir+'/AnaExpCube')
+            binning(self.output_dir+'/AnaPsfCube')
+            binning(self.output_dir+'/AnaBkgCube')
+            binning(self.output_dir+'/AnaEdispCube')
         
     #==================================================
     # Run the likelihood analysis
     #==================================================
     
-    def run_ana_likelihood(self):
+    def run_ana_likelihood(self,
+                           refit=False,
+                           like_accuracy=0.005,
+                           max_iter=50,
+                           fix_spat_for_ts=False):
         """
         Run the likelihood analysis
         
@@ -126,9 +134,59 @@ class CTAana(object):
         """
         
         like = ctools.ctlike()
+        
+        # Input event list, counts cube or observation definition XML file.
         like['inobs']    = self.output_dir+'/Events.xml'
+        
+        # Input model XML file.
         like['inmodel']  = self.output_dir+'/AnaModelInput.xml'
+        
+        # Input exposure cube file.
+        if self.method_binned :
+            like['expcube']  = self.output_dir+'/AnaExpCube'
+            
+        # Input PSF cube file
+        if self.method_binned :
+            like['psfcube']  = self.output_dir+'/AnaPsfCube'
+            
+        # Input background cube file.
+        if self.method_binned :
+            like['bkgcube']  = self.output_dir+'/AnaBkgCube'
+            
+        # Input energy dispersion cube file.
+        if self.method_binned and self.spec_edisp:
+            like['edispcube']  = self.output_dir+'/AnaEdispCube'
+            
+        # Calibration database.
+        #like['caldb']  =
+        
+        # Instrument response function.
+        #like['irf']  = 
+
+        # Applies energy dispersion to response computation.
+        like['edisp']  = self.spec_edisp
+
+        # Output model XML file with values and uncertainties updated by the maximum likelihood fit.
         like['outmodel'] = self.output_dir+'/AnaModelOutput.xml'
+
+        # Output FITS or CSV file to store covariance matrix.
+        like['outcovmat']  = self.output_dir+'/AnaModelCovmat.fits'
+
+        # Optimization statistic. 
+        like['statistic']  = self.method_stat
+
+        # Perform refitting of solution after initial fit.
+        like['refit']  = refit
+
+        # Absolute accuracy of maximum likelihood value.
+        like['like_accuracy']  = like_accuracy
+
+        # Maximum number of fit iterations.
+        like['max_iter']  = max_iter
+
+        # Fix spatial parameters for TS computation.
+        like['fix_spat_for_ts']  = fix_spat_for_ts
+        
         like.execute()
         print(like.obs())
         print(like.opt())
@@ -190,7 +248,6 @@ class CTAana(object):
 
         
         
-
 
 
 
