@@ -1,6 +1,6 @@
 """
 This file contains parser to ctools for scripts related
-to maps.
+to imaging.
 """
 
 #==================================================

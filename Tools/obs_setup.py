@@ -402,7 +402,7 @@ class ObsSetup(object):
     # Write pointing
     #==================================================
     
-    def run_csobsdef(self, file_pnt, file_obsdef, silent=True):
+    def run_csobsdef(self, file_pnt, file_obsdef, silent=True, event_file=None):
         """
         Run the csobsdef script to get the observation definition file.
         

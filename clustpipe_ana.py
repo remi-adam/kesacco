@@ -13,6 +13,13 @@ import numpy as np
 import astropy.units as u
 import copy
 import ctools
+import gammalib
+
+from ClusterPipe.Tools import tools_spectral
+from ClusterPipe.Tools import tools_imaging
+from ClusterPipe.Tools import tools_timing
+from ClusterPipe.Tools import plotting
+from ClusterPipe.Tools import cubemaking
 
 
 #==================================================
@@ -36,10 +43,16 @@ class CTAana(object):
     """
     
     #==================================================
-    # 
+    # Run the baseline data analysis
     #==================================================
     
-    def run_analysis(self):
+    def run_analysis(self,
+                     obsID=None,
+                     UsePtgRef=True,
+                     refit=False,
+                     like_accuracy=0.005,
+                     max_iter=50,
+                     fix_spat_for_ts=False):
         """
         Run the standard cluster analysis.
         
@@ -48,6 +61,25 @@ class CTAana(object):
         
         """
 
+        #----- Data preparation
+        self.run_ana_dataprep(obsID=obsID, UsePtgRef=UsePtgRef)
+        
+        #----- Likelihood fit
+        self.run_ana_likelihood(refit=refit, like_accuracy=like_accuracy,
+                                max_iter=max_iter, fix_spat_for_ts=fix_spat_for_ts)
+
+        #----- Timing analysis
+        self.run_ana_spectral()
+        
+        #----- Spectral analysis
+        self.run_ana_spectral()
+        
+        #----- Imaging analysis
+        self.run_ana_imaging()
+
+        #----- Output plots
+        self.run_ana_plots()
+        
         
     #==================================================
     # Data preparation
@@ -55,7 +87,7 @@ class CTAana(object):
     
     def run_ana_dataprep(self, obsID=None, UsePtgRef=True):
         """
-        This fucntion is used to prepare the data to the 
+        This function is used to prepare the data to the 
         analysis.
         
         Parameters
@@ -84,37 +116,63 @@ class CTAana(object):
         self.obs_setup.write_pnt(self.output_dir+'/AnaPnt.def', obsid=obsID)
         self.obs_setup.run_csobsdef(self.output_dir+'/AnaPnt.def', self.output_dir+'/AnaObsDef.xml')
 
-        #----- Data selection
-        ##sel = ctools.ctselect()
-        ##sel['inobs']  = self.output_dir+'/AnaObsDef.xml'
-        ##sel['outobs'] = self.output_dir+'/AnaObsDefSelected.xml'
-        ##sel['prefix'] = ''
-        ##sel['rad']    = self.map_fov.to_value('deg')
-        ##sel['ra']     = self.map_coord.icrs.ra.to_value('deg')
-        ##sel['dec']    = self.map_coord.icrs.dec.to_value('deg')
-        ##sel['emin']   = self.spec_emin.to_value('TeV')
-        ##sel['emax']   = self.spec_emax.to_value('TeV')
-        ##if self.time_tmin is not None:
-        ##    sel['tmin'] = self.time_tmin
-        ##else:
-        ##    sel['tmin'] = 'NONE'
-        ##if self.time_tmax is not None:
-        ##    sel['tmax'] = self.time_tmax
-        ##else:
-        ##    sel['tmax'] = 'NONE'
-        ##sel.execute()
-        ##print(sel)
+        #----- Get the events xml file
+        xml     = gammalib.GXml(self.output_dir+'/Events.xml')
+        obslist = xml.element('observation_list')
+        obsid_in = []
+        for i in range(len(obslist)):
+            if obslist[i].attribute('id') not in obsID:
+                obslist.remove(i)
+            else:
+                obsid_in.append(obslist[i].attribute('id'))
+        for i in range(len(obsID)):
+            if obsID[i] not in obsid_in:
+                print('WARNING: Event file with obsID '+obsID[i]+' does not exist. It is ignored.')
+        xml.save(self.output_dir+'/AnaEvents.xml')
         
+        #----- Data selection
+        sel = ctools.ctselect()
+        sel['inobs']  = self.output_dir+'/AnaEvents.xml'
+        sel['outobs'] = self.output_dir+'/AnaEventsSelected.xml'
+        sel['prefix'] = self.output_dir+'/AnaSelected'
+        sel['rad']    = self.map_fov.to_value('deg')
+        sel['ra']     = self.map_coord.icrs.ra.to_value('deg')
+        sel['dec']    = self.map_coord.icrs.dec.to_value('deg')
+        sel['emin']   = self.spec_emin.to_value('TeV')
+        sel['emax']   = self.spec_emax.to_value('TeV')
+        if self.time_tmin is not None:
+            sel['tmin'] = self.time_tmin
+        else:
+            sel['tmin'] = 'NONE'
+        if self.time_tmax is not None:
+            sel['tmax'] = self.time_tmax
+        else:
+            sel['tmax'] = 'NONE'
+        sel.execute()
+        print(sel)
+
         #----- Model
         self._make_model(prefix='AnaModelInput')
 
         #----- Binning
         if self.method_binned:
-            print('coucou')
-            binning(self.output_dir+'/AnaExpCube')
-            binning(self.output_dir+'/AnaPsfCube')
-            binning(self.output_dir+'/AnaBkgCube')
-            binning(self.output_dir+'/AnaEdispCube')
+            cubemaking.counts_cube(self.output_dir,
+                                   self.map_reso, self.map_coord, self.map_fov,
+                                   self.spec_emin, self.spec_emax, self.spec_enumbins, self.spec_ebinalg,
+                                   stack=self.method_stack)
+            if self.method_stack:
+                cubemaking.exp_cube(self.output_dir,
+                                    self.map_reso, self.map_coord, self.map_fov,
+                                    self.spec_emin, self.spec_emax, self.spec_enumbins, self.spec_ebinalg)
+                cubemaking.psf_cube(self.output_dir,
+                                    self.map_reso, self.map_coord, self.map_fov,
+                                    self.spec_emin, self.spec_emax, self.spec_enumbins, self.spec_ebinalg)
+                cubemaking.bkg_cube(self.output_dir)
+                if self.spec_edisp:
+                    cubemaking.edisp_cube(self.output_dir,
+                                          self.map_coord, self.map_fov,
+                                          self.spec_emin, self.spec_emax, self.spec_enumbins, self.spec_ebinalg)
+
         
     #==================================================
     # Run the likelihood analysis
@@ -136,33 +194,42 @@ class CTAana(object):
         like = ctools.ctlike()
         
         # Input event list, counts cube or observation definition XML file.
-        like['inobs']    = self.output_dir+'/Events.xml'
-        
+        if self.method_binned:
+            if self.method_stack:
+                like['inobs']    = self.output_dir+'/AnaCountscube.fits'
+            else:
+                like['inobs']    = self.output_dir+'/AnaCountscube.xml'
+        else:
+            like['inobs']    = self.output_dir+'/AnaEventsSelected.xml'
+
         # Input model XML file.
-        like['inmodel']  = self.output_dir+'/AnaModelInput.xml'
+        if self.method_binned and self.method_stack:
+            like['inmodel']  = self.output_dir+'/AnaModelIntputStack.xml'
+        else:
+            like['inmodel']  = self.output_dir+'/AnaModelInput.xml'
         
         # Input exposure cube file.
-        if self.method_binned :
-            like['expcube']  = self.output_dir+'/AnaExpCube'
+        if self.method_binned and self.method_stack :
+            like['expcube']  = self.output_dir+'/AnaExpcube.fits'
             
         # Input PSF cube file
-        if self.method_binned :
-            like['psfcube']  = self.output_dir+'/AnaPsfCube'
+        if self.method_binned and self.method_stack :
+            like['psfcube']  = self.output_dir+'/AnaPsfcube.fits'
             
         # Input background cube file.
-        if self.method_binned :
-            like['bkgcube']  = self.output_dir+'/AnaBkgCube'
+        if self.method_binned and self.method_stack :
+            like['bkgcube']  = self.output_dir+'/AnaBkgcube.fits'
             
         # Input energy dispersion cube file.
-        if self.method_binned and self.spec_edisp:
-            like['edispcube']  = self.output_dir+'/AnaEdispCube'
-            
+        if self.method_binned and self.method_stack and self.spec_edisp:
+            like['edispcube']  = self.output_dir+'/AnaEdispcube.fits'
+        
         # Calibration database.
         #like['caldb']  =
         
         # Instrument response function.
         #like['irf']  = 
-
+        
         # Applies energy dispersion to response computation.
         like['edisp']  = self.spec_edisp
 
@@ -170,7 +237,7 @@ class CTAana(object):
         like['outmodel'] = self.output_dir+'/AnaModelOutput.xml'
 
         # Output FITS or CSV file to store covariance matrix.
-        like['outcovmat']  = self.output_dir+'/AnaModelCovmat.fits'
+        like['outcovmat']  = self.output_dir+'/AnaModelOutputCovmat.fits'
 
         # Optimization statistic. 
         like['statistic']  = self.method_stat
@@ -191,6 +258,7 @@ class CTAana(object):
         print(like.obs())
         print(like.opt())
 
+        
     #==================================================
     # Timing analysis
     #==================================================
@@ -203,10 +271,20 @@ class CTAana(object):
         ----------
         
         """
+        
+        Nsource = xxx
 
+        for isource in range(Nsource):
+        
+            #----- Compute lightcurve
+            tools_timing.lightcurve()
+
+            #----- Compute lightcurve
+            tools_timing.find_variability()
+        
 
     #==================================================
-    # Run the likelihood analysis
+    # Run the spectral analysis
     #==================================================
     
     def run_ana_spectral(self):
@@ -218,23 +296,22 @@ class CTAana(object):
         
         """
 
+        Nsource = xxx
 
-    #==================================================
-    # Run the likelihood analysis
-    #==================================================
-    
-    def run_ana_profile(self):
-        """
-        Run the profile analysis
+        for isource in range(Nsource):
         
-        Parameters
-        ----------
+            #----- Compute spectra
+            tools_spectral.spectrum()
+            
+            #----- Compute residual
+            tools_spectral.residual()
+            
+            #----- Compute butterfly
+            tools_spectral.butterfly()
         
-        """
-
         
     #==================================================
-    # Run the likelihood analysis
+    # Run the imaging analysis
     #==================================================
     
     def run_ana_imaging(self):
@@ -246,9 +323,50 @@ class CTAana(object):
         
         """
 
+        #----- Compute skymap
+        tools_imaging.skymap()
+
+        #----- Search for sources
+        tools_imaging.src_detect()
         
+        #----- Compute residual (w/wo cluster subtracted)
+        tools_imaging.residual()
         
+        #----- Compute profile
+        tools_imaging.profile()
 
+        
+    #==================================================
+    # Run the plotting tools
+    #==================================================
+    
+    def run_ana_plot(self, obsID=None):
+        """
+        Run the plots
+        
+        Parameters
+        ----------
+        
+        """
 
+        #----- Get the obs ID to run (defaults is all of them)
+        obsID = self._check_obsID(obsID)
+        if not self.silent: print('----- ObsID to be looked at: '+str(obsID))
 
-
+        #----- Plot the observing properties
+        plotting.show_pointings(self.output_dir+'/AnaObsDef.xml', self.output_dir+'/AnaObsPointing.png')
+        plotting.show_obsdef(self.output_dir+'/AnaObsDef.xml', self.cluster.coord, self.output_dir+'/AnaObsDef.png')
+        plotting.show_irf(self.obs_setup.caldb, self.obs_setup.irf, self.output_dir+'/AnaObsIRF')
+        
+        #----- Show events
+        for iobs in obsID:
+            if os.path.exists(self.output_dir+'/AnaSelectedEvents'+self.obs_setup.select_obs(iobs).obsid[0]+'.fits'):
+                plotting.events_quicklook(self.output_dir+'/AnaSelectedEvents'+self.obs_setup.select_obs(iobs).obsid[0]+'.fits',
+                                          self.output_dir+'/AnaSelectedEvents'+self.obs_setup.select_obs(iobs).obsid[0]+'.png')
+                
+                from clustpipe_sim_plot import skymap_quicklook
+                skymap_quicklook(self.output_dir+'/AnaSkymap'+self.obs_setup.select_obs(iobs).obsid[0],
+                                 self.output_dir+'/AnaSelectedEvents'+self.obs_setup.select_obs(iobs).obsid[0]+'.fits',
+                                 self.obs_setup.select_obs(iobs), self.compact_source, self.cluster,
+                                 map_reso=self.cluster.map_reso, bkgsubtract=False,
+                                 silent=True, MapCenteredOnTarget=True)

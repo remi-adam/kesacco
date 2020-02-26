@@ -12,7 +12,7 @@ import astropy.units as u
 import numpy as np
 from astropy.io import fits
 
-from ClusterPipe.Tools import mapmaking
+from ClusterPipe.Tools import tools_imaging
 from ClusterPipe.Tools import plotting
 from ClusterPipe.Tools import utilities
 
@@ -79,13 +79,13 @@ def skymap_quicklook(output_file,
         cntr_dec = setup_obs.coord[0].icrs.dec.to_value('deg') 
     
     #---------- Compute skymap
-    skymap = mapmaking.skymap(output_file+'.fits', evfile,
-                              setup_obs.caldb[0], setup_obs.irf[0],
-                              cntr_ra, cntr_dec,
-                              npix=npix, reso=map_reso.to_value('deg'),
-                              emin_TeV=setup_obs.emin[0].to_value('TeV'),
-                              emax_TeV=setup_obs.emax[0].to_value('TeV'),
-                              bkgsubtract=bkgsubtract)
+    skymap = tools_imaging.skymap(output_file+'.fits', evfile,
+                                  setup_obs.caldb[0], setup_obs.irf[0],
+                                  cntr_ra, cntr_dec,
+                                  npix=npix, reso=map_reso.to_value('deg'),
+                                  emin_TeV=setup_obs.emin[0].to_value('TeV'),
+                                  emax_TeV=setup_obs.emax[0].to_value('TeV'),
+                                  bkgsubtract=bkgsubtract)
     if silent == False:
         print('')
         print(skymap)
@@ -152,7 +152,7 @@ def main(output_dir,
     plotting.events_quicklook(output_dir+'/Events'+setup_obs.obsid[0]+'.fits', output_dir+'/Events'+setup_obs.obsid[0]+'.png')
     
     #---------- Skymaps    
-    skymap_quicklook(output_dir+'/Skymap'+setup_obs.obsid[0],
+    skymap_quicklook(output_dir+'/SimSkymap'+setup_obs.obsid[0],
                      output_dir+'/Events'+setup_obs.obsid[0]+'.fits',
                      setup_obs, compact_source, cluster,
                      map_reso=map_reso, smoothing_FWHM=smoothing_FWHM, bkgsubtract=bkgsubtract,
