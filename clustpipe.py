@@ -98,7 +98,7 @@ class ClusterPipe(Admin, CTAsim, CTAana):
         
         #---------- Analysis parameters
         # Map related
-        self.map_reso     = 0.1*u.deg
+        self.map_reso     = 0.02*u.deg
         self.map_coord    = SkyCoord(0.0, 0.0, frame="icrs", unit="deg")
         self.map_fov      = 10*u.deg
         

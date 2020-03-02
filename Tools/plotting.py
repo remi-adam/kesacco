@@ -315,10 +315,19 @@ def show_map(mapfile, outfile,
         if (ptg_ra is not None) * (ptg_dec is not None) :
             ax.scatter(ptg_ra, ptg_dec,
                        transform=ax.get_transform('icrs'), color='white', marker='x', s=100)
-            txt_ptg = plt.text(ptg_ra, ptg_dec+0.2, 'Pointing',
-                               transform=ax.get_transform('fk5'),fontsize=10,
-                               color='white', horizontalalignment='center',
-                               verticalalignment='center')
+
+            try:
+                txt_ptg = plt.text(ptg_ra, ptg_dec+0.2, 'Pointing',
+                                   transform=ax.get_transform('fk5'),fontsize=10,
+                                   color='white', horizontalalignment='center',
+                                   verticalalignment='center')
+            except:
+                txt_ptg = plt.text(ptg_ra[0], ptg_dec[0]+0.2, 'Pointings',
+                                   transform=ax.get_transform('fk5'),fontsize=10,
+                                   color='white', horizontalalignment='center',
+                                   verticalalignment='center')
+
+                
         # Show the cluster center
         if (cluster_ra is not None) * (cluster_dec is not None) :
             ax.scatter(cluster_ra, cluster_dec,
@@ -338,7 +347,7 @@ def show_map(mapfile, outfile,
                                   transform=ax.get_transform('fk5'),fontsize=10, color='green')
                 
         # Show the PSF
-        if not None:
+        if PSF is not None:
             dec_mean_cor = np.cos((wcs_map.wcs.crval[1]-(wcs_map.wcs.crpix*wcs_map.wcs.cdelt)[1]+0.3) * np.pi/180.0)
             circle_ra = wcs_map.wcs.crval[0]-(wcs_map.wcs.crpix*wcs_map.wcs.cdelt)[0]/dec_mean_cor-0.3
             circle_dec = wcs_map.wcs.crval[1]-(wcs_map.wcs.crpix*wcs_map.wcs.cdelt)[1]+0.3

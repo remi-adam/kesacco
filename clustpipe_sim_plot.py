@@ -28,7 +28,7 @@ def skymap_quicklook(output_file,
                      cluster,
                      map_reso=0.01*u.deg,
                      smoothing_FWHM=0.0*u.deg,
-                     bkgsubtract=False,
+                     bkgsubtract='NONE',
                      silent=True,
                      MapCenteredOnTarget=True):
     """
@@ -79,12 +79,12 @@ def skymap_quicklook(output_file,
         cntr_dec = setup_obs.coord[0].icrs.dec.to_value('deg') 
     
     #---------- Compute skymap
-    skymap = tools_imaging.skymap(output_file+'.fits', evfile,
-                                  setup_obs.caldb[0], setup_obs.irf[0],
+    skymap = tools_imaging.skymap(evfile, output_file+'.fits',
+                                  npix, map_reso.to_value('deg'),
                                   cntr_ra, cntr_dec,
-                                  npix=npix, reso=map_reso.to_value('deg'),
-                                  emin_TeV=setup_obs.emin[0].to_value('TeV'),
-                                  emax_TeV=setup_obs.emax[0].to_value('TeV'),
+                                  emin=setup_obs.emin[0].to_value('TeV'),
+                                  emax=setup_obs.emax[0].to_value('TeV'),
+                                  caldb=setup_obs.caldb[0], irf=setup_obs.irf[0],
                                   bkgsubtract=bkgsubtract)
     if silent == False:
         print('')
@@ -121,7 +121,7 @@ def main(output_dir,
          compact_source,
          setup_obs,
          map_reso=0.01*u.deg,
-         bkgsubtract=False,
+         bkgsubtract='NONE',
          smoothing_FWHM=0.03*u.deg,
          silent=False,
          MapCenteredOnTarget=True):

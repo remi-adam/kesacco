@@ -99,7 +99,7 @@ class CTAsim(object):
                           ShowSkyModel=True,
                           ShowEvent=True,
                           ShowObsDef=True,
-                          bkgsubtract=None,
+                          bkgsubtract='NONE',
                           smoothing_FWHM=0.03*u.deg,
                           MapCenteredOnTarget=True):
         """

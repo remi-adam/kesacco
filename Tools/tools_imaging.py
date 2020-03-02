@@ -14,61 +14,58 @@ import numpy as np
 # Sky maps
 #==================================================
 
-def skymap(output_map, evfile,
-           caldb, irf,
-           cra, cdec,
-           npix=301,
-           reso=0.05,
-           emin_TeV=0.0,
-           emax_TeV=np.inf,
-           bkgsubtract=False):
+def skymap(inobs, outmap,
+           npix, reso, cra, cdec,
+           emin=1e-2,
+           emax=1e+3,
+           caldb=None,
+           irf=None,
+           bkgsubtract='NONE',
+           roiradius=2.0,
+           inradius=3.0,
+           outradius=4.0,
+           iterations=3,
+           threshold=3):
     """
     Compute sky map.
 
     Parameters
     ----------
-    - output_map (str): output map file
-    - evfile (str): eventfile (full name)
-    - caldb (str):calibration database
-    - irf (str): input response function
-    - cra, cdec (deg): RA and Dec centers
-    - npix (int): the number of pixels along x and y (squared map)
-    - reso (deg): the spatial bining resolution
-    - emin_TeV/emax_TeV (TeV): energy range for the skymap
-    - bkgsubtract (bool): subtract of not the background
+    - See http://cta.irap.omp.eu/ctools/users/reference_manual/ctskymap.html
 
     Outputs
     --------
     - create sky map fits
-    - return a skymap object
     """
     
-    #---------- Decide BKG subtraction
-    if bkgsubtract == True: 
-        bkgsub = 'IRF' # 'RING'
-    else:
-        bkgsub = 'NONE'
-    
-    #---------- Compute skymap
     skymap = ctools.ctskymap()    
-    skymap['inobs']       = evfile
-    skymap['caldb']       = caldb
-    skymap['irf']         = irf
-    skymap['outmap']      = output_map
-    skymap['emin']        = emin_TeV
-    skymap['emax']        = emax_TeV
-    skymap['usepnt']      = False
-    skymap['nxpix']       = npix
-    skymap['nypix']       = npix
-    skymap['binsz']       = reso
-    skymap['proj']        = 'TAN'
-    skymap['coordsys']    = 'CEL'
-    skymap['xref']        = cra
-    skymap['yref']        = cdec
-    skymap['bkgsubtract'] = bkgsub
+
+    skymap['inobs']    = inobs
+    if caldb is not None: skymap['caldb'] = caldb
+    if irf   is not None: skymap['irf']   = irf
+    skymap['inmap']    = 'NONE'
+    skymap['outmap']   = outmap
+    skymap['emin']     = emin
+    skymap['emax']     = emax
+    skymap['usepnt']   = False
+    skymap['nxpix']    = npix
+    skymap['nypix']    = npix
+    skymap['binsz']    = reso
+    skymap['coordsys'] = 'CEL'
+    skymap['proj']     = 'TAN'
+    skymap['xref']     = cra
+    skymap['yref']     = cdec
     
-    skymap.run()
-    skymap.save()
+    skymap['bkgsubtract'] = bkgsubtract
+    skymap['roiradius']   = roiradius
+    skymap['inradius']    = inradius
+    skymap['outradius']   = outradius
+    skymap['iterations']  = iterations
+    skymap['threshold']   = threshold
+    skymap['inexclusion'] = 'NONE'
+    skymap['usefft']      = True
+    
+    skymap.execute()
     
     return skymap
 

@@ -20,6 +20,8 @@ from ClusterPipe.Tools import tools_imaging
 from ClusterPipe.Tools import tools_timing
 from ClusterPipe.Tools import plotting
 from ClusterPipe.Tools import cubemaking
+from ClusterPipe.Tools import utilities
+from clustpipe_sim_plot import skymap_quicklook
 
 
 #==================================================
@@ -314,7 +316,7 @@ class CTAana(object):
     # Run the imaging analysis
     #==================================================
     
-    def run_ana_imaging(self):
+    def run_ana_imaging(self, UsePtgRef=True):
         """
         Run the imaging analysis
         
@@ -323,17 +325,40 @@ class CTAana(object):
         
         """
 
-        #----- Compute skymap
-        tools_imaging.skymap()
+        #----- Deal with coordinates
+        if UsePtgRef:
+            self._match_cluster_to_pointing()
+            self.map_coord = copy.deepcopy(self.cluster.map_coord)
+            self.map_fov = np.amax(self.cluster.map_fov.to_value('deg'))*u.deg
 
-        #----- Search for sources
-        tools_imaging.src_detect()
+        npix = utilities.npix_from_fov_def(self.map_fov, self.map_reso)
+        
+        #----- Compute skymap
+        tools_imaging.skymap(self.output_dir+'/AnaEventsSelected.xml',
+                             self.output_dir+'/AnaSkymapTot.fits',
+                             npix,
+                             self.map_reso.to_value('deg'),
+                             self.map_coord.icrs.ra.to_value('deg'),
+                             self.map_coord.icrs.dec.to_value('deg'),
+                             emin=1e-2,
+                             emax=1e+3,
+                             caldb=None,
+                             irf=None,
+                             bkgsubtract='NONE',
+                             roiradius=2.0,
+                             inradius=3.0,
+                             outradius=4.0,
+                             iterations=3,
+                             threshold=3)
         
         #----- Compute residual (w/wo cluster subtracted)
-        tools_imaging.residual()
+        #tools_imaging.residual()
+
+        #----- Search for sources
+        #tools_imaging.src_detect()
         
         #----- Compute profile
-        tools_imaging.profile()
+        #tools_imaging.profile()
 
         
     #==================================================
@@ -357,16 +382,51 @@ class CTAana(object):
         plotting.show_pointings(self.output_dir+'/AnaObsDef.xml', self.output_dir+'/AnaObsPointing.png')
         plotting.show_obsdef(self.output_dir+'/AnaObsDef.xml', self.cluster.coord, self.output_dir+'/AnaObsDef.png')
         plotting.show_irf(self.obs_setup.caldb, self.obs_setup.irf, self.output_dir+'/AnaObsIRF')
-        
+                        
         #----- Show events
         for iobs in obsID:
             if os.path.exists(self.output_dir+'/AnaSelectedEvents'+self.obs_setup.select_obs(iobs).obsid[0]+'.fits'):
                 plotting.events_quicklook(self.output_dir+'/AnaSelectedEvents'+self.obs_setup.select_obs(iobs).obsid[0]+'.fits',
                                           self.output_dir+'/AnaSelectedEvents'+self.obs_setup.select_obs(iobs).obsid[0]+'.png')
                 
-                from clustpipe_sim_plot import skymap_quicklook
                 skymap_quicklook(self.output_dir+'/AnaSkymap'+self.obs_setup.select_obs(iobs).obsid[0],
                                  self.output_dir+'/AnaSelectedEvents'+self.obs_setup.select_obs(iobs).obsid[0]+'.fits',
                                  self.obs_setup.select_obs(iobs), self.compact_source, self.cluster,
-                                 map_reso=self.cluster.map_reso, bkgsubtract=False,
+                                 map_reso=self.cluster.map_reso, bkgsubtract='NONE',
                                  silent=True, MapCenteredOnTarget=True)
+
+        #----- Show Combined map
+        ps_name  = []
+        ps_ra    = []
+        ps_dec   = []
+        for i in range(len(self.compact_source.name)):
+            ps_name.append(self.compact_source.name[i])
+            ps_ra.append(self.compact_source.spatial[i]['param']['RA']['value'].to_value('deg'))
+            ps_dec.append(self.compact_source.spatial[i]['param']['DEC']['value'].to_value('deg'))
+
+        ptg_name  = []
+        ptg_ra    = []
+        ptg_dec   = []
+        for i in range(len(self.obs_setup.name)):
+            ptg_name.append(self.obs_setup.name[i])
+            ptg_ra.append(self.obs_setup.coord[i].icrs.ra.to_value('deg'))
+            ptg_dec.append(self.obs_setup.coord[i].icrs.dec.to_value('deg'))
+
+        plotting.show_map(self.output_dir+'/AnaSkymapTot.fits',
+                          self.output_dir+'/AnaSkymapTot.pdf',
+                          smoothing_FWHM=0.1*u.deg,
+                          cluster_ra=self.cluster.coord.icrs.ra.to_value('deg'),
+                          cluster_dec=self.cluster.coord.icrs.dec.to_value('deg'),
+                          cluster_t500=self.cluster.theta500.to_value('deg'),
+                          cluster_name=self.cluster.name,
+                          ps_name=ps_name,
+                          ps_ra=ps_ra,
+                          ps_dec=ps_dec,
+                          ptg_ra=ptg_ra,
+                          ptg_dec=ptg_dec,
+                          #PSF=PSF_tot,
+                          bartitle='Counts',
+                          rangevalue=[None, None],
+                          logscale=True,
+                          significance=False,
+                          cmap='magma')
