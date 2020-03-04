@@ -31,16 +31,18 @@ from clustpipe_sim_plot import skymap_quicklook
 class CTAana(object):
     """ 
     CTAana class. 
-    This class serves as parser to the ClsuterPipe
+    This class serves as parser to the ClusterPipe
     class to perform analysis.
     
     Methods
     ----------  
-    - stack the data
-    - compute residual map
-    - compute profile
-    - plots
-    - ...
+    - run_analysis
+    - run_ana_dataprep
+    - run_ana_likelihood
+    - run_ana_imaging
+    - run_ana_timing
+    - run_ana_spectral
+    - run_ana_plot
 
     """
     
@@ -180,60 +182,69 @@ class CTAana(object):
                            max_iter=50,
                            fix_spat_for_ts=False):
         """
-        Run the likelihood analysis
+        Run the likelihood analysis.
+        See http://cta.irap.omp.eu/ctools/users/reference_manual/ctlike.html
         
         Parameters
         ----------
+        - refit (bool): Perform refitting of solution after initial fit.
+        - like_accuracy (float): Absolute accuracy of maximum likelihood value
+        - max_iter (int): Maximum number of fit iterations.
+        - fix_spat_for_ts (bool): Fix spatial parameters for TS computation.
         
         """
+
+        if not self.silent:
+            if (not self.method_binned) and self.stack:
+                print('WARNING: unbinned linkelihood are not stacked')
         
         like = ctools.ctlike()
         
         # Input event list, counts cube or observation definition XML file.
         if self.method_binned:
             if self.method_stack:
-                like['inobs']    = self.output_dir+'/AnaCountscube.fits'
+                like['inobs']    = self.output_dir+'/Ana_Countscube.fits'
             else:
-                like['inobs']    = self.output_dir+'/AnaCountscube.xml'
+                like['inobs']    = self.output_dir+'/Ana_Countscube.xml'
         else:
-            like['inobs']    = self.output_dir+'/AnaEventsSelected.xml'
+            like['inobs']    = self.output_dir+'/Ana_EventsSelected.xml'
 
         # Input model XML file.
         if self.method_binned and self.method_stack:
-            like['inmodel']  = self.output_dir+'/AnaModelIntputStack.xml'
+            like['inmodel']  = self.output_dir+'/Ana_Model_Intput_Stack.xml'
         else:
-            like['inmodel']  = self.output_dir+'/AnaModelInput.xml'
+            like['inmodel']  = self.output_dir+'/Ana_Model_Input.xml'
         
         # Input exposure cube file.
         if self.method_binned and self.method_stack :
-            like['expcube']  = self.output_dir+'/AnaExpcube.fits'
+            like['expcube']  = self.output_dir+'/Ana_Expcube.fits'
             
         # Input PSF cube file
         if self.method_binned and self.method_stack :
-            like['psfcube']  = self.output_dir+'/AnaPsfcube.fits'
+            like['psfcube']  = self.output_dir+'/Ana_Psfcube.fits'
             
         # Input background cube file.
         if self.method_binned and self.method_stack :
-            like['bkgcube']  = self.output_dir+'/AnaBkgcube.fits'
+            like['bkgcube']  = self.output_dir+'/Ana_Bkgcube.fits'
             
         # Input energy dispersion cube file.
         if self.method_binned and self.method_stack and self.spec_edisp:
-            like['edispcube']  = self.output_dir+'/AnaEdispcube.fits'
+            like['edispcube']  = self.output_dir+'/Ana_Edispcube.fits'
         
-        # Calibration database.
+        # Calibration database
         #like['caldb']  =
         
-        # Instrument response function.
+        # Instrument response function
         #like['irf']  = 
         
         # Applies energy dispersion to response computation.
         like['edisp']  = self.spec_edisp
 
         # Output model XML file with values and uncertainties updated by the maximum likelihood fit.
-        like['outmodel'] = self.output_dir+'/AnaModelOutput.xml'
+        like['outmodel'] = self.output_dir+'/Ana_Model_Output.xml'
 
         # Output FITS or CSV file to store covariance matrix.
-        like['outcovmat']  = self.output_dir+'/AnaModelOutputCovmat.fits'
+        like['outcovmat']  = self.output_dir+'/Ana_Model_Output_Covmat.fits'
 
         # Optimization statistic. 
         like['statistic']  = self.method_stat
@@ -256,7 +267,56 @@ class CTAana(object):
             print(like.obs())
             print(like.opt())
 
+            
+    #==================================================
+    # Run the imaging analysis
+    #==================================================
+    
+    def run_ana_imaging(self, UsePtgRef=True):
+        """
+        Run the imaging analysis
         
+        Parameters
+        ----------
+        
+        """
+
+        #----- Deal with coordinates and map
+        if UsePtgRef:
+            self._match_cluster_to_pointing()      # Cluster map defined using pointings
+            self._match_anamap_to_pointing()       # Analysis map defined using pointings
+            
+        npix = utilities.npix_from_fov_def(self.map_fov, self.map_reso)
+        
+        #----- Compute skymap
+        tools_imaging.skymap(self.output_dir+'/AnaEventsSelected.xml',
+                             self.output_dir+'/AnaSkymapTot.fits',
+                             npix,
+                             self.map_reso.to_value('deg'),
+                             self.map_coord.icrs.ra.to_value('deg'),
+                             self.map_coord.icrs.dec.to_value('deg'),
+                             emin=1e-2,
+                             emax=1e+3,
+                             caldb=None,
+                             irf=None,
+                             bkgsubtract='NONE',
+                             roiradius=2.0,
+                             inradius=3.0,
+                             outradius=4.0,
+                             iterations=3,
+                             threshold=3)
+        
+        #----- Compute residual (w/wo cluster subtracted)
+        tools_imaging.residual()
+
+        #----- Search for sources
+        #tools_imaging.src_detect()
+        
+        #----- Compute profile
+        #tools_imaging.profile()
+
+
+            
     #==================================================
     # Timing analysis
     #==================================================
@@ -306,56 +366,7 @@ class CTAana(object):
             
             #----- Compute butterfly
             tools_spectral.butterfly()
-        
-        
-    #==================================================
-    # Run the imaging analysis
-    #==================================================
     
-    def run_ana_imaging(self, UsePtgRef=True):
-        """
-        Run the imaging analysis
-        
-        Parameters
-        ----------
-        
-        """
-
-        #----- Deal with coordinates
-        if UsePtgRef:
-            self._match_cluster_to_pointing()
-            self.map_coord = copy.deepcopy(self.cluster.map_coord)
-            self.map_fov = np.amax(self.cluster.map_fov.to_value('deg'))*u.deg
-
-        npix = utilities.npix_from_fov_def(self.map_fov, self.map_reso)
-        
-        #----- Compute skymap
-        tools_imaging.skymap(self.output_dir+'/AnaEventsSelected.xml',
-                             self.output_dir+'/AnaSkymapTot.fits',
-                             npix,
-                             self.map_reso.to_value('deg'),
-                             self.map_coord.icrs.ra.to_value('deg'),
-                             self.map_coord.icrs.dec.to_value('deg'),
-                             emin=1e-2,
-                             emax=1e+3,
-                             caldb=None,
-                             irf=None,
-                             bkgsubtract='NONE',
-                             roiradius=2.0,
-                             inradius=3.0,
-                             outradius=4.0,
-                             iterations=3,
-                             threshold=3)
-        
-        #----- Compute residual (w/wo cluster subtracted)
-        #tools_imaging.residual()
-
-        #----- Search for sources
-        #tools_imaging.src_detect()
-        
-        #----- Compute profile
-        #tools_imaging.profile()
-
         
     #==================================================
     # Run the plotting tools
