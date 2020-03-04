@@ -70,15 +70,15 @@ class CTAana(object):
         self.run_ana_likelihood(refit=refit, like_accuracy=like_accuracy,
                                 max_iter=max_iter, fix_spat_for_ts=fix_spat_for_ts)
 
-        #----- Timing analysis
-        self.run_ana_spectral()
-        
-        #----- Spectral analysis
-        self.run_ana_spectral()
-        
         #----- Imaging analysis
         self.run_ana_imaging()
+        
+        #----- Spectral analysis
+        #self.run_ana_spectral()
 
+        #----- Timing analysis
+        #self.run_ana_timing()
+        
         #----- Output plots
         self.run_ana_plots()
         
@@ -365,7 +365,7 @@ class CTAana(object):
     # Run the plotting tools
     #==================================================
     
-    def run_ana_plot(self, obsID=None):
+    def run_ana_plot(self):
         """
         Run the plots
         
@@ -373,9 +373,9 @@ class CTAana(object):
         ----------
         
         """
-
+        
         #----- Get the obs ID to run (defaults is all of them)
-        obsID = self._check_obsID(obsID)
+        obsID = self.obs_setup.obsid
         if not self.silent: print('----- ObsID to be looked at: '+str(obsID))
 
         #----- Plot the observing properties
