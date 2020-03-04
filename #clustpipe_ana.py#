@@ -175,8 +175,6 @@ class CTAana(object):
                                                    self.map_coord, self.map_fov,
                                                    self.spec_emin, self.spec_emax, self.spec_enumbins, self.spec_ebinalg,
                                                    silent=self.silent)
-
-        return ctscube, expcube, psfcube, bkgcube, edcube
     
         
     #==================================================
