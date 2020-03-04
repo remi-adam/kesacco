@@ -139,7 +139,41 @@ class Common():
                 raise ValueError("The obsID should be either a list or a string.")
     
         return obsID
-                
+
+
+    #==================================================
+    # Write new events.xml file based on obsID
+    #==================================================
+    
+    def _write_new_xmlevent_from_obsid(self, xmlin, xmlout, obsID):
+        """
+        Read the xml file gathering the event list, remove the event
+        files that are not selected, and write a new xml file.
+        
+        Parameters
+        ----------
+        - xmlin (str): input xml file
+        - xmlout (str): output xml file
+        - obsID (list): list of str
+
+        Outputs
+        -------
+        - The new xml file is writen
+        """
+
+        xml     = gammalib.GXml(xmlin)
+        obslist = xml.element('observation_list')
+        obsid_in = []
+        for i in range(len(obslist)):
+            if obslist[i].attribute('id') not in obsID:
+                obslist.remove(i)
+            else:
+                obsid_in.append(obslist[i].attribute('id'))
+        for i in range(len(obsID)):
+            if obsID[i] not in obsid_in:
+                print('WARNING: Event file with obsID '+obsID[i]+' does not exist. It is ignored.')
+        xml.save(xmlout)
+    
         
     #==================================================
     # Match the cluster map and FoV to the pointing def

@@ -94,9 +94,10 @@ class CTAana(object):
         
         Parameters
         ----------
-        - UsePtgRef (bool): use this keyword to match the
-        coordinates of the cluster template, map coordinates
-        and FoV
+        - obsID (str): list of obsID to be used in data preparation. 
+        By default, all of the are used.
+        - UsePtgRef (bool): use this keyword to match the coordinates 
+        of the cluster template, map coordinates and FoV to pointings.
         
         """
         
@@ -113,18 +114,7 @@ class CTAana(object):
         self.obs_setup.run_csobsdef(self.output_dir+'/Ana_Pnt.def', self.output_dir+'/Ana_ObsDef.xml')
 
         #----- Get the events xml file for the considered obsID
-        xml     = gammalib.GXml(self.output_dir+'/Events.xml')
-        obslist = xml.element('observation_list')
-        obsid_in = []
-        for i in range(len(obslist)):
-            if obslist[i].attribute('id') not in obsID:
-                obslist.remove(i)
-            else:
-                obsid_in.append(obslist[i].attribute('id'))
-        for i in range(len(obsID)):
-            if obsID[i] not in obsid_in:
-                print('WARNING: Event file with obsID '+obsID[i]+' does not exist. It is ignored.')
-        xml.save(self.output_dir+'/Ana_Events.xml')
+        self._write_new_xmlevent_from_obsid(self.output_dir+'/Events.xml', self.output_dir+'/Ana_Events.xml', obsID)
         
         #----- Data selection
         sel = ctools.ctselect()
@@ -144,9 +134,12 @@ class CTAana(object):
             sel['tmax'] = self.time_tmax
         else:
             sel['tmax'] = 'NONE'
-        sel.execute()
-        print(sel)
+            
+        if not self.silent:
+            print(sel)
 
+        sel.execute()
+        
         #----- Model
         if UsePtgRef:
             self._match_cluster_to_pointing()      # Cluster map defined using pointings
@@ -175,8 +168,6 @@ class CTAana(object):
                                                    self.map_coord, self.map_fov,
                                                    self.spec_emin, self.spec_emax, self.spec_enumbins, self.spec_ebinalg,
                                                    silent=self.silent)
-
-        return ctscube, expcube, psfcube, bkgcube, edcube
     
         
     #==================================================
@@ -260,8 +251,10 @@ class CTAana(object):
         like['fix_spat_for_ts']  = fix_spat_for_ts
         
         like.execute()
-        print(like.obs())
-        print(like.opt())
+        
+        if not self.silent:
+            print(like.obs())
+            print(like.opt())
 
         
     #==================================================
