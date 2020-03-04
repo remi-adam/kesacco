@@ -152,7 +152,7 @@ def main(output_dir,
     plotting.events_quicklook(output_dir+'/Events'+setup_obs.obsid[0]+'.fits', output_dir+'/Events'+setup_obs.obsid[0]+'.png')
     
     #---------- Skymaps    
-    skymap_quicklook(output_dir+'/SimSkymap'+setup_obs.obsid[0],
+    skymap_quicklook(output_dir+'/Sim_Skymap'+setup_obs.obsid[0],
                      output_dir+'/Events'+setup_obs.obsid[0]+'.fits',
                      setup_obs, compact_source, cluster,
                      map_reso=map_reso, smoothing_FWHM=smoothing_FWHM, bkgsubtract=bkgsubtract,

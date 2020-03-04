@@ -63,19 +63,19 @@ class CTAsim(object):
         self._match_cluster_to_pointing()
         
         #----- Make cluster templates
-        self._make_model(prefix='SimModel')
+        self._make_model(prefix='Sim_Model', includeIC=True)
 
         #----- Make observation files
-        self.obs_setup.write_pnt(self.output_dir+'/SimPnt.def', obsid=obsID)
-        self.obs_setup.run_csobsdef(self.output_dir+'/SimPnt.def', self.output_dir+'/SimObsDef.xml')
+        self.obs_setup.write_pnt(self.output_dir+'/Sim_Pnt.def', obsid=obsID)
+        self.obs_setup.run_csobsdef(self.output_dir+'/Sim_Pnt.def', self.output_dir+'/Sim_ObsDef.xml')
 
         #----- Get the seed for reapeatable simu
         if seed is None: seed = randint(1, 1e6)
         
         #----- Run the observation
         obssim = ctools.ctobssim()
-        obssim['inobs']      = self.output_dir+'/SimObsDef.xml'
-        obssim['inmodel']    = self.output_dir+'/SimModel.xml'
+        obssim['inobs']      = self.output_dir+'/Sim_ObsDef.xml'
+        obssim['inmodel']    = self.output_dir+'/Sim_Model.xml'
         obssim['prefix']     = self.output_dir+'/TmpEvents'
         obssim['outevents']  = self.output_dir+'/Events.xml'
         obssim['edisp']      = self.spec_edisp
@@ -124,15 +124,15 @@ class CTAsim(object):
 
         #----- Show the observing properties
         if ShowObsDef:
-            plotting.show_pointings(self.output_dir+'/SimObsDef.xml', self.output_dir+'/SimObsPointing.png')
-            plotting.show_obsdef(self.output_dir+'/SimObsDef.xml', self.cluster.coord, self.output_dir+'/SimObsDef.png')
-            plotting.show_irf(self.obs_setup.caldb, self.obs_setup.irf, self.output_dir+'/SimObsIRF')
+            plotting.show_pointings(self.output_dir+'/Sim_ObsDef.xml', self.output_dir+'/Sim_ObsPointing.png')
+            plotting.show_obsdef(self.output_dir+'/Sim_ObsDef.xml', self.cluster.coord, self.output_dir+'/Sim_ObsDef.png')
+            plotting.show_irf(self.obs_setup.caldb, self.obs_setup.irf, self.output_dir+'/Sim_ObsIRF')
         
         #----- Show the cluster model
         if ShowSkyModel:
-            plotting.show_model_spectrum(self.output_dir+'/SimModel.xml', self.output_dir+'/SimModelSpectra.png')
+            plotting.show_model_spectrum(self.output_dir+'/Sim_Model.xml', self.output_dir+'/Sim_Model_Spectra.png')
             self._match_cluster_to_pointing()
-            self.cluster.output_dir = self.output_dir+'/SimModelPlots'
+            self.cluster.output_dir = self.output_dir+'/Sim_Model_Plots'
             if not os.path.exists(self.cluster.output_dir): os.mkdir(self.cluster.output_dir)
             self.cluster.plot()
             
