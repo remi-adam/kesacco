@@ -170,13 +170,13 @@ class CTAana(object):
                                                    self.map_coord, self.map_fov,
                                                    self.spec_emin, self.spec_emax, self.spec_enumbins, self.spec_ebinalg,
                                                    silent=self.silent)
-    
-        
+                    
+                    
     #==================================================
     # Run the likelihood analysis
     #==================================================
     
-    def run_ana_likelihood(self,
+    def run_ana_likelihood(self, UsePtgRef=True,
                            refit=False,
                            like_accuracy=0.005,
                            max_iter=50,
@@ -187,6 +187,8 @@ class CTAana(object):
         
         Parameters
         ----------
+        - UsePtgRef (bool): use this keyword to match the coordinates 
+        of the cluster template, map coordinates and FoV to pointings.
         - refit (bool): Perform refitting of solution after initial fit.
         - like_accuracy (float): Absolute accuracy of maximum likelihood value
         - max_iter (int): Maximum number of fit iterations.
@@ -194,9 +196,15 @@ class CTAana(object):
         
         """
 
+        #----- Make sure the map definition is ok
+        if UsePtgRef:
+            self._match_cluster_to_pointing()      # Cluster map defined using pointings
+            self._match_anamap_to_pointing()       # Analysis map defined using pointings
+
+        #========== Run the likelihood
         if not self.silent:
-            if (not self.method_binned) and self.stack:
-                print('WARNING: unbinned linkelihood are not stacked')
+            if (not self.method_binned) and self.method_stack:
+                print('WARNING: unbinned likelihood are not stacked')
         
         like = ctools.ctlike()
         
@@ -264,15 +272,23 @@ class CTAana(object):
         like.execute()
         
         if not self.silent:
-            print(like.obs())
             print(like.opt())
+            print(like.obs())
+            print(like.obs().models())
 
+        #========== Compute the binned model
+        modcube = cubemaking.model_cube(self.output_dir,
+                                        self.map_reso, self.map_coord, self.map_fov,
+                                        self.spec_emin, self.spec_emax, self.spec_enumbins, self.spec_ebinalg,
+                                        edisp=self.spec_edisp,
+                                        stack=self.method_stack, silent=self.silent)
+            
             
     #==================================================
     # Run the imaging analysis
     #==================================================
     
-    def run_ana_imaging(self, UsePtgRef=True):
+    def run_ana_imaging(self, UsePtgRef=True, bkgsubtract='NONE', do_TS=False):
         """
         Run the imaging analysis
         
@@ -281,7 +297,7 @@ class CTAana(object):
         
         """
 
-        #----- Deal with coordinates and map
+        #----- Make sure the map definition is ok
         if UsePtgRef:
             self._match_cluster_to_pointing()      # Cluster map defined using pointings
             self._match_anamap_to_pointing()       # Analysis map defined using pointings
@@ -289,28 +305,59 @@ class CTAana(object):
         npix = utilities.npix_from_fov_def(self.map_fov, self.map_reso)
         
         #----- Compute skymap
-        tools_imaging.skymap(self.output_dir+'/AnaEventsSelected.xml',
-                             self.output_dir+'/AnaSkymapTot.fits',
-                             npix,
-                             self.map_reso.to_value('deg'),
-                             self.map_coord.icrs.ra.to_value('deg'),
-                             self.map_coord.icrs.dec.to_value('deg'),
-                             emin=1e-2,
-                             emax=1e+3,
-                             caldb=None,
-                             irf=None,
-                             bkgsubtract='NONE',
-                             roiradius=2.0,
-                             inradius=3.0,
-                             outradius=4.0,
-                             iterations=3,
-                             threshold=3)
+        skymap = tools_imaging.skymap(self.output_dir+'/Ana_EventsSelected.xml',
+                                      self.output_dir+'/Ana_SkymapTot.fits',
+                                      npix,self.map_reso.to_value('deg'),
+                                      self.map_coord.icrs.ra.to_value('deg'),
+                                      self.map_coord.icrs.dec.to_value('deg'),
+                                      emin=self.spec_emin.to_value('TeV'), 
+                                      emax=self.spec_emax.to_value('TeV'),
+                                      caldb=None, irf=None,
+                                      bkgsubtract=bkgsubtract,
+                                      roiradius=0.1,inradius=1.0,outradius=2.0,
+                                      iterations=3,threshold=3,
+                                      silent=self.silent)
+        
+        #----- Search for sources
+        srcmap = tools_imaging.src_detect(self.output_dir+'/Ana_SkymapTot.fits',
+                                          self.output_dir+'/Ana_Sourcedetect.xml',
+                                          self.output_dir+'/Ana_Sourcedetect.reg',
+                                          threshold=4.0, maxsrcs=20, avgrad=1.0, exclrad=0.2,
+                                          silent=self.silent)
         
         #----- Compute residual (w/wo cluster subtracted)
-        tools_imaging.residual()
+        resmap = tools_imaging.residual()
 
-        #----- Search for sources
-        #tools_imaging.src_detect()
+        #----- Compute the TS map
+        if do_TS:
+            expcube   = None
+            psfcube   = None
+            bkgcube   = None
+            edispcube = None
+            if self.method_binned:
+                if self.method_stack:
+                    inobs    = self.output_dir+'/Ana_Countscube.fits'
+                    inmodel  = self.output_dir+'/Ana_Model_Intput_Stack.xml'
+                    expcube  = self.output_dir+'/Ana_Expcube.fits'
+                    psfcube  = self.output_dir+'/Ana_Psfcube.fits'
+                    bkgcube  = self.output_dir+'/Ana_Bkgcube.fits'
+                    if self.spec_edisp:
+                        edispcube = self.output_dir+'/Ana_Edispcube.fits'
+                else:
+                    inobs   = self.output_dir+'/Ana_Countscube.xml'
+                    inmodel = self.output_dir+'/Ana_Model_Input.xml'
+            else:
+                inobs   = self.output_dir+'/Ana_EventsSelected.xml'
+                inmodel = self.output_dir+'/Ana_Model_Input.xml'
+                
+            tsmap = tools_imaging.tsmap(inobs, inmodel, self.output_dir+'/Ana_TSmap_IC310.fits',
+                                        'IC310',
+                                        npix, self.map_reso.to_value('deg'),
+                                        self.map_coord.icrs.ra.to_value('deg'),
+                                        self.map_coord.icrs.dec.to_value('deg'),
+                                        expcube=expcube, psfcube=psfcube, bkgcube=bkgcube, edispcube=edispcube,
+                                        caldb=None, irf=None, edisp=self.spec_edisp,
+                                        statistic=self.method_stat)
         
         #----- Compute profile
         #tools_imaging.profile()

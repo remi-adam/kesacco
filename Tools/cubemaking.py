@@ -327,6 +327,82 @@ def edisp_cube(output_dir,
 
 
 #==================================================
+# Model cube
+#==================================================
+
+def model_cube(output_dir,
+               map_reso, map_coord, map_fov,
+               emin, emax, enumbins, ebinalg,
+               edisp=False,
+               stack=True,
+               silent=False):
+    """
+    Compute a model cube.
+    http://cta.irap.omp.eu/ctools/users/reference_manual/ctmodel.html
+
+    Parameters
+    ----------
+
+    Outputs
+    --------
+    """
+
+    npix = utilities.npix_from_fov_def(map_fov, map_reso)
+    
+    model = ctools.ctmodel()
+
+    if stack:
+        model['inobs'] = output_dir+'/Ana_Countscube.fits'
+    else:
+        model['inobs'] = output_dir+'/Ana_ObsDef.xml'
+    model['inmodel']   = output_dir+'/Ana_Model_Output.xml'
+    
+    model['incube']    = 'NONE'
+    model['expcube']   = 'NONE'
+    model['psfcube']   = 'NONE'
+    model['edispcube'] = 'NONE'
+    model['bkgcube']   = 'NONE'
+    if stack:
+        model['incube']    = output_dir+'/Ana_Countscube.fits'
+        model['expcube']   = output_dir+'/Ana_Expcube.fits'
+        model['psfcube']   = output_dir+'/Ana_Psfcube.fits'
+        if edisp:
+            model['edispcube'] = output_dir+'/Ana_Edispcube.fits'
+        model['bkgcube']   = output_dir+'/Ana_Bkgcube.fits'
+        
+    model['caldb']     = 'NONE'
+    model['irf']       = 'NONE'
+    model['edisp']     = edisp
+    model['outcube']   = output_dir+'/Ana_Model_Cube.fits'
+    model['ra']        = 'NONE'
+    model['dec']       = 'NONE'
+    model['rad']       = 'NONE'
+    model['tmin']      = 'NONE'
+    model['tmax']      = 'NONE'
+    model['deadc']     = 'NONE'
+    model['ebinalg']   = ebinalg
+    model['emin']      = emin.to_value('TeV')
+    model['emax']      = emax.to_value('TeV')
+    model['enumbins']  = enumbins
+    model['ebinfile']  = 'NONE'
+    model['usepnt']    = False
+    model['nxpix']     = npix
+    model['nypix']     = npix
+    model['binsz']     = map_reso.to_value('deg')
+    model['coordsys']  = 'CEL'
+    model['proj']      = 'TAN'
+    model['xref']      = map_coord.icrs.ra.to_value('deg')
+    model['yref']      = map_coord.icrs.dec.to_value('deg')
+
+    if not silent:
+        print(model)
+    
+    model.execute()
+    
+    return model
+
+
+#==================================================
 # Mask cube
 #==================================================
 
@@ -342,30 +418,8 @@ def mask_cube():
     --------
     """
     
-    #maskcube = ctools.ctcubemask()
-    #maskcube.execute()
+    maskcube = ctools.ctcubemask()
+    maskcube.execute()
     
     return maskcube
 
-
-#==================================================
-# Model cube
-#==================================================
-
-def model_cube():
-    """
-    Compute a model cube.
-    http://cta.irap.omp.eu/ctools/users/reference_manual/ctmodel.html
-
-    Parameters
-    ----------
-
-    Outputs
-    --------
-    """
-    
-    model = ctools.ctmodel()
-
-    model.execute()
-    
-    return model

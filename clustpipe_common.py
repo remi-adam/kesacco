@@ -275,10 +275,12 @@ class Common():
         
         #----- Create the model
         model_tot = gammalib.GModels()
-        build_ctools_model.cluster(model_tot,
-                                   self.output_dir+'/'+prefix+'_Map.fits',
-                                   self.output_dir+'/'+prefix+'_Spectrum.txt',
-                                   ClusterName=self.cluster.name)
+
+        if self.cluster.X_cr_E['X'] > 0: # No need to include the cluster if it is 0
+            build_ctools_model.cluster(model_tot,
+                                       self.output_dir+'/'+prefix+'_Map.fits',
+                                       self.output_dir+'/'+prefix+'_Spectrum.txt',
+                                       ClusterName=self.cluster.name)
         build_ctools_model.compact_sources(model_tot, self.compact_source)
         build_ctools_model.background(model_tot, self.obs_setup.bkg)
         model_tot.save(self.output_dir+'/'+prefix+'.xml')
