@@ -222,40 +222,25 @@ def tsmap(inobs, inmodel, outmap, srcname,
 # Residual maps
 #==================================================
 
-def resmap(output_map,
-           inobs, model, caldb, irf, cra, cdec,
-           binned=False,
-           modcube='NONE',
-           expcube='NONE',
-           psfcube='NONE', 
-           edispcube='NONE',
-           bkgcube='NONE',
+def resmap(inobs, inmodel, output_map,
+           npix, reso, cra, cdec,
+           emin=1e-2, emax=1e+3, enumbins=20, ebinalg='LOG',
+           modcube=None, 
+           expcube=None, 
+           psfcube=None,
+           bkgcube=None,
+           edispcube=None,
+           caldb=None,
+           irf=None,
            edisp=False,
-           ebinalg='LOG',
-           emin_TeV=0.0,
-           emax_TeV=np.inf,
-           enumbins=20,
-           npix=301,
-           reso=0.05,
-           algo='SIGNIFICANCE'):
+           algo='SIGNIFICANCE',
+           silent=False):
     """
     Compute a residual map.
-
+    
     Parameters
     ----------
-    - output_dir (str): output directory
-    - inobs (str): eventfile (full name) or counts cube (for binning case)
-    - caldb (str):calibration database
-    - irf (str): input response function
-    - cra, cdec (deg): RA and Dec centers
-    - edisp (bool): apply energy dispersion
-    - ebinalg (str): kind of energy bining (FILE|LIN|LOG)
-    - emin_TeV/emax_TeV (TeV): energy range for the skymap
-    - enumbins (int): the number of bins
-    - npix (int): the number of pixels along x and y (squared map)
-    - reso (deg): the spatial bining resolution
-    - algo (str): algorithm to use (SUB, SUBDIV, SUBDIVSQRT, SIGNIFICANCE)
-
+    
     Outputs
     --------
     - create sky map fits
@@ -264,32 +249,35 @@ def resmap(output_map,
 
     resmap = cscripts.csresmap()
     
-    resmap['inobs']     = inobs
-    resmap['inmodel']   = model
-    resmap['modcube']   = modcube
-    resmap['expcube']   = expcube
-    resmap['psfcube']   = psfcube
-    resmap['edispcube'] = edispcube
-    resmap['bkgcube']   = bkgcube
-    resmap['caldb']     = caldb
-    resmap['irf']       = irf
-    resmap['edisp']     = edisp
-    resmap['outmap']    = output_map
-    resmap['ebinalg']   = ebinalg
-    resmap['emin']      = emin_TeV
-    resmap['emax']      = emax_TeV
-    resmap['enumbins']  = enumbins
-    resmap['ebinfile']  = 'NONE'
-    resmap['coordsys']  = 'CEL'
-    resmap['proj']      = 'TAN'
-    resmap['xref']      = cra
-    resmap['yref']      = cdec
-    resmap['nxpix']     = npix
-    resmap['nypix']     = npix
-    resmap['binsz']     = reso
-    resmap['algorithm'] = algo
-
+    resmap['inobs']     = inobs     
+    resmap['inmodel']   = inmodel   
+    if modcube   is not None: resmap['modcube']   = modcube   
+    if expcube   is not None: resmap['expcube']   = expcube
+    if psfcube   is not None: resmap['psfcube']   = psfcube
+    if edispcube is not None: resmap['edispcube'] = edispcube
+    if bkgcube   is not None: resmap['bkgcube']   = bkgcube
+    if caldb     is not None: resmap['caldb']     = caldb     
+    if irf       is not None: resmap['irf']       = irf       
+    resmap['edisp']     = edisp     
+    resmap['outmap']    = output_map 
+    resmap['ebinalg']   = ebinalg   
+    resmap['emin']      = emin      
+    resmap['emax']      = emax      
+    resmap['enumbins']  = enumbins  
+    resmap['ebinfile']  = 'NONE'    
+    resmap['coordsys']  = 'CEL'            
+    resmap['proj']      = 'TAN'     
+    resmap['xref']      = cra       
+    resmap['yref']      = cdec      
+    resmap['nxpix']     = npix      
+    resmap['nypix']     = npix      
+    resmap['binsz']     = reso      
+    resmap['algorithm'] = algo      
+    
     resmap.execute()
 
+    if not silent:
+        print(resmap)
+    
     return resmap
 

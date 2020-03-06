@@ -303,7 +303,30 @@ class CTAana(object):
             self._match_anamap_to_pointing()       # Analysis map defined using pointings
             
         npix = utilities.npix_from_fov_def(self.map_fov, self.map_reso)
-        
+
+        #----- Defines cubes
+        expcube   = None
+        psfcube   = None
+        bkgcube   = None
+        edispcube = None
+        modcube   = self.output_dir+'/Ana_Model_Cube.fits'
+        if self.method_binned:
+            if self.method_stack:
+                inobs    = self.output_dir+'/Ana_Countscube.fits'
+                inmodel  = self.output_dir+'/Ana_Model_Intput_Stack.xml'
+                expcube  = self.output_dir+'/Ana_Expcube.fits'
+                psfcube  = self.output_dir+'/Ana_Psfcube.fits'
+                bkgcube  = self.output_dir+'/Ana_Bkgcube.fits'
+                if self.spec_edisp:
+                    edispcube = self.output_dir+'/Ana_Edispcube.fits'
+            else:
+                #inobs   = self.output_dir+'/Ana_Countscube.xml'
+                inobs   = self.output_dir+'/Ana_EventsSelected.xml'
+                inmodel = self.output_dir+'/Ana_Model_Input.xml'
+        else:
+            inobs   = self.output_dir+'/Ana_EventsSelected.xml'
+            inmodel = self.output_dir+'/Ana_Model_Input.xml'
+
         #----- Compute skymap
         skymap = tools_imaging.skymap(self.output_dir+'/Ana_EventsSelected.xml',
                                       self.output_dir+'/Ana_SkymapTot.fits',
@@ -326,38 +349,31 @@ class CTAana(object):
                                           silent=self.silent)
         
         #----- Compute residual (w/wo cluster subtracted)
-        resmap = tools_imaging.residual()
-
+        resmap = tools_imaging.resmap(inobs, inmodel, self.output_dir+'/Ana_ResmapTot.fits',
+                                      npix, self.map_reso.to_value('deg'),
+                                      self.map_coord.icrs.ra.to_value('deg'),
+                                      self.map_coord.icrs.dec.to_value('deg'),
+                                      emin=self.spec_emin.to_value('TeV'), emax=self.spec_emax.to_value('TeV'),
+                                      enumbins=self.spec_enumbins, ebinalg=self.spec_ebinalg,
+                                      modcube=modcube, 
+                                      expcube=expcube, psfcube=psfcube, bkgcube=bkgcube, edispcube=edispcube,
+                                      caldb=None, irf=None,
+                                      edisp=self.spec_edisp,
+                                      algo='SIGNIFICANCE',
+                                      silent=self.silent)
+        
         #----- Compute the TS map
-        if do_TS:
-            expcube   = None
-            psfcube   = None
-            bkgcube   = None
-            edispcube = None
-            if self.method_binned:
-                if self.method_stack:
-                    inobs    = self.output_dir+'/Ana_Countscube.fits'
-                    inmodel  = self.output_dir+'/Ana_Model_Intput_Stack.xml'
-                    expcube  = self.output_dir+'/Ana_Expcube.fits'
-                    psfcube  = self.output_dir+'/Ana_Psfcube.fits'
-                    bkgcube  = self.output_dir+'/Ana_Bkgcube.fits'
-                    if self.spec_edisp:
-                        edispcube = self.output_dir+'/Ana_Edispcube.fits'
-                else:
-                    inobs   = self.output_dir+'/Ana_Countscube.xml'
-                    inmodel = self.output_dir+'/Ana_Model_Input.xml'
-            else:
-                inobs   = self.output_dir+'/Ana_EventsSelected.xml'
-                inmodel = self.output_dir+'/Ana_Model_Input.xml'
-                
-            tsmap = tools_imaging.tsmap(inobs, inmodel, self.output_dir+'/Ana_TSmap_IC310.fits',
-                                        'IC310',
-                                        npix, self.map_reso.to_value('deg'),
-                                        self.map_coord.icrs.ra.to_value('deg'),
-                                        self.map_coord.icrs.dec.to_value('deg'),
-                                        expcube=expcube, psfcube=psfcube, bkgcube=bkgcube, edispcube=edispcube,
-                                        caldb=None, irf=None, edisp=self.spec_edisp,
-                                        statistic=self.method_stat)
+        reso_ts = self.map_reso/10.0
+        npix_ts = utilities.npix_from_fov_def(self.map_fov, reso_ts)
+
+        if do_TS: tsmap = tools_imaging.tsmap(inobs, inmodel, self.output_dir+'/Ana_TSmap_IC310.fits',
+                                              'IC310',
+                                              npix_ts, reso_ts.to_value('deg'), #self.map_reso.to_value('deg'),
+                                              self.map_coord.icrs.ra.to_value('deg'),
+                                              self.map_coord.icrs.dec.to_value('deg'),
+                                              expcube=expcube, psfcube=psfcube, bkgcube=bkgcube, edispcube=edispcube,
+                                              caldb=None, irf=None, edisp=self.spec_edisp,
+                                              statistic=self.method_stat)
         
         #----- Compute profile
         #tools_imaging.profile()

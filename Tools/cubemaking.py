@@ -342,11 +342,23 @@ def model_cube(output_dir,
 
     Parameters
     ----------
+    - output_dir (str): directory where to get input files and 
+    save outputs
+    - map_reso (float): the resolution of the map (can be an
+    astropy.unit object, or in deg)
+    - map_coord (float): a skycoord object that give the center of the map
+    - map_fov (float): the field of view of the map (can be an 
+    astropy.unit object, or in deg)
+    - emin/emax (float): min and max energy in TeV
+    - enumbins (int): the number of energy bins
+    - ebinalg (str): the energy binning algorithm
+    - stack (bool): do we use stacking of individual event files or not
+    - silent (bool): use this keyword to print information
 
     Outputs
     --------
     """
-
+    
     npix = utilities.npix_from_fov_def(map_fov, map_reso)
     
     model = ctools.ctmodel()
