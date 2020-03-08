@@ -373,21 +373,20 @@ class CTAana(object):
         
         #----- Compute the TS map
         if do_TS:
-            src    = 'NGC1275'
             fov_ts = 0.5*u.deg
             reso_ts = 0.05*u.deg
             npix_ts = utilities.npix_from_fov_def(fov_ts, reso_ts)
-            wsrc = self.compact_source.name == src
-            
-            tsmap = tools_imaging.tsmap(inobs, inmodel, self.output_dir+'/Ana_TSmap_'+src+'.fits',
-                                        src,
-                                        npix_ts, reso_ts.to_value('deg'),
-                                        self.compact_source.spatial[wsrc]['param']['RA']['value'].to_value('deg'),
-                                        self.compact_source.spatial[wsrc]['param']['DEC']['value'].to_value('deg'),
-                                        expcube=None, psfcube=None, bkgcube=None, edispcube=None,
-                                        caldb=None, irf=None, edisp=self.spec_edisp,
-                                        statistic=self.method_stat,
-                                        silent=self.silent)
+
+            for src in self.compact_source.name:
+                wsrc = np.where(np.array(self.compact_source.name) == src)[0][0]
+                ctr_ra  = self.compact_source.spatial[wsrc]['param']['RA']['value'].to_value('deg')
+                ctr_dec = self.compact_source.spatial[wsrc]['param']['DEC']['value'].to_value('deg')
+                tsmap = tools_imaging.tsmap(inobs, inmodel, self.output_dir+'/Ana_TSmap_'+src+'.fits',
+                                            src, npix_ts, reso_ts.to_value('deg'), ctr_ra, ctr_dec,
+                                            expcube=None, psfcube=None, bkgcube=None, edispcube=None,
+                                            caldb=None, irf=None, edisp=self.spec_edisp,
+                                            statistic=self.method_stat,
+                                            silent=self.silent)
         
         #----- Compute profile
         #tools_imaging.profile()
