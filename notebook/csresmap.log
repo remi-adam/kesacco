@@ -1,0 +1,58 @@
+2020-03-08T12:59:20: ********************************************************************************
+2020-03-08T12:59:20: *                                   csresmap                                   *
+2020-03-08T12:59:20: * ---------------------------------------------------------------------------- *
+2020-03-08T12:59:20: * Version: 1.6.3                                                               *
+2020-03-08T12:59:20: ********************************************************************************
+2020-03-08T12:59:20: +============+
+2020-03-08T12:59:20: | Parameters |
+2020-03-08T12:59:20: +============+
+2020-03-08T12:59:20:  inobs .....................: /Users/adam/Desktop/Test/Ana_Countscube.fits
+2020-03-08T12:59:20:  inmodel ...................: /Users/adam/Desktop/Test/Ana_Model_Intput_Stack.xml
+2020-03-08T12:59:20:  modcube ...................: /Users/adam/Desktop/Test/Ana_Model_Cube.fits
+2020-03-08T12:59:20:  expcube ...................: /Users/adam/Desktop/Test/Ana_Expcube.fits
+2020-03-08T12:59:20:  psfcube ...................: /Users/adam/Desktop/Test/Ana_Psfcube.fits
+2020-03-08T12:59:20:  edispcube .................: [not queried]
+2020-03-08T12:59:20:  bkgcube ...................: /Users/adam/Desktop/Test/Ana_Bkgcube.fits
+2020-03-08T12:59:20:  caldb .....................: [not queried]
+2020-03-08T12:59:20:  irf .......................: [not queried]
+2020-03-08T12:59:20:  edisp .....................: no
+2020-03-08T12:59:20:  outmap ....................: /Users/adam/Desktop/Test/Ana_ResmapTot.fits
+2020-03-08T12:59:20:  ebinalg ...................: LOG
+2020-03-08T12:59:20:  emin ......................: 0.05
+2020-03-08T12:59:20:  emax ......................: 100
+2020-03-08T12:59:20:  enumbins ..................: 10
+2020-03-08T12:59:20:  ebinfile ..................: NONE
+2020-03-08T12:59:20:  coordsys ..................: CEL
+2020-03-08T12:59:20:  proj ......................: TAN
+2020-03-08T12:59:20:  xref ......................: 50.4440630196342
+2020-03-08T12:59:20:  yref ......................: 41.6804428422231
+2020-03-08T12:59:20:  nxpix .....................: 415
+2020-03-08T12:59:20:  nypix .....................: 415
+2020-03-08T12:59:20:  binsz .....................: 0.02
+2020-03-08T12:59:20:  algorithm .................: SIGNIFICANCE
+2020-03-08T12:59:20:  publish ...................: no
+2020-03-08T12:59:20:  chatter ...................: 2
+2020-03-08T12:59:20:  clobber ...................: yes
+2020-03-08T12:59:20:  debug .....................: no
+2020-03-08T12:59:20:  mode ......................: ql
+2020-03-08T12:59:20:  logfile ...................: csresmap.log
+2020-03-08T12:59:20: 
+2020-03-08T12:59:20: WARNING: Energy dispersion will *NOT* be considered for the computation. To consider
+2020-03-08T12:59:20:          energy dispersion, please set the "edisp" parameter to "yes". Be aware that
+2020-03-08T12:59:20:          using energy dispersion will considerably slow down the computations.
+2020-03-08T12:59:20: 
+2020-03-08T12:59:20: +==============+
+2020-03-08T12:59:20: | Observations |
+2020-03-08T12:59:20: +==============+
+2020-03-08T12:59:20: === GObservations ===
+2020-03-08T12:59:20:  Number of observations ....: 0
+2020-03-08T12:59:20:  Number of models ..........: 0
+2020-03-08T12:59:20:  Number of observed events .: 0
+2020-03-08T12:59:20:  Number of predicted events : 0
+2020-03-08T12:59:21: 
+2020-03-08T12:59:21: +===================+
+2020-03-08T12:59:21: | Save residual map |
+2020-03-08T12:59:21: +===================+
+2020-03-08T12:59:21:  Residual map file .........: /Users/adam/Desktop/Test/Ana_ResmapTot.fits
+2020-03-08T13:02:38: 
+2020-03-08T13:02:38: Application "csresmap" terminated after 198 wall clock seconds, consuming 197.326 seconds of CPU time.

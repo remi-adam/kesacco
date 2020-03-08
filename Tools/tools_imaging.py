@@ -57,39 +57,39 @@ def skymap(inobs, outmap,
 
     """
     
-    skymap = ctools.ctskymap()    
+    smap = ctools.ctskymap()    
 
-    skymap['inobs']    = inobs
-    if caldb is not None: skymap['caldb'] = caldb
-    if irf   is not None: skymap['irf']   = irf
-    skymap['inmap']    = 'NONE'
-    skymap['outmap']   = outmap
-    skymap['emin']     = emin
-    skymap['emax']     = emax
-    skymap['usepnt']   = False
-    skymap['nxpix']    = npix
-    skymap['nypix']    = npix
-    skymap['binsz']    = reso
-    skymap['coordsys'] = 'CEL'
-    skymap['proj']     = 'TAN'
-    skymap['xref']     = cra
-    skymap['yref']     = cdec
+    smap['inobs']    = inobs
+    if caldb is not None: smap['caldb'] = caldb
+    if irf   is not None: smap['irf']   = irf
+    smap['inmap']    = 'NONE'
+    smap['outmap']   = outmap
+    smap['emin']     = emin
+    smap['emax']     = emax
+    smap['usepnt']   = False
+    smap['nxpix']    = npix
+    smap['nypix']    = npix
+    smap['binsz']    = reso
+    smap['coordsys'] = 'CEL'
+    smap['proj']     = 'TAN'
+    smap['xref']     = cra
+    smap['yref']     = cdec
     
-    skymap['bkgsubtract'] = bkgsubtract
-    skymap['roiradius']   = roiradius
-    skymap['inradius']    = inradius
-    skymap['outradius']   = outradius
-    skymap['iterations']  = iterations
-    skymap['threshold']   = threshold
-    skymap['inexclusion'] = 'NONE'
-    skymap['usefft']      = True
+    smap['bkgsubtract'] = bkgsubtract
+    smap['roiradius']   = roiradius
+    smap['inradius']    = inradius
+    smap['outradius']   = outradius
+    smap['iterations']  = iterations
+    smap['threshold']   = threshold
+    smap['inexclusion'] = 'NONE'
+    smap['usefft']      = True
 
-    skymap.execute()
+    smap.execute()
 
     if not silent:
-        print(skymap)
+        print(smap)
 
-    return skymap
+    return smap
 
 
 #==================================================
@@ -138,7 +138,7 @@ def src_detect(inskymap, outmodel, outds9file,
     srcdet['maxsrcs']    = maxsrcs
     srcdet['avgrad']     = avgrad
     srcdet['corr_rad']   = corr_rad
-    srcdet['corr_kern']  = 'DISK' #<NONE|DISK|GAUSSIAN>
+    srcdet['corr_kern']  = 'GAUSSIAN' #<NONE|DISK|GAUSSIAN>
     srcdet['exclrad']    = exclrad
     srcdet['fit_pos']    = True
     srcdet['fit_shape']  = True
@@ -167,9 +167,7 @@ def tsmap(inobs, inmodel, outmap, srcname,
           statistic='DEFAULT',
           like_accuracy=0.005,
           max_iter=50,
-          
-
-        silent=False):
+          silent=False):
     """
     Compute TS map.
     http://cta.irap.omp.eu/ctools/users/reference_manual/cttsmap.html
@@ -180,42 +178,42 @@ def tsmap(inobs, inmodel, outmap, srcname,
     Outputs
     --------
     """
-    
-    tsmap = ctools.cttsmap()
 
-    tsmap['inobs']         = inobs
-    tsmap['inmodel']       = inmodel
-    tsmap['srcname']       = srcname
-    if expcube   is not None: tsmap['expcube']   = expcube
-    if psfcube   is not None: tsmap['psfcube']   = psfcube
-    if edispcube is not None: tsmap['edispcube'] = edispcube
-    if bkgcube   is not None: tsmap['bkgcube']   = bkgcube
-    if caldb     is not None: tsmap['caldb']     = caldb
-    if irf       is not None: tsmap['irf']       = irf
-    if edisp     is not None: tsmap['edisp']     = edisp
-    tsmap['outmap']        = outmap
-    tsmap['errors']        = False
-    tsmap['statistic']     = statistic
-    tsmap['like_accuracy'] = like_accuracy
-    tsmap['max_iter']      = max_iter
-    tsmap['usepnt']        = False
-    tsmap['nxpix']         = npix
-    tsmap['nypix']         = npix
-    tsmap['binsz']         = reso
-    tsmap['coordsys']      = 'CEL'
-    tsmap['proj']          = 'TAN'
-    tsmap['xref']          = cra
-    tsmap['yref']          = cdec
-    tsmap['binmin']        = -1
-    tsmap['binmax']        = -1
-    tsmap['logL0']         = -1.0
+    ts_map = ctools.cttsmap()
     
-    tsmap.execute()
+    ts_map['inobs']         = inobs
+    ts_map['inmodel']       = inmodel
+    ts_map['srcname']       = srcname
+    if expcube   is not None: ts_map['expcube']   = expcube
+    if psfcube   is not None: ts_map['psfcube']   = psfcube
+    if edispcube is not None: ts_map['edispcube'] = edispcube
+    if bkgcube   is not None: ts_map['bkgcube']   = bkgcube
+    if caldb     is not None: ts_map['caldb']     = caldb
+    if irf       is not None: ts_map['irf']       = irf
+    ts_map['edisp']         = edisp
+    ts_map['outmap']        = outmap
+    ts_map['errors']        = False
+    ts_map['statistic']     = statistic
+    ts_map['like_accuracy'] = like_accuracy
+    ts_map['max_iter']      = max_iter
+    ts_map['usepnt']        = False
+    ts_map['nxpix']         = npix
+    ts_map['nypix']         = npix
+    ts_map['binsz']         = reso
+    ts_map['coordsys']      = 'CEL'
+    ts_map['proj']          = 'TAN'
+    ts_map['xref']          = cra
+    ts_map['yref']          = cdec
+    #ts_map['binmin']        = -1
+    #ts_map['binmax']        = -1
+    #ts_map['logL0']         = -1.0
     
     if not silent:
-        print(tsmap)
-    
-    return tsmap
+        print(ts_map)
+
+    ts_map.execute()
+        
+    return ts_map
 
 
 #==================================================
@@ -247,37 +245,37 @@ def resmap(inobs, inmodel, output_map,
     - return a skymap object
     """
 
-    resmap = cscripts.csresmap()
+    rmap = cscripts.csresmap()
     
-    resmap['inobs']     = inobs     
-    resmap['inmodel']   = inmodel   
-    if modcube   is not None: resmap['modcube']   = modcube   
-    if expcube   is not None: resmap['expcube']   = expcube
-    if psfcube   is not None: resmap['psfcube']   = psfcube
-    if edispcube is not None: resmap['edispcube'] = edispcube
-    if bkgcube   is not None: resmap['bkgcube']   = bkgcube
-    if caldb     is not None: resmap['caldb']     = caldb     
-    if irf       is not None: resmap['irf']       = irf       
-    resmap['edisp']     = edisp     
-    resmap['outmap']    = output_map 
-    resmap['ebinalg']   = ebinalg   
-    resmap['emin']      = emin      
-    resmap['emax']      = emax      
-    resmap['enumbins']  = enumbins  
-    resmap['ebinfile']  = 'NONE'    
-    resmap['coordsys']  = 'CEL'            
-    resmap['proj']      = 'TAN'     
-    resmap['xref']      = cra       
-    resmap['yref']      = cdec      
-    resmap['nxpix']     = npix      
-    resmap['nypix']     = npix      
-    resmap['binsz']     = reso      
-    resmap['algorithm'] = algo      
+    rmap['inobs']     = inobs     
+    rmap['inmodel']   = inmodel   
+    if modcube   is not None: rmap['modcube']   = modcube   
+    if expcube   is not None: rmap['expcube']   = expcube
+    if psfcube   is not None: rmap['psfcube']   = psfcube
+    if edispcube is not None: rmap['edispcube'] = edispcube
+    if bkgcube   is not None: rmap['bkgcube']   = bkgcube
+    if caldb     is not None: rmap['caldb']     = caldb     
+    if irf       is not None: rmap['irf']       = irf       
+    rmap['edisp']     = edisp     
+    rmap['outmap']    = output_map 
+    rmap['ebinalg']   = ebinalg   
+    rmap['emin']      = emin      
+    rmap['emax']      = emax      
+    rmap['enumbins']  = enumbins  
+    rmap['ebinfile']  = 'NONE'    
+    rmap['coordsys']  = 'CEL'            
+    rmap['proj']      = 'TAN'     
+    rmap['xref']      = cra       
+    rmap['yref']      = cdec      
+    rmap['nxpix']     = npix      
+    rmap['nypix']     = npix      
+    rmap['binsz']     = reso      
+    rmap['algorithm'] = algo      
     
-    resmap.execute()
+    rmap.execute()
 
     if not silent:
-        print(resmap)
+        print(rmap)
     
-    return resmap
+    return rmap
 

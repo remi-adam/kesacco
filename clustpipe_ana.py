@@ -288,7 +288,11 @@ class CTAana(object):
     # Run the imaging analysis
     #==================================================
     
-    def run_ana_imaging(self, UsePtgRef=True, bkgsubtract='NONE', do_TS=False):
+    def run_ana_imaging(self, UsePtgRef=True, bkgsubtract='NONE',
+                        do_Skymap=False,
+                        do_SourceDet=False,
+                        do_Res=False,
+                        do_TS=False):
         """
         Run the imaging analysis
         
@@ -303,7 +307,7 @@ class CTAana(object):
             self._match_anamap_to_pointing()       # Analysis map defined using pointings
             
         npix = utilities.npix_from_fov_def(self.map_fov, self.map_reso)
-
+        
         #----- Defines cubes
         expcube   = None
         psfcube   = None
@@ -328,52 +332,62 @@ class CTAana(object):
             inmodel = self.output_dir+'/Ana_Model_Input.xml'
 
         #----- Compute skymap
-        skymap = tools_imaging.skymap(self.output_dir+'/Ana_EventsSelected.xml',
-                                      self.output_dir+'/Ana_SkymapTot.fits',
-                                      npix,self.map_reso.to_value('deg'),
-                                      self.map_coord.icrs.ra.to_value('deg'),
-                                      self.map_coord.icrs.dec.to_value('deg'),
-                                      emin=self.spec_emin.to_value('TeV'), 
-                                      emax=self.spec_emax.to_value('TeV'),
-                                      caldb=None, irf=None,
-                                      bkgsubtract=bkgsubtract,
-                                      roiradius=0.1,inradius=1.0,outradius=2.0,
-                                      iterations=3,threshold=3,
-                                      silent=self.silent)
-        
-        #----- Search for sources
-        srcmap = tools_imaging.src_detect(self.output_dir+'/Ana_SkymapTot.fits',
-                                          self.output_dir+'/Ana_Sourcedetect.xml',
-                                          self.output_dir+'/Ana_Sourcedetect.reg',
-                                          threshold=4.0, maxsrcs=20, avgrad=1.0, exclrad=0.2,
+        if do_Skymap:
+            skymap = tools_imaging.skymap(self.output_dir+'/Ana_EventsSelected.xml',
+                                          self.output_dir+'/Ana_SkymapTot.fits',
+                                          npix,self.map_reso.to_value('deg'),
+                                          self.map_coord.icrs.ra.to_value('deg'),
+                                          self.map_coord.icrs.dec.to_value('deg'),
+                                          emin=self.spec_emin.to_value('TeV'), 
+                                          emax=self.spec_emax.to_value('TeV'),
+                                          caldb=None, irf=None,
+                                          bkgsubtract=bkgsubtract,
+                                          roiradius=0.1,inradius=1.0,outradius=2.0,
+                                          iterations=3,threshold=3,
                                           silent=self.silent)
         
+        #----- Search for sources
+        if do_SourceDet:
+            srcmap = tools_imaging.src_detect(self.output_dir+'/Ana_SkymapTot.fits',
+                                              self.output_dir+'/Ana_Sourcedetect.xml',
+                                              self.output_dir+'/Ana_Sourcedetect.reg',
+                                              threshold=4.0, maxsrcs=10, avgrad=1.0, corr_rad=0.05, exclrad=0.2,
+                                              silent=self.silent)
+        
         #----- Compute residual (w/wo cluster subtracted)
-        resmap = tools_imaging.resmap(inobs, inmodel, self.output_dir+'/Ana_ResmapTot.fits',
-                                      npix, self.map_reso.to_value('deg'),
-                                      self.map_coord.icrs.ra.to_value('deg'),
-                                      self.map_coord.icrs.dec.to_value('deg'),
-                                      emin=self.spec_emin.to_value('TeV'), emax=self.spec_emax.to_value('TeV'),
-                                      enumbins=self.spec_enumbins, ebinalg=self.spec_ebinalg,
-                                      modcube=modcube, 
-                                      expcube=expcube, psfcube=psfcube, bkgcube=bkgcube, edispcube=edispcube,
-                                      caldb=None, irf=None,
-                                      edisp=self.spec_edisp,
-                                      algo='SIGNIFICANCE',
-                                      silent=self.silent)
+        if do_Res:
+            resmap = tools_imaging.resmap(inobs, inmodel, self.output_dir+'/Ana_ResmapTot.fits',
+                                          npix, self.map_reso.to_value('deg'),
+                                          self.map_coord.icrs.ra.to_value('deg'),
+                                          self.map_coord.icrs.dec.to_value('deg'),
+                                          emin=self.spec_emin.to_value('TeV'),
+                                          emax=self.spec_emax.to_value('TeV'),
+                                          enumbins=self.spec_enumbins, ebinalg=self.spec_ebinalg,
+                                          modcube=modcube, 
+                                          expcube=expcube, psfcube=psfcube,
+                                          bkgcube=bkgcube, edispcube=edispcube,
+                                          caldb=None, irf=None,
+                                          edisp=self.spec_edisp,
+                                          algo='SIGNIFICANCE',
+                                          silent=self.silent)
         
         #----- Compute the TS map
-        reso_ts = self.map_reso/10.0
-        npix_ts = utilities.npix_from_fov_def(self.map_fov, reso_ts)
-
-        if do_TS: tsmap = tools_imaging.tsmap(inobs, inmodel, self.output_dir+'/Ana_TSmap_IC310.fits',
-                                              'IC310',
-                                              npix_ts, reso_ts.to_value('deg'), #self.map_reso.to_value('deg'),
-                                              self.map_coord.icrs.ra.to_value('deg'),
-                                              self.map_coord.icrs.dec.to_value('deg'),
-                                              expcube=expcube, psfcube=psfcube, bkgcube=bkgcube, edispcube=edispcube,
-                                              caldb=None, irf=None, edisp=self.spec_edisp,
-                                              statistic=self.method_stat)
+        if do_TS:
+            src    = 'NGC1275'
+            fov_ts = 0.5*u.deg
+            reso_ts = 0.05*u.deg
+            npix_ts = utilities.npix_from_fov_def(fov_ts, reso_ts)
+            wsrc = self.compact_source.name == src
+            
+            tsmap = tools_imaging.tsmap(inobs, inmodel, self.output_dir+'/Ana_TSmap_'+src+'.fits',
+                                        src,
+                                        npix_ts, reso_ts.to_value('deg'),
+                                        self.compact_source.spatial[wsrc]['param']['RA']['value'].to_value('deg'),
+                                        self.compact_source.spatial[wsrc]['param']['DEC']['value'].to_value('deg'),
+                                        expcube=None, psfcube=None, bkgcube=None, edispcube=None,
+                                        caldb=None, irf=None, edisp=self.spec_edisp,
+                                        statistic=self.method_stat,
+                                        silent=self.silent)
         
         #----- Compute profile
         #tools_imaging.profile()
