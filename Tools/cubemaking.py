@@ -335,6 +335,8 @@ def model_cube(output_dir,
                emin, emax, enumbins, ebinalg,
                edisp=False,
                stack=True,
+               inmodel_usr=None,
+               outmap_usr=None,
                silent=False):
     """
     Compute a model cube.
@@ -353,6 +355,8 @@ def model_cube(output_dir,
     - enumbins (int): the number of energy bins
     - ebinalg (str): the energy binning algorithm
     - stack (bool): do we use stacking of individual event files or not
+    - inmodel_usr (str): use this keyword to pass non default inmodel
+    - outmap_usr (str): use this keyword to pass non default outmap
     - silent (bool): use this keyword to print information
 
     Outputs
@@ -367,8 +371,10 @@ def model_cube(output_dir,
         model['inobs'] = output_dir+'/Ana_Countscube.fits'
     else:
         model['inobs'] = output_dir+'/Ana_ObsDef.xml'
-    model['inmodel']   = output_dir+'/Ana_Model_Output.xml'
-    
+    if inmodel_usr is None:
+        model['inmodel']   = output_dir+'/Ana_Model_Output.xml'
+    else:
+        model['inmodel']   = inmodel_usr
     model['incube']    = 'NONE'
     model['expcube']   = 'NONE'
     model['psfcube']   = 'NONE'
@@ -385,7 +391,10 @@ def model_cube(output_dir,
     model['caldb']     = 'NONE'
     model['irf']       = 'NONE'
     model['edisp']     = edisp
-    model['outcube']   = output_dir+'/Ana_Model_Cube.fits'
+    if outmap_usr is None:
+        model['outcube']   = output_dir+'/Ana_Model_Cube.fits'
+    else:
+        model['outcube']   = outmap_usr
     model['ra']        = 'NONE'
     model['dec']       = 'NONE'
     model['rad']       = 'NONE'

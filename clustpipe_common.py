@@ -164,7 +164,7 @@ class Common():
         xml     = gammalib.GXml(xmlin)
         obslist = xml.element('observation_list')
         obsid_in = []
-        for i in range(len(obslist)):
+        for i in range(len(obslist))[::-1]:
             if obslist[i].attribute('id') not in obsID:
                 obslist.remove(i)
             else:
@@ -173,7 +173,35 @@ class Common():
             if obsID[i] not in obsid_in:
                 print('WARNING: Event file with obsID '+obsID[i]+' does not exist. It is ignored.')
         xml.save(xmlout)
+
+
+    #==================================================
+    # Remove a given source from a xml model
+    #==================================================
     
+    def _rm_source_xml(self, xmlin, xmlout, source):
+        """
+        Read a model xml file, remove a given source, and write 
+        a new model file.
+        
+        Parameters
+        ----------
+        - xmlin (str): input xml file
+        - xmlout (str): output xml file
+        - source (str): name of the source to remove
+
+        Outputs
+        -------
+        - The new xml file is writen
+        """
+
+        xml = gammalib.GXml(xmlin)
+        srclist = xml.element('source_library')
+        for i in range(len(srclist))[::-1]:
+            if srclist[i].attribute('name') == source: 
+                srclist.remove(i)
+        xml.save(xmlout)
+        
         
     #==================================================
     # Match the cluster map and FoV to the pointing def

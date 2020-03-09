@@ -7,37 +7,32 @@ import gammalib
 import ctools
 import cscripts
 
-def main(param):
+
+#==================================================
+# Spectrum
+#==================================================
+def spectrum():    
     """
-    Perform spectrum analysis
+    Compute a spectrum for a given source.
+    See http://cta.irap.omp.eu/ctools/users/reference_manual/csspec.html
 
     Parameters
     ----------
-    - param: dictionary parameter file
-    
+    -
+    -
+    -
+    -
+
     Outputs
     --------
-    - spectra files
+    - create spectrum fits
+
     """
-    
-    print('')
-    print('************************************************')
-    print('-------------- Compute spectra -----------------')
-    print('************************************************')
-    
-    models = gammalib.GModels(param['output_dir']+'/clustana_input_model.xml')
-    nsource = len(models)
 
-    #******************************************************************************************
-    #------------------------------------- Compute spectra ------------------------------------
-    #******************************************************************************************
-    
-    for isource in range(nsource):
-        
-        isource_name = models[isource].name()
+    spec = cscripts.csspec()
 
-        spec = cscripts.csspec()
 
+    '''
         #========== Binned analysis     
         if param['binned']:
             spec['inobs']     = param['output_dir']+'/clustana_DataPrep_ctbin.fits'
@@ -71,18 +66,39 @@ def main(param):
         spec['calc_ulim'] = True
         spec['fix_srcs']  = False
         spec['fix_bkg']   = False
-      
-        spec.run()
-        spec.save()
-        print('---------- '+isource_name+' ----------')
-        print(spec)
-        print('')
-
-    #******************************************************************************************
-    #------------------------------------- Compute Residual -----------------------------------
-    #******************************************************************************************
-    resi = cscripts.csresspec()
+    '''
     
+    spec.execute()
+
+    if not silent:
+        print(spec)
+
+    return spec
+
+#==================================================
+# Spectrum residual
+#==================================================
+def residual():
+    """
+    Generates residual spectrum.
+    See http://cta.irap.omp.eu/ctools/users/reference_manual/csresspec.html
+
+    Parameters
+    ----------
+    -
+    -
+    -
+    -
+
+    Outputs
+    --------
+    - create residual spectrum fits
+
+    """
+    
+    rspec = cscripts.csresspec()
+
+    '''
     #========== Binned analysis     
     if param['binned']:
         resi['inobs']     = param['output_dir']+'/clustana_DataPrep_ctbin.fits'
@@ -118,22 +134,40 @@ def main(param):
     resi['rad']        = param['cluster_t500'].to_value('deg')
     resi['algorithm']  = 'SIGNIFICANCE'
 
-    resi.execute()
-    print('---------- Residual ----------')
-    print(resi)
-    print('')
-
-    #******************************************************************************************
-    #------------------------------------- Compute Butterfly ----------------------------------
-    #******************************************************************************************
-
-    for isource in range(nsource):
-       
-        isource_name = models[isource].name()
-
-        if isource_name != 'Background':
-            but = ctools.ctbutterfly()
+    '''
     
+    rspec.execute()
+
+    if not silent:
+        print(rspec)
+
+    return rspec
+
+
+#==================================================
+# Butterfly
+#==================================================
+def butterfly():
+    """
+    Computes butterfly diagram for a given spectral model.
+    See http://cta.irap.omp.eu/ctools/users/reference_manual/ctbutterfly.html
+
+    Parameters
+    ----------
+    - 
+    -
+    -
+    -
+
+    Outputs
+    --------
+    - create butterfly fits
+
+    """
+    
+    but = ctools.ctbutterfly()
+
+    '''
             #========== Binned analysis     
             if param['binned']:
                 but['inobs']     = param['output_dir']+'/clustana_DataPrep_ctbin.fits'
@@ -167,8 +201,12 @@ def main(param):
             but['emin']       = param['emin'].to_value('TeV') * 0.5
             but['emax']       = param['emax'].to_value('TeV') * 2.0
             but['enumbins']   = 100
-        
-            but.execute()
-            print('---------- Butterfly: '+isource_name+'----------')
-            print(but)
-            print('')
+    '''
+
+    but.execute()
+
+    if not silent:
+        print(but)
+
+    return but
+
