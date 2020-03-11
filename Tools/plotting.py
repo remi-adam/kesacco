@@ -267,11 +267,10 @@ def show_map(mapfile, outfile,
     image = ndimage.gaussian_filter(image, sigma=sigma_sm)
 
     if significance:
-        norm = []
-        for i in range(100):
-            norm.append(np.std(ndimage.gaussian_filter(np.random.normal(loc=0.0, scale=1.0, size=image.shape), sigma=sigma_sm)))
+        norm = 2*sigma_sm*np.sqrt(np.pi) # Mean noise reduction when smoothing, assuming gaussian non correlated noise
         image = image / np.mean(norm)
-        print('WARNING: the significance is boosted accounting for smoothing assuming gaussian noise')
+        print('WARNING: The significance is boosted accounting for smoothing.')
+        print('         This assumes weak noise spatial variarion (w.r.t. smoothing), gaussian regime, and uncorrelated pixels.')
         
     #--------- map range
     if rangevalue[0] is None:
