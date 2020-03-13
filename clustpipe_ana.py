@@ -11,6 +11,9 @@ modules that allow for a user dedicated analysis.
 import os
 import numpy as np
 import astropy.units as u
+from astropy.io import fits
+from astropy.wcs import WCS
+from astropy.table import Table, Column
 import copy
 import ctools
 import gammalib
@@ -22,6 +25,8 @@ from ClusterPipe.Tools import plotting
 from ClusterPipe.Tools import cubemaking
 from ClusterPipe.Tools import utilities
 from clustpipe_sim_plot import skymap_quicklook
+
+from ClusterModel.ClusterTools.map_tools import radial_profile
 
 
 #==================================================
@@ -52,7 +57,6 @@ class CTAana(object):
     
     def run_analysis(self,
                      obsID=None,
-                     UsePtgRef=True,
                      refit=False,
                      like_accuracy=0.005,
                      max_iter=50,
@@ -66,7 +70,7 @@ class CTAana(object):
         """
 
         #----- Data preparation
-        self.run_ana_dataprep(obsID=obsID, UsePtgRef=UsePtgRef)
+        self.run_ana_dataprep(obsID=obsID)
         
         #----- Likelihood fit
         self.run_ana_likelihood(refit=refit, like_accuracy=like_accuracy,
@@ -89,7 +93,7 @@ class CTAana(object):
     # Data preparation
     #==================================================
     
-    def run_ana_dataprep(self, obsID=None, UsePtgRef=True):
+    def run_ana_dataprep(self, obsID=None):
         """
         This function is used to prepare the data to the 
         analysis.
@@ -98,8 +102,6 @@ class CTAana(object):
         ----------
         - obsID (str): list of obsID to be used in data preparation. 
         By default, all of the are used.
-        - UsePtgRef (bool): use this keyword to match the coordinates 
-        of the cluster template, map coordinates and FoV to pointings.
         
         """
         
@@ -143,7 +145,7 @@ class CTAana(object):
         sel.execute()
         
         #----- Model
-        if UsePtgRef:
+        if self.map_UsePtgRef:
             self._match_cluster_to_pointing()      # Cluster map defined using pointings
             self._match_anamap_to_pointing()       # Analysis map defined using pointings
             
@@ -176,8 +178,7 @@ class CTAana(object):
     # Run the likelihood analysis
     #==================================================
     
-    def run_ana_likelihood(self, UsePtgRef=True,
-                           refit=False,
+    def run_ana_likelihood(self, refit=False,
                            like_accuracy=0.005,
                            max_iter=50,
                            fix_spat_for_ts=False):
@@ -187,8 +188,6 @@ class CTAana(object):
         
         Parameters
         ----------
-        - UsePtgRef (bool): use this keyword to match the coordinates 
-        of the cluster template, map coordinates and FoV to pointings.
         - refit (bool): Perform refitting of solution after initial fit.
         - like_accuracy (float): Absolute accuracy of maximum likelihood value
         - max_iter (int): Maximum number of fit iterations.
@@ -197,7 +196,7 @@ class CTAana(object):
         """
 
         #----- Make sure the map definition is ok
-        if UsePtgRef:
+        if self.map_UsePtgRef:
             self._match_cluster_to_pointing()      # Cluster map defined using pointings
             self._match_anamap_to_pointing()       # Analysis map defined using pointings
 
@@ -301,7 +300,7 @@ class CTAana(object):
     # Run the imaging analysis
     #==================================================
     
-    def run_ana_imaging(self, UsePtgRef=True, bkgsubtract='NONE',
+    def run_ana_imaging(self, bkgsubtract='NONE',
                         do_Skymap=False,
                         do_SourceDet=False,
                         do_Res=False,
@@ -314,14 +313,14 @@ class CTAana(object):
         
         """
 
-        #----- Make sure the map definition is ok
-        if UsePtgRef:
+        #========== Make sure the map definition is ok
+        if self.map_UsePtgRef:
             self._match_cluster_to_pointing()      # Cluster map defined using pointings
             self._match_anamap_to_pointing()       # Analysis map defined using pointings
             
         npix = utilities.npix_from_fov_def(self.map_fov, self.map_reso)
         
-        #----- Defines cubes
+        #========== Defines cubes
         expcube   = None
         psfcube   = None
         bkgcube   = None
@@ -345,7 +344,7 @@ class CTAana(object):
             inobs      = self.output_dir+'/Ana_EventsSelected.xml'
             inmodel    = self.output_dir+'/Ana_Model_Input.xml'
 
-        #----- Compute skymap
+        #========== Compute skymap
         if do_Skymap:
             skymap = tools_imaging.skymap(self.output_dir+'/Ana_EventsSelected.xml',
                                           self.output_dir+'/Ana_SkymapTot.fits',
@@ -360,7 +359,7 @@ class CTAana(object):
                                           iterations=3,threshold=3,
                                           silent=self.silent)
         
-        #----- Search for sources
+        #========== Search for sources
         if do_SourceDet:
             srcmap = tools_imaging.src_detect(self.output_dir+'/Ana_SkymapTot.fits',
                                               self.output_dir+'/Ana_Sourcedetect.xml',
@@ -368,40 +367,69 @@ class CTAana(object):
                                               threshold=4.0, maxsrcs=10, avgrad=1.0, corr_rad=0.05, exclrad=0.2,
                                               silent=self.silent)
         
-        #----- Compute residual (w/wo cluster subtracted)
+        #========== Compute residual (w/wo cluster subtracted)
         if do_Res:
-            resmap = tools_imaging.resmap(inobs, self.output_dir+'/Ana_Model_Output.xml',
-                                          self.output_dir+'/Ana_ResmapTot.fits',
-                                          npix, self.map_reso.to_value('deg'),
-                                          self.map_coord.icrs.ra.to_value('deg'),
-                                          self.map_coord.icrs.dec.to_value('deg'),
-                                          emin=self.spec_emin.to_value('TeV'),
-                                          emax=self.spec_emax.to_value('TeV'),
-                                          enumbins=self.spec_enumbins, ebinalg=self.spec_ebinalg,
-                                          modcube=modcube, 
-                                          expcube=expcube, psfcube=psfcube,
-                                          bkgcube=bkgcube, edispcube=edispcube,
-                                          caldb=None, irf=None,
-                                          edisp=self.spec_edisp,
-                                          algo='SIGNIFICANCE',
-                                          silent=self.silent)
+            #----- Total residual
+            for alg in ['SIGNIFICANCE', 'SUB', 'SUBDIV']:
+                resmap = tools_imaging.resmap(inobs, self.output_dir+'/Ana_Model_Output.xml',
+                                              self.output_dir+'/Ana_ResmapTot_'+alg+'.fits',
+                                              npix, self.map_reso.to_value('deg'),
+                                              self.map_coord.icrs.ra.to_value('deg'),
+                                              self.map_coord.icrs.dec.to_value('deg'),
+                                              emin=self.spec_emin.to_value('TeV'),
+                                              emax=self.spec_emax.to_value('TeV'),
+                                              enumbins=self.spec_enumbins, ebinalg=self.spec_ebinalg,
+                                              modcube=modcube, 
+                                              expcube=expcube, psfcube=psfcube,
+                                              bkgcube=bkgcube, edispcube=edispcube,
+                                              caldb=None, irf=None,
+                                              edisp=self.spec_edisp,
+                                              algo=alg,
+                                              silent=self.silent)
 
-            resmap = tools_imaging.resmap(inobs, self.output_dir+'/Ana_Model_Output_NoCluster.xml',
-                                          self.output_dir+'/Ana_ResmapNoCluster.fits',
-                                          npix, self.map_reso.to_value('deg'),
-                                          self.map_coord.icrs.ra.to_value('deg'),
-                                          self.map_coord.icrs.dec.to_value('deg'),
-                                          emin=self.spec_emin.to_value('TeV'),
-                                          emax=self.spec_emax.to_value('TeV'),
-                                          enumbins=self.spec_enumbins, ebinalg=self.spec_ebinalg,
-                                          modcube=modcube2, 
-                                          expcube=expcube, psfcube=psfcube,
-                                          bkgcube=bkgcube, edispcube=edispcube,
-                                          caldb=None, irf=None,
-                                          edisp=self.spec_edisp,
-                                          algo='SIGNIFICANCE',
-                                          silent=self.silent)
-        
+            #----- Residual keeping cluster
+            for alg in ['SIGNIFICANCE', 'SUB', 'SUBDIV']:
+                resmap = tools_imaging.resmap(inobs, self.output_dir+'/Ana_Model_Output_NoCluster.xml',
+                                              self.output_dir+'/Ana_ResmapNoCluster_'+alg+'.fits',
+                                              npix, self.map_reso.to_value('deg'),
+                                              self.map_coord.icrs.ra.to_value('deg'),
+                                              self.map_coord.icrs.dec.to_value('deg'),
+                                              emin=self.spec_emin.to_value('TeV'),
+                                              emax=self.spec_emax.to_value('TeV'),
+                                              enumbins=self.spec_enumbins, ebinalg=self.spec_ebinalg,
+                                              modcube=modcube2, 
+                                              expcube=expcube, psfcube=psfcube,
+                                              bkgcube=bkgcube, edispcube=edispcube,
+                                              caldb=None, irf=None,
+                                              edisp=self.spec_edisp,
+                                              algo=alg,
+                                              silent=self.silent)
+
+            #----- Cluster profile
+            hdul       = fits.open(self.output_dir+'/Ana_ResmapNoCluster_SUB.fits')
+            res_counts = hdul[0].data
+            header     = hdul[0].header
+            hdul.close()
+            hdul       = fits.open(self.output_dir+'/Ana_ResmapTot_SUB.fits')
+            res_all    = hdul[0].data
+            header     = hdul[0].header
+            hdul.close()
+            hdul       = fits.open(self.output_dir+'/Ana_ResmapTot_SUBDIV.fits')
+            subdiv_all = hdul[0].data
+            header     = hdul[0].header
+            hdul.close()
+            model = res_all/subdiv_all
+            
+            radius, prof, err = radial_profile(res_counts,
+                                               [self.cluster.coord.icrs.ra.to_value('deg'),
+                                                self.cluster.coord.icrs.dec.to_value('deg')],
+                                               stddev=np.sqrt(model), binsize=0.02, stat='POISSON',
+                                               header=header)
+            tab  = Table()
+            tab['radius']  = Column(radius, unit='deg', description='Cluster-centric angle')
+            tab['profile'] = Column(prof, unit='deg-2', description='Counts per deg2')
+            tab.write(self.output_dir+'/Ana_ResmapNoCluster_profile.fits', overwrite=True)
+            
         #----- Compute the TS map
         if do_TS:
             fov_ts = 0.5*u.deg
@@ -419,9 +447,6 @@ class CTAana(object):
                                             statistic=self.method_stat,
                                             silent=self.silent)
         
-        #----- Compute profile
-        #tools_imaging.profile()
-
 
     #==================================================
     # Run the spectral analysis

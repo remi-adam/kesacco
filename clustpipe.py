@@ -93,14 +93,15 @@ class ClusterPipe(Common, CTAsim, CTAana):
         #---------- Analysis parameters
         # Likelihood method related
         self.method_stack  = True
-        self.method_binned = False
+        self.method_binned = True
         self.method_stat   = 'DEFAULT' # CSTAT, WSTAT, CHI2
         self.method_onoff  = False
 
         # Map related
-        self.map_reso  = 0.02*u.deg
-        self.map_coord = SkyCoord(0.0, 0.0, frame="icrs", unit="deg")
-        self.map_fov   = 10*u.deg
+        self.map_reso      = 0.02*u.deg
+        self.map_coord     = SkyCoord(0.0, 0.0, frame="icrs", unit="deg")
+        self.map_fov       = 10*u.deg
+        self.map_UsePtgRef = True # Re-defines coordinates/FoV using pointings
         
         # Spectrum related
         self.spec_edisp    = False

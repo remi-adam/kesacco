@@ -268,7 +268,7 @@ def show_map(mapfile, outfile,
 
     if significance:
         norm = 2*sigma_sm*np.sqrt(np.pi) # Mean noise reduction when smoothing, assuming gaussian non correlated noise
-        image = image / np.mean(norm)
+        image *= norm
         print('WARNING: The significance is boosted accounting for smoothing.')
         print('         This assumes weak noise spatial variarion (w.r.t. smoothing), gaussian regime, and uncorrelated pixels.')
         

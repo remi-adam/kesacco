@@ -34,6 +34,13 @@ class Common():
     - config_save(self, config_file)
     - config_load(self)
     - _check_obsID(self, obsID)
+    - _correct_eventfile_names(self, xmlfile, prefix='Events')
+    - _write_new_xmlevent_from_obsid(self, xmlin, xmlout, obsID)
+    - _rm_source_xml(self, xmlin, xmlout, source)
+    - _match_cluster_to_pointing(self, extra=1.1)
+    - _match_anamap_to_pointing(self, extra=1.1)
+    - _make_model(self, prefix='Model', includeIC=True)
+
     """
         
     #==================================================
@@ -141,6 +148,43 @@ class Common():
         return obsID
 
 
+    #==================================================
+    # Correct XML and file names for simulated events
+    #==================================================
+    
+    def _correct_eventfile_names(self, xmlfile, prefix='Events'):
+        """
+        Change the event filename and associated xml file
+        by naming them using the obsid
+        
+        Parameters
+        ----------
+        - xmlfile (str): the xml file name
+        
+        """
+        
+        xml     = gammalib.GXml(xmlfile)
+        obslist = xml.element('observation_list')
+        for i in range(len(obslist)):
+            obs = obslist[i]
+            obsid = obs.attribute('id')
+
+            # make sure the EventList key exist
+            killnum = None
+            for j in range(len(obs)):
+                if obs[j].attribute('name') == 'EventList': killnum = j
+
+            # In case there is one EventList, move the file and rename the xml
+            if killnum is not None:
+                file_in = obs[killnum].attribute('file')
+                file_out = os.path.dirname(file_in)+'/'+prefix+obsid+'.fits'
+                os.rename(file_in, file_out)
+                obs.remove(killnum)
+                obs.append('parameter name="EventList" file="'+file_out+'"')
+                
+        xml.save(xmlfile)      
+
+        
     #==================================================
     # Write new events.xml file based on obsID
     #==================================================

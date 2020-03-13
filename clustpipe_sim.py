@@ -120,7 +120,7 @@ class CTAsim(object):
         
         #----- Get the obs ID to run (defaults is all of them)        
         obsID = self._check_obsID(obsID)
-        if not self.silent: print('----- ObsID to be observed: '+str(obsID))
+        if not self.silent: print('----- ObsID to be quicklooked: '+str(obsID))
 
         #----- Show the observing properties
         if ShowObsDef:
@@ -154,39 +154,3 @@ class CTAsim(object):
                 Nobs_done += 1
                 if not self.silent: print('----- Quicklook '+str(Nobs_done)+'/'+str(len(self.obs_setup.obsid))+' done')
             
-    #==================================================
-    # Correct XML and file names for simulated events
-    #==================================================
-    
-    def _correct_eventfile_names(self, xmlfile, prefix='Events'):
-        """
-        Change the event filename and associated xml file
-        by naming them using the obsid
-        
-        Parameters
-        ----------
-        - xmlfile (str): the xml file name
-        
-        """
-        
-        xml     = gammalib.GXml(xmlfile)
-        obslist = xml.element('observation_list')
-        for i in range(len(obslist)):
-            obs = obslist[i]
-            obsid = obs.attribute('id')
-
-            # make sure the EventList key exist
-            killnum = None
-            for j in range(len(obs)):
-                if obs[j].attribute('name') == 'EventList': killnum = j
-
-            # In case there is one EventList, move the file and rename the xml
-            if killnum is not None:
-                file_in = obs[killnum].attribute('file')
-                file_out = os.path.dirname(file_in)+'/'+prefix+obsid+'.fits'
-                os.rename(file_in, file_out)
-                obs.remove(killnum)
-                obs.append('parameter name="EventList" file="'+file_out+'"')
-                
-        xml.save(xmlfile)      
-        

@@ -174,9 +174,28 @@ def tsmap(inobs, inmodel, outmap, srcname,
 
     Parameters
     ----------
-
+    - inobs (string): input observation file
+    - inmodel (string): input model
+    - outmap (string): output map file
+    - srcname (string): name of the source to consider
+    - npix (int): number of map pixel
+    - reso (float): map resolution in degrees
+    - cra, cdec (float): map center RA,Dec in degrees
+    - expcube (string): exposure map cube
+    - psfcube (string): psfcube 
+    - bkgcube (string): background cube
+    - edispcube (string): energy dispersion cube
+    - caldb (string): calibration database
+    - irf (string): instrument response function
+    - edisp (bool): apply energy dispersion
+    - statistic (string): which statistic to use
+    - like_accuracy (float): likelihood accuracy
+    - max_iter (int): maximum number of iteration
+    - silent (bool): print information or not
     Outputs
     --------
+    - create TS map fits
+    - return a TS map object
     """
 
     ts_map = ctools.cttsmap()
@@ -238,11 +257,30 @@ def resmap(inobs, inmodel, output_map,
     
     Parameters
     ----------
-    
+    - inobs (string): input observation file
+    - inmodel (string): input model
+    - output_map (string): output map file
+    - npix (int): number of map pixel
+    - reso (float): map resolution in degrees
+    - cra, cdec (float): map center RA,Dec in degrees
+    - emin,emax (float) min and max energy considered in TeV
+    - enumbins (int): number of energy bins
+    - ebinalg (string): energy bining algorithm
+    - modcube (string): model map cube
+    - expcube (string): exposure map cube
+    - psfcube (string): psfcube 
+    - bkgcube (string): background cube
+    - edispcube (string): energy dispersion cube
+    - caldb (string): calibration database
+    - irf (string): instrument response function
+    - edisp (bool): apply energy dispersion
+    - algo (string): wich algorithm to use
+    - silent (bool): print information or not
+
     Outputs
     --------
-    - create sky map fits
-    - return a skymap object
+    - create residual map fits
+    - return a residual map object
     """
 
     rmap = cscripts.csresmap()
