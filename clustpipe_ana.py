@@ -423,11 +423,13 @@ class CTAana(object):
             radius, prof, err = radial_profile(res_counts,
                                                [self.cluster.coord.icrs.ra.to_value('deg'),
                                                 self.cluster.coord.icrs.dec.to_value('deg')],
-                                               stddev=np.sqrt(model), binsize=0.02, stat='POISSON',
-                                               header=header)
+                                               stddev=np.sqrt(model), header=header,
+                                               binsize=0.02, stat='POISSON',
+                                               counts2brightness=True)
             tab  = Table()
             tab['radius']  = Column(radius, unit='deg', description='Cluster-centric angle')
             tab['profile'] = Column(prof, unit='deg-2', description='Counts per deg2')
+            tab['error']   = Column(err, unit='deg-2', description='Counts per deg2 uncertainty')
             tab.write(self.output_dir+'/Ana_ResmapNoCluster_profile.fits', overwrite=True)
             
         #----- Compute the TS map
@@ -607,3 +609,7 @@ class CTAana(object):
                           logscale=False,
                           significance=True,
                           cmap='magma')
+        
+        plotting.show_profile(self.output_dir+'/Ana_ResmapNoCluster_profile.fits', 
+                              self.output_dir+'/Ana_ResmapNoCluster_profile.pdf',
+                              theta500=self.cluster.theta500, logscale=True)

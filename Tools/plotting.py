@@ -218,8 +218,6 @@ def show_map(mapfile, outfile,
              logscale=True,
              significance=False,
              cmap='magma'):
-
-
     """
     Plot maps to show.
 
@@ -375,7 +373,64 @@ def show_map(mapfile, outfile,
     else :
         print('!!!!!!!!!! WARNING: empty map, '+str(outfile)+' was not created')
         
+
+#==================================================
+# Show map
+#==================================================
+
+def show_profile(proffile, outfile,
+                 theta500=None,
+                 logscale=True):
+    """
+    Plot the profile to show.
+
+    Parameters
+    ----------
+    Mandatory parameters:
+    - mapfile (str): the map fits file to use
+    - outfile (str): the ooutput plot file
+    - cluster_t500 (deg): cluster theta 500
+
+    Outputs
+    --------
+    - validation plot profile
+    """
+
+    set_default_plot_param()
+
+    #---------- Read the data
+    data = fits.open(proffile)[1]
+    prof = data.data
+    r_unit = data.columns['radius'].unit
+    p_unit = data.columns['profile'].unit
+    
+    #---------- Plot
+    fig, ax1 = plt.subplots()
+    ax1.set_xlabel('Radius ('+str(r_unit)+')', color='k')
+    ax1.set_ylabel('Profile ('+str(p_unit)+')', color='k')
+
+    if logscale:
+        ax1.set_xscale('log')
+        ax1.set_yscale('log')
+        w_pos = prof['profile'] > 0
+        w_neg = prof['profile'] < 0
+        ax1.errorbar(prof['radius'][w_pos], prof['profile'][w_pos], yerr=prof['error'][w_pos],
+                     color='blue',marker='o',linestyle='', label='values > 0')
+        ax1.errorbar(prof['radius'][w_neg], -prof['profile'][w_neg], yerr=prof['error'][w_neg],
+                     color='orange',marker='.',linestyle='', label='values < 0')
+        ax1.set_xlim(np.amin(prof['radius'])*0.5, np.amax(prof['radius']))
+    else:
+        ax1.errorbar(prof['radius'], prof['profile'], yerr=prof['error'], color='blue',marker='o',linestyle='')
+        ax1.set_xlim(0, np.amax(prof['radius']))
         
+    if theta500 is not None:
+        ax1.axvline(theta500.to_value(r_unit), ymin=1e-300, ymax=1e300,
+                    color='black', label='$\\theta_{500}$', linestyle='--')
+    ax1.legend()
+    fig.savefig(outfile)
+    plt.close()
+
+    
 #==================================================
 # Quicklook of the event
 #==================================================
