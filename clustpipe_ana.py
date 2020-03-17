@@ -118,7 +118,8 @@ class CTAana(object):
         self.obs_setup.run_csobsdef(self.output_dir+'/Ana_Pnt.def', self.output_dir+'/Ana_ObsDef.xml')
 
         #----- Get the events xml file for the considered obsID
-        self._write_new_xmlevent_from_obsid(self.output_dir+'/Events.xml', self.output_dir+'/Ana_Events.xml', obsID)
+        self._write_new_xmlevent_from_obsid(self.output_dir+'/Events.xml',
+                                            self.output_dir+'/Ana_Events.xml', obsID)
         
         #----- Data selection
         sel = ctools.ctselect()
@@ -149,28 +150,32 @@ class CTAana(object):
             self._match_cluster_to_pointing()      # Cluster map defined using pointings
             self._match_anamap_to_pointing()       # Analysis map defined using pointings
             
-        self._make_model(prefix='Ana_Model_Input') # Compute the model files
+        self._make_model(prefix='Ana_Model_Input', obsID=obsID) # Compute the model files
 
         #----- Binning
         if self.method_binned:
             ctscube = cubemaking.counts_cube(self.output_dir,
                                              self.map_reso, self.map_coord, self.map_fov,
-                                             self.spec_emin, self.spec_emax, self.spec_enumbins, self.spec_ebinalg,
+                                             self.spec_emin, self.spec_emax,
+                                             self.spec_enumbins, self.spec_ebinalg,
                                              stack=self.method_stack, silent=self.silent)
             if self.method_stack:
                 expcube = cubemaking.exp_cube(self.output_dir,
                                               self.map_reso, self.map_coord, self.map_fov,
-                                              self.spec_emin, self.spec_emax, self.spec_enumbins, self.spec_ebinalg,
+                                              self.spec_emin, self.spec_emax,
+                                              self.spec_enumbins, self.spec_ebinalg,
                                               silent=self.silent)
                 psfcube = cubemaking.psf_cube(self.output_dir,
                                               self.map_reso, self.map_coord, self.map_fov,
-                                              self.spec_emin, self.spec_emax, self.spec_enumbins, self.spec_ebinalg,
+                                              self.spec_emin, self.spec_emax,
+                                              self.spec_enumbins, self.spec_ebinalg,
                                               silent=self.silent)
                 bkgcube = cubemaking.bkg_cube(self.output_dir, silent=self.silent)
                 if self.spec_edisp:
                     edcube = cubemaking.edisp_cube(self.output_dir,
                                                    self.map_coord, self.map_fov,
-                                                   self.spec_emin, self.spec_emax, self.spec_enumbins, self.spec_ebinalg,
+                                                   self.spec_emin, self.spec_emax,
+                                                   self.spec_enumbins, self.spec_ebinalg,
                                                    silent=self.silent)
                     
                     
@@ -506,7 +511,7 @@ class CTAana(object):
     # Run the plotting tools
     #==================================================
     
-    def run_ana_plot(self, smoothing_FWHM=0.1*u.deg):
+    def run_ana_plot(self, obsID=None, smoothing_FWHM=0.1*u.deg):
         """
         Run the plots
         
@@ -516,27 +521,34 @@ class CTAana(object):
         """
         
         #========== Get the obs ID to run (defaults is all of them)
-        obsID = self.obs_setup.obsid
+        obsID = self._check_obsID(obsID)
         if not self.silent: print('----- ObsID to be looked at: '+str(obsID))
 
         #========== Plot the observing properties
-        plotting.show_pointings(self.output_dir+'/Ana_ObsDef.xml', self.output_dir+'/Ana_ObsPointing.png')
-        plotting.show_obsdef(self.output_dir+'/Ana_ObsDef.xml', self.cluster.coord, self.output_dir+'/Ana_ObsDef.png')
+        plotting.show_pointings(self.output_dir+'/Ana_ObsDef.xml',
+                                self.output_dir+'/Ana_ObsPointing.png')
+        plotting.show_obsdef(self.output_dir+'/Ana_ObsDef.xml', self.cluster.coord,
+                             self.output_dir+'/Ana_ObsDef.png')
         plotting.show_irf(self.obs_setup.caldb, self.obs_setup.irf, self.output_dir+'/Ana_ObsIRF')
                         
         #========== Show events
         for iobs in obsID:
-            if os.path.exists(self.output_dir+'/Ana_SelectedEvents'+self.obs_setup.select_obs(iobs).obsid[0]+'.fits'):
-                plotting.events_quicklook(self.output_dir+'/Ana_SelectedEvents'+self.obs_setup.select_obs(iobs).obsid[0]+'.fits',
-                                          self.output_dir+'/Ana_SelectedEvents'+self.obs_setup.select_obs(iobs).obsid[0]+'.png')
+            if os.path.exists(self.output_dir+'/Ana_SelectedEvents'+
+                              self.obs_setup.select_obs(iobs).obsid[0]+'.fits'):
+                plotting.events_quicklook(self.output_dir+'/Ana_SelectedEvents'+
+                                          self.obs_setup.select_obs(iobs).obsid[0]+'.fits',
+                                          self.output_dir+'/Ana_SelectedEvents'+
+                                          self.obs_setup.select_obs(iobs).obsid[0]+'.png')
                 
                 skymap_quicklook(self.output_dir+'/Ana_Skymap'+self.obs_setup.select_obs(iobs).obsid[0],
-                                 self.output_dir+'/Ana_SelectedEvents'+self.obs_setup.select_obs(iobs).obsid[0]+'.fits',
+                                 self.output_dir+'/Ana_SelectedEvents'+
+                                 self.obs_setup.select_obs(iobs).obsid[0]+'.fits',
                                  self.obs_setup.select_obs(iobs), self.compact_source, self.cluster,
                                  map_reso=self.map_reso, smoothing_FWHM=smoothing_FWHM, bkgsubtract='NONE',
                                  silent=True, MapCenteredOnTarget=True)
 
         #========== Show Combined map
+        #
         ps_name  = []
         ps_ra    = []
         ps_dec   = []
@@ -549,9 +561,10 @@ class CTAana(object):
         ptg_ra    = []
         ptg_dec   = []
         for i in range(len(self.obs_setup.name)):
-            ptg_name.append(self.obs_setup.name[i])
-            ptg_ra.append(self.obs_setup.coord[i].icrs.ra.to_value('deg'))
-            ptg_dec.append(self.obs_setup.coord[i].icrs.dec.to_value('deg'))
+            if self.obs_setup.obsid[i] in obsID:
+                ptg_name.append(self.obs_setup.name[i])
+                ptg_ra.append(self.obs_setup.coord[i].icrs.ra.to_value('deg'))
+                ptg_dec.append(self.obs_setup.coord[i].icrs.dec.to_value('deg'))
             
         plotting.show_map(self.output_dir+'/Ana_SkymapTot.fits',
                           self.output_dir+'/Ana_SkymapTot.pdf',
@@ -572,8 +585,8 @@ class CTAana(object):
                           significance=False,
                           cmap='magma')
 
-        plotting.show_map(self.output_dir+'/Ana_ResmapTot.fits',
-                          self.output_dir+'/Ana_ResmapTot.pdf',
+        plotting.show_map(self.output_dir+'/Ana_ResmapTot_SIGNIFICANCE.fits',
+                          self.output_dir+'/Ana_ResmapTot_SIGNIFICANCE.pdf',
                           smoothing_FWHM=smoothing_FWHM,
                           cluster_ra=self.cluster.coord.icrs.ra.to_value('deg'),
                           cluster_dec=self.cluster.coord.icrs.dec.to_value('deg'),
@@ -591,8 +604,8 @@ class CTAana(object):
                           significance=True,
                           cmap='magma')
 
-        plotting.show_map(self.output_dir+'/Ana_ResmapNoCluster.fits',
-                          self.output_dir+'/Ana_ResmapNoCluster.pdf',
+        plotting.show_map(self.output_dir+'/Ana_ResmapNoCluster_SIGNIFICANCE.fits',
+                          self.output_dir+'/Ana_ResmapNoCluster_SIGNIFICANCE.pdf',
                           smoothing_FWHM=smoothing_FWHM,
                           cluster_ra=self.cluster.coord.icrs.ra.to_value('deg'),
                           cluster_dec=self.cluster.coord.icrs.dec.to_value('deg'),

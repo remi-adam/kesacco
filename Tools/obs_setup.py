@@ -202,34 +202,68 @@ class ObsSetup(object):
         
         Parameters
         ----------
-        - obsid (str): the unique observation ID     
+        - obsid (str or list): the unique observation ID
         """
+
+        #----- Make a list if needed
+        if type(obsid) != list: obsid = [obsid]
+
+        #----- Defines the list to update
+        obsid_query = []
+        name_query  = []
+        coord_query = []
+        rad_query   = []
+        tmin_query  = []
+        tmax_query  = []
+        emin_query  = []
+        emax_query  = []
+        deadc_query = []
+        caldb_query = []
+        irf_query   = []
+        bkg_query   = []
+
+        #----- Loop over all requested obsid to fill the query
+        for obsid_i in obsid:
+            w = np.where(np.array(self.obsid).astype('str') == obsid_i)[0]
+
+            if len(w) != 1:
+                print("!!!! WARNING !!!! The observation "+obsid_i+" you are trying to select does not exist.")
+                print("                  Doing nothing.")
         
-        w = np.where(np.array(self.obsid).astype('str') == obsid)[0]
+            else:
+                idx = w[0]
+                obsid_query.append(self.obsid[idx])
+                name_query.append(self.name[idx])
+                coord_query.append(self.coord[idx])
+                rad_query.append(self.rad[idx])
+                tmin_query.append(self.tmin[idx])
+                tmax_query.append(self.tmax[idx])
+                emin_query.append(self.emin[idx])
+                emax_query.append(self.emax[idx])
+                deadc_query.append(self.deadc[idx])
+                caldb_query.append(self.caldb[idx])
+                irf_query.append(self.irf[idx])
+                bkg_query.append(self.bkg[idx])
 
-        if len(w) != 1:
-            print("!!!! WARNING !!!! The observation you are trying to select does not exist.")
-            print("                  Doing nothing.")
-            return None
-        
-        else:
-            idx = w[0]
-            obj = copy.deepcopy(self)
+        #----- Fill the object and replace
+        obj = copy.deepcopy(self)
+        obj.obsid = obsid_query
+        obj.name  = name_query
+        obj.coord = coord_query
+        obj.rad   = rad_query
+        obj.tmin  = tmin_query
+        obj.tmax  = tmax_query
+        obj.emin  = emin_query
+        obj.emax  = emax_query
+        obj.deadc = deadc_query
+        obj.caldb = caldb_query
+        obj.irf   = irf_query
+        obj.bkg   = bkg_query
 
-            obj.obsid = [self.obsid[idx]]
-            obj.name  = [self.name[idx]]
-            obj.coord = [self.coord[idx]]
-            obj.rad   = [self.rad[idx]]
-            obj.tmin  = [self.tmin[idx]]
-            obj.tmax  = [self.tmax[idx]]
-            obj.emin  = [self.emin[idx]]
-            obj.emax  = [self.emax[idx]]
-            obj.deadc = [self.deadc[idx]]
-            obj.caldb = [self.caldb[idx]]
-            obj.irf   = [self.irf[idx]]
-            obj.bkg   = [self.bkg[idx]]
-
+        if len(obsid_query) > 0:
             return obj
+        else:
+            return None
 
         
     #==================================================

@@ -319,7 +319,7 @@ class Common():
     # Make a model
     #==================================================
     
-    def _make_model(self, prefix='Model', includeIC=True):
+    def _make_model(self, prefix='Model', includeIC=True, obsID=None):
         """
         This function is used to construct the model.
         
@@ -332,7 +332,8 @@ class Common():
         
         #----- Make cluster template files
         if (not self.silent) and (self.cluster.map_reso > 0.02*u.deg):
-            print('WARNING: the FITS map resolution (self.cluster.map_reso) is larger than 0.02 deg, i.e. the PSF at 100 TeV')
+            print('WARNING: the FITS map resolution (self.cluster.map_reso) ')
+            print('         is larger than 0.02 deg, i.e. the PSF at 100 TeV')
         
         make_cluster_template.make_map(self.cluster,
                                        self.output_dir+'/'+prefix+'_Map.fits',
@@ -353,7 +354,14 @@ class Common():
                                        self.output_dir+'/'+prefix+'_Map.fits',
                                        self.output_dir+'/'+prefix+'_Spectrum.txt',
                                        ClusterName=self.cluster.name)
+            
         build_ctools_model.compact_sources(model_tot, self.compact_source)
-        build_ctools_model.background(model_tot, self.obs_setup.bkg)
+        
+        if obsID is None:
+            background = self.obs_setup.bkg
+        else:
+            background = self.obs_setup.select_obs(obsID).bkg
+        build_ctools_model.background(model_tot, background)
+        
         model_tot.save(self.output_dir+'/'+prefix+'.xml')
         
