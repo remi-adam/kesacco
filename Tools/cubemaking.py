@@ -242,11 +242,11 @@ def bkg_cube(output_dir, silent=False):
 
     bkgcube['inobs']    = output_dir+'/Ana_EventsSelected.xml'
     bkgcube['incube']   = output_dir+'/Ana_Countscube.fits'
-    bkgcube['inmodel']  = output_dir+'/Ana_Model_Input.xml'
+    bkgcube['inmodel']  = output_dir+'/Ana_Model_Input_Unstack.xml'
     #bkgcube['caldb']    =
     #bkgcube['irf']      =
     bkgcube['outcube']  = output_dir+'/Ana_Bkgcube.fits'
-    bkgcube['outmodel'] = output_dir+'/Ana_Model_Intput_Stack.xml'
+    bkgcube['outmodel'] = output_dir+'/Ana_Model_Input_Stack.xml'
 
     if not silent:
         print(bkgcube)

@@ -363,5 +363,5 @@ class Common():
             background = self.obs_setup.select_obs(obsID).bkg
         build_ctools_model.background(model_tot, background)
         
-        model_tot.save(self.output_dir+'/'+prefix+'.xml')
+        model_tot.save(self.output_dir+'/'+prefix+'_Unstack.xml')
         

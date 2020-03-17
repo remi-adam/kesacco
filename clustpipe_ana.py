@@ -24,7 +24,7 @@ from ClusterPipe.Tools import tools_timing
 from ClusterPipe.Tools import plotting
 from ClusterPipe.Tools import cubemaking
 from ClusterPipe.Tools import utilities
-from clustpipe_sim_plot import skymap_quicklook
+from ClusterPipe       import clustpipe_ana_plot
 
 from ClusterModel.ClusterTools.map_tools import radial_profile
 
@@ -223,9 +223,9 @@ class CTAana(object):
 
         # Input model XML file.
         if self.method_binned and self.method_stack:
-            like['inmodel']  = self.output_dir+'/Ana_Model_Intput_Stack.xml'
+            like['inmodel']  = self.output_dir+'/Ana_Model_Input_Stack.xml'
         else:
-            like['inmodel']  = self.output_dir+'/Ana_Model_Input.xml'
+            like['inmodel']  = self.output_dir+'/Ana_Model_Input_Unstack.xml'
         
         # Input exposure cube file.
         if self.method_binned and self.method_stack :
@@ -282,7 +282,7 @@ class CTAana(object):
 
         #========== Compute a fit model file without the cluster
         self._rm_source_xml(self.output_dir+'/Ana_Model_Output.xml',
-                            self.output_dir+'/Ana_Model_Output_NoCluster.xml',
+                            self.output_dir+'/Ana_Model_Output_Cluster.xml',
                             self.cluster.name)
 
         #========== Compute the binned model
@@ -292,13 +292,13 @@ class CTAana(object):
                                         edisp=self.spec_edisp,
                                         stack=self.method_stack, silent=self.silent)
             
-        modcube_NoCl = cubemaking.model_cube(self.output_dir,
-                                             self.map_reso, self.map_coord, self.map_fov,
-                                             self.spec_emin, self.spec_emax, self.spec_enumbins, self.spec_ebinalg,
-                                             edisp=self.spec_edisp,
-                                             stack=self.method_stack, silent=self.silent,
-                                             inmodel_usr=self.output_dir+'/Ana_Model_Output_NoCluster.xml',
-                                             outmap_usr=self.output_dir+'/Ana_Model_Cube_NoCluster.fits')
+        modcube_Cl = cubemaking.model_cube(self.output_dir,
+                                           self.map_reso, self.map_coord, self.map_fov,
+                                           self.spec_emin, self.spec_emax, self.spec_enumbins, self.spec_ebinalg,
+                                           edisp=self.spec_edisp,
+                                           stack=self.method_stack, silent=self.silent,
+                                           inmodel_usr=self.output_dir+'/Ana_Model_Output_Cluster.xml',
+                                           outmap_usr=self.output_dir+'/Ana_Model_Cube_Cluster.fits')
         
         
     #==================================================
@@ -309,7 +309,8 @@ class CTAana(object):
                         do_Skymap=False,
                         do_SourceDet=False,
                         do_Res=False,
-                        do_TS=False):
+                        do_TS=False,
+                        profile_reso=0.05*u.deg):
         """
         Run the imaging analysis
         
@@ -331,11 +332,11 @@ class CTAana(object):
         bkgcube   = None
         edispcube = None
         modcube   = self.output_dir+'/Ana_Model_Cube.fits'
-        modcube2  = self.output_dir+'/Ana_Model_Cube_NoCluster.fits'
+        modcubeCl = self.output_dir+'/Ana_Model_Cube_Cluster.fits'
         if self.method_binned:
             if self.method_stack:
                 inobs       = self.output_dir+'/Ana_Countscube.fits'
-                inmodel     = self.output_dir+'/Ana_Model_Intput_Stack.xml'
+                inmodel     = self.output_dir+'/Ana_Model_Input_Stack.xml'
                 expcube     = self.output_dir+'/Ana_Expcube.fits'
                 psfcube     = self.output_dir+'/Ana_Psfcube.fits'
                 bkgcube     = self.output_dir+'/Ana_Bkgcube.fits'
@@ -374,7 +375,7 @@ class CTAana(object):
         
         #========== Compute residual (w/wo cluster subtracted)
         if do_Res:
-            #----- Total residual
+            #----- Total residual and keeping the cluster
             for alg in ['SIGNIFICANCE', 'SUB', 'SUBDIV']:
                 resmap = tools_imaging.resmap(inobs, self.output_dir+'/Ana_Model_Output.xml',
                                               self.output_dir+'/Ana_ResmapTot_'+alg+'.fits',
@@ -392,17 +393,15 @@ class CTAana(object):
                                               algo=alg,
                                               silent=self.silent)
 
-            #----- Residual keeping cluster
-            for alg in ['SIGNIFICANCE', 'SUB', 'SUBDIV']:
-                resmap = tools_imaging.resmap(inobs, self.output_dir+'/Ana_Model_Output_NoCluster.xml',
-                                              self.output_dir+'/Ana_ResmapNoCluster_'+alg+'.fits',
+                resmap = tools_imaging.resmap(inobs, self.output_dir+'/Ana_Model_Output_Cluster.xml',
+                                              self.output_dir+'/Ana_ResmapCluster_'+alg+'.fits',
                                               npix, self.map_reso.to_value('deg'),
                                               self.map_coord.icrs.ra.to_value('deg'),
                                               self.map_coord.icrs.dec.to_value('deg'),
                                               emin=self.spec_emin.to_value('TeV'),
                                               emax=self.spec_emax.to_value('TeV'),
                                               enumbins=self.spec_enumbins, ebinalg=self.spec_ebinalg,
-                                              modcube=modcube2, 
+                                              modcube=modcubeCl, 
                                               expcube=expcube, psfcube=psfcube,
                                               bkgcube=bkgcube, edispcube=edispcube,
                                               caldb=None, irf=None,
@@ -411,7 +410,7 @@ class CTAana(object):
                                               silent=self.silent)
 
             #----- Cluster profile
-            hdul       = fits.open(self.output_dir+'/Ana_ResmapNoCluster_SUB.fits')
+            hdul       = fits.open(self.output_dir+'/Ana_ResmapCluster_SUB.fits')
             res_counts = hdul[0].data
             header     = hdul[0].header
             hdul.close()
@@ -429,13 +428,13 @@ class CTAana(object):
                                                [self.cluster.coord.icrs.ra.to_value('deg'),
                                                 self.cluster.coord.icrs.dec.to_value('deg')],
                                                stddev=np.sqrt(model), header=header,
-                                               binsize=0.02, stat='POISSON',
+                                               binsize=profile_reso.to_value('deg'), stat='POISSON',
                                                counts2brightness=True)
             tab  = Table()
             tab['radius']  = Column(radius, unit='deg', description='Cluster-centric angle')
-            tab['profile'] = Column(prof, unit='deg-2', description='Counts per deg2')
-            tab['error']   = Column(err, unit='deg-2', description='Counts per deg2 uncertainty')
-            tab.write(self.output_dir+'/Ana_ResmapNoCluster_profile.fits', overwrite=True)
+            tab['profile'] = Column(prof, unit='deg$^{-2}$', description='Counts per deg^-2')
+            tab['error']   = Column(err, unit='deg$^{-2}$', description='Counts per deg^-2 uncertainty')
+            tab.write(self.output_dir+'/Ana_ResmapCluster_profile.fits', overwrite=True)
             
         #----- Compute the TS map
         if do_TS:
@@ -511,7 +510,9 @@ class CTAana(object):
     # Run the plotting tools
     #==================================================
     
-    def run_ana_plot(self, obsID=None, smoothing_FWHM=0.1*u.deg):
+    def run_ana_plot(self, obsID=None,
+                     smoothing_FWHM=0.1*u.deg,
+                     profile_log=True):
         """
         Run the plots
         
@@ -525,104 +526,15 @@ class CTAana(object):
         if not self.silent: print('----- ObsID to be looked at: '+str(obsID))
 
         #========== Plot the observing properties
-        plotting.show_pointings(self.output_dir+'/Ana_ObsDef.xml',
-                                self.output_dir+'/Ana_ObsPointing.png')
-        plotting.show_obsdef(self.output_dir+'/Ana_ObsDef.xml', self.cluster.coord,
-                             self.output_dir+'/Ana_ObsDef.png')
-        plotting.show_irf(self.obs_setup.caldb, self.obs_setup.irf, self.output_dir+'/Ana_ObsIRF')
-                        
+        clustpipe_ana_plot.observing_setup(self)
+
         #========== Show events
-        for iobs in obsID:
-            if os.path.exists(self.output_dir+'/Ana_SelectedEvents'+
-                              self.obs_setup.select_obs(iobs).obsid[0]+'.fits'):
-                plotting.events_quicklook(self.output_dir+'/Ana_SelectedEvents'+
-                                          self.obs_setup.select_obs(iobs).obsid[0]+'.fits',
-                                          self.output_dir+'/Ana_SelectedEvents'+
-                                          self.obs_setup.select_obs(iobs).obsid[0]+'.png')
-                
-                skymap_quicklook(self.output_dir+'/Ana_Skymap'+self.obs_setup.select_obs(iobs).obsid[0],
-                                 self.output_dir+'/Ana_SelectedEvents'+
-                                 self.obs_setup.select_obs(iobs).obsid[0]+'.fits',
-                                 self.obs_setup.select_obs(iobs), self.compact_source, self.cluster,
-                                 map_reso=self.map_reso, smoothing_FWHM=smoothing_FWHM, bkgsubtract='NONE',
-                                 silent=True, MapCenteredOnTarget=True)
+        clustpipe_ana_plot.events_quicklook(self, obsID, smoothing_FWHM=smoothing_FWHM)
 
         #========== Show Combined map
-        #
-        ps_name  = []
-        ps_ra    = []
-        ps_dec   = []
-        for i in range(len(self.compact_source.name)):
-            ps_name.append(self.compact_source.name[i])
-            ps_ra.append(self.compact_source.spatial[i]['param']['RA']['value'].to_value('deg'))
-            ps_dec.append(self.compact_source.spatial[i]['param']['DEC']['value'].to_value('deg'))
+        clustpipe_ana_plot.combined_maps(self)
 
-        ptg_name  = []
-        ptg_ra    = []
-        ptg_dec   = []
-        for i in range(len(self.obs_setup.name)):
-            if self.obs_setup.obsid[i] in obsID:
-                ptg_name.append(self.obs_setup.name[i])
-                ptg_ra.append(self.obs_setup.coord[i].icrs.ra.to_value('deg'))
-                ptg_dec.append(self.obs_setup.coord[i].icrs.dec.to_value('deg'))
-            
-        plotting.show_map(self.output_dir+'/Ana_SkymapTot.fits',
-                          self.output_dir+'/Ana_SkymapTot.pdf',
-                          smoothing_FWHM=smoothing_FWHM,
-                          cluster_ra=self.cluster.coord.icrs.ra.to_value('deg'),
-                          cluster_dec=self.cluster.coord.icrs.dec.to_value('deg'),
-                          cluster_t500=self.cluster.theta500.to_value('deg'),
-                          cluster_name=self.cluster.name,
-                          ps_name=ps_name,
-                          ps_ra=ps_ra,
-                          ps_dec=ps_dec,
-                          ptg_ra=ptg_ra,
-                          ptg_dec=ptg_dec,
-                          #PSF=PSF_tot,
-                          bartitle='Counts',
-                          rangevalue=[None, None],
-                          logscale=True,
-                          significance=False,
-                          cmap='magma')
-
-        plotting.show_map(self.output_dir+'/Ana_ResmapTot_SIGNIFICANCE.fits',
-                          self.output_dir+'/Ana_ResmapTot_SIGNIFICANCE.pdf',
-                          smoothing_FWHM=smoothing_FWHM,
-                          cluster_ra=self.cluster.coord.icrs.ra.to_value('deg'),
-                          cluster_dec=self.cluster.coord.icrs.dec.to_value('deg'),
-                          cluster_t500=self.cluster.theta500.to_value('deg'),
-                          cluster_name=self.cluster.name,
-                          ps_name=ps_name,
-                          ps_ra=ps_ra,
-                          ps_dec=ps_dec,
-                          ptg_ra=ptg_ra,
-                          ptg_dec=ptg_dec,
-                          #PSF=PSF_tot,
-                          bartitle='Significance',
-                          rangevalue=[-3, None],
-                          logscale=False,
-                          significance=True,
-                          cmap='magma')
-
-        plotting.show_map(self.output_dir+'/Ana_ResmapNoCluster_SIGNIFICANCE.fits',
-                          self.output_dir+'/Ana_ResmapNoCluster_SIGNIFICANCE.pdf',
-                          smoothing_FWHM=smoothing_FWHM,
-                          cluster_ra=self.cluster.coord.icrs.ra.to_value('deg'),
-                          cluster_dec=self.cluster.coord.icrs.dec.to_value('deg'),
-                          cluster_t500=self.cluster.theta500.to_value('deg'),
-                          cluster_name=self.cluster.name,
-                          ps_name=ps_name,
-                          ps_ra=ps_ra,
-                          ps_dec=ps_dec,
-                          ptg_ra=ptg_ra,
-                          ptg_dec=ptg_dec,
-                          #PSF=PSF_tot,
-                          bartitle='Significance',
-                          rangevalue=[-3, None],
-                          logscale=False,
-                          significance=True,
-                          cmap='magma')
-        
-        plotting.show_profile(self.output_dir+'/Ana_ResmapNoCluster_profile.fits', 
-                              self.output_dir+'/Ana_ResmapNoCluster_profile.pdf',
-                              theta500=self.cluster.theta500, logscale=True)
+        #========== Profile plot
+        plotting.show_profile(self.output_dir+'/Ana_ResmapCluster_profile.fits', 
+                              self.output_dir+'/Ana_ResmapCluster_profile.pdf',
+                              theta500=self.cluster.theta500, logscale=profile_log)
