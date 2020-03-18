@@ -60,12 +60,19 @@ class CTAana(object):
                      refit=False,
                      like_accuracy=0.005,
                      max_iter=50,
-                     fix_spat_for_ts=False):
+                     fix_spat_for_ts=False,
+                     imaging_bkgsubtract='NONE',
+                     do_Skymap=False,
+                     do_SourceDet=False,
+                     do_Res=False,
+                     do_TS=False,
+                     profile_reso=0.05*u.deg):
         """
         Run the standard cluster analysis.
         
         Parameters
         ----------
+        - Only parsing parameters, see individual sub-modules
         
         """
 
@@ -75,12 +82,14 @@ class CTAana(object):
         #----- Likelihood fit
         self.run_ana_likelihood(refit=refit, like_accuracy=like_accuracy,
                                 max_iter=max_iter, fix_spat_for_ts=fix_spat_for_ts)
-
+        
         #----- Imaging analysis
-        self.run_ana_imaging()
+        self.run_ana_imaging(bkgsubtract=imaging_bkgsubtract,
+                             do_Skymap=do_Skymap, do_SourceDet=do_SourceDet, do_Res=do_Res, do_TS=do_TS,
+                             profile_reso=profile_reso)
         
         #----- Spectral analysis
-        #self.run_ana_spectral()
+        self.run_ana_spectral()
 
         #----- Timing analysis
         #self.run_ana_timing()
@@ -107,7 +116,12 @@ class CTAana(object):
         
         #----- Create the output directory if needed
         if not os.path.exists(self.output_dir): os.mkdir(self.output_dir)
-        
+
+        #----- Make sure the map definition is ok
+        if self.map_UsePtgRef:
+            self._match_cluster_to_pointing()      # Cluster map defined using pointings
+            self._match_anamap_to_pointing()       # Analysis map defined using pointings
+            
         #----- Get the obs ID to run
         obsID = self._check_obsID(obsID)
         if not self.silent: print('----- ObsID to be analysed: '+str(obsID))
@@ -127,8 +141,8 @@ class CTAana(object):
         sel['outobs'] = self.output_dir+'/Ana_EventsSelected.xml'
         sel['prefix'] = self.output_dir+'/Ana_Selected'
         sel['rad']    = self.map_fov.to_value('deg')
-        sel['ra']     = self.map_coord.icrs.ra.to_value('deg')
-        sel['dec']    = self.map_coord.icrs.dec.to_value('deg')
+        sel['ra']     = self.map_coord.icrs.ra.to_value('deg')  * np.sqrt(2)/2.0
+        sel['dec']    = self.map_coord.icrs.dec.to_value('deg') * np.sqrt(2)/2.0
         sel['emin']   = self.spec_emin.to_value('TeV')
         sel['emax']   = self.spec_emax.to_value('TeV')
         if self.time_tmin is not None:
@@ -146,10 +160,6 @@ class CTAana(object):
         sel.execute()
         
         #----- Model
-        if self.map_UsePtgRef:
-            self._match_cluster_to_pointing()      # Cluster map defined using pointings
-            self._match_anamap_to_pointing()       # Analysis map defined using pointings
-            
         self._make_model(prefix='Ana_Model_Input', obsID=obsID) # Compute the model files
 
         #----- Binning (needed even if unbinned likelihood)
@@ -317,6 +327,12 @@ class CTAana(object):
         
         Parameters
         ----------
+        - bkgsubtract (str): apply background subtraction to skymap
+        - do_Skymap (bool): compute skymap
+        - do_SourceDet (bool): compute source detection
+        - do_Res (bool): compute residual
+        - do_TS (bool): compute TS map
+        - profile_reso (quantity): bin size for profile
         
         """
 
@@ -332,7 +348,7 @@ class CTAana(object):
         
         #========== Compute skymap
         if do_Skymap:
-            skymap = tools_imaging.skymap(self.output_dir+'/Ana_ObsDef.xml', #self.output_dir+'/Ana_EventsSelected.xml',
+            skymap = tools_imaging.skymap(self.output_dir+'/Ana_EventsSelected.xml',
                                           self.output_dir+'/Ana_SkymapTot.fits',
                                           npix, self.map_reso.to_value('deg'),
                                           self.map_coord.icrs.ra.to_value('deg'),
@@ -358,7 +374,8 @@ class CTAana(object):
         if do_Res:
             #----- Total residual and keeping the cluster
             for alg in ['SIGNIFICANCE', 'SUB', 'SUBDIV']:
-                resmap = tools_imaging.resmap(inobs, self.output_dir+'/Ana_Model_Output.xml',
+                resmap = tools_imaging.resmap(self.output_dir+'/Ana_Countscube.fits',
+                                              self.output_dir+'/Ana_Model_Output.xml',
                                               self.output_dir+'/Ana_ResmapTot_'+alg+'.fits',
                                               npix, self.map_reso.to_value('deg'),
                                               self.map_coord.icrs.ra.to_value('deg'),
@@ -366,7 +383,7 @@ class CTAana(object):
                                               emin=self.spec_emin.to_value('TeV'),
                                               emax=self.spec_emax.to_value('TeV'),
                                               enumbins=self.spec_enumbins, ebinalg=self.spec_ebinalg,
-                                              modcube=modcube, 
+                                              modcube=modcube,
                                               expcube=expcube, psfcube=psfcube,
                                               bkgcube=bkgcube, edispcube=edispcube,
                                               caldb=None, irf=None,
@@ -374,7 +391,8 @@ class CTAana(object):
                                               algo=alg,
                                               silent=self.silent)
 
-                resmap = tools_imaging.resmap(inobs, self.output_dir+'/Ana_Model_Output_Cluster.xml',
+                resmap = tools_imaging.resmap(self.output_dir+'/Ana_Countscube.fits',
+                                              self.output_dir+'/Ana_Model_Output_Cluster.xml',
                                               self.output_dir+'/Ana_ResmapCluster_'+alg+'.fits',
                                               npix, self.map_reso.to_value('deg'),
                                               self.map_coord.icrs.ra.to_value('deg'),
@@ -458,29 +476,31 @@ class CTAana(object):
         for isource in range(Nsource):
             
             srcname = models[isource].name()
-            if not self.silent:
-                print('--- Computing spectrum: '+srcname)
 
             #----- Compute spectra
-            spec_i = tools_spectral.spectrum(inobs, inmodel,
-                                             srcname, self.output_dir+'/Ana_Spectrum_'+srcname+'.fits',
-                                             emin=self.spec_emin.to_value('TeV'),
-                                             emax=self.spec_emax.to_value('TeV'),
-                                             enumbins=self.spec_enumbins, ebinalg=self.spec_ebinalg,
-                                             expcube=expcube,
-                                             psfcube=psfcube,
-                                             bkgcube=bkgcube,
-                                             edispcube=edispcube,
-                                             caldb=None,
-                                             irf=None,
-                                             edisp=self.spec_edisp,
-                                             method='SLICE',
-                                             statistic=self.method_stat,
-                                             calc_ts=True,
-                                             calc_ulim=True,
-                                             fix_srcs=True,
-                                             fix_bkg=False,
-                                             silent=self.silent)
+            if models[isource].type() != 'CTACubeBackground':
+                if not self.silent:
+                    print('--- Computing spectrum: '+srcname)
+
+                spec_i = tools_spectral.spectrum(inobs, inmodel,
+                                                 srcname, self.output_dir+'/Ana_Spectrum_'+srcname+'.fits',
+                                                 emin=self.spec_emin.to_value('TeV'),
+                                                 emax=self.spec_emax.to_value('TeV'),
+                                                 enumbins=self.spec_enumbins, ebinalg=self.spec_ebinalg,
+                                                 expcube=expcube,
+                                                 psfcube=psfcube,
+                                                 bkgcube=bkgcube,
+                                                 edispcube=edispcube,
+                                                 caldb=None,
+                                                 irf=None,
+                                                 edisp=self.spec_edisp,
+                                                 method='SLICE',
+                                                 statistic=self.method_stat,
+                                                 calc_ts=True,
+                                                 calc_ulim=True,
+                                                 fix_srcs=True,
+                                                 fix_bkg=False,
+                                                 silent=self.silent)
             
             #----- Compute butterfly
             #tools_spectral.butterfly()
@@ -548,6 +568,8 @@ class CTAana(object):
                               theta500=self.cluster.theta500, logscale=profile_log)
 
         #========== Spectrum
-        #clustpipe_ana_plot.spectrum(self)
+        clustpipe_ana_plot.spectrum(self)
         
         #========== Lightcurve
+
+        #========== Parameter fit correlation matrix

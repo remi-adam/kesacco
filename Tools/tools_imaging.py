@@ -285,30 +285,30 @@ def resmap(inobs, inmodel, output_map,
 
     rmap = cscripts.csresmap()
     
-    rmap['inobs']     = inobs     
-    rmap['inmodel']   = inmodel   
-    if modcube   is not None: rmap['modcube']   = modcube   
+    rmap['inobs']     = inobs
+    rmap['inmodel']   = inmodel
+    if modcube   is not None: rmap['modcube']   = modcube
     if expcube   is not None: rmap['expcube']   = expcube
     if psfcube   is not None: rmap['psfcube']   = psfcube
     if edispcube is not None: rmap['edispcube'] = edispcube
     if bkgcube   is not None: rmap['bkgcube']   = bkgcube
-    if caldb     is not None: rmap['caldb']     = caldb     
-    if irf       is not None: rmap['irf']       = irf       
-    rmap['edisp']     = edisp     
-    rmap['outmap']    = output_map 
-    rmap['ebinalg']   = ebinalg   
-    rmap['emin']      = emin      
-    rmap['emax']      = emax      
-    rmap['enumbins']  = enumbins  
-    rmap['ebinfile']  = 'NONE'    
-    rmap['coordsys']  = 'CEL'            
-    rmap['proj']      = 'TAN'     
-    rmap['xref']      = cra       
-    rmap['yref']      = cdec      
-    rmap['nxpix']     = npix      
-    rmap['nypix']     = npix      
-    rmap['binsz']     = reso      
-    rmap['algorithm'] = algo      
+    if caldb     is not None: rmap['caldb']     = caldb
+    if irf       is not None: rmap['irf']       = irf
+    rmap['edisp']     = edisp
+    rmap['outmap']    = output_map
+    rmap['ebinalg']   = ebinalg
+    rmap['emin']      = emin   
+    rmap['emax']      = emax
+    rmap['enumbins']  = enumbins
+    rmap['ebinfile']  = 'NONE'
+    rmap['coordsys']  = 'CEL'
+    rmap['proj']      = 'TAN'
+    rmap['xref']      = cra
+    rmap['yref']      = cdec
+    rmap['nxpix']     = npix
+    rmap['nypix']     = npix
+    rmap['binsz']     = reso
+    rmap['algorithm'] = algo
     
     rmap.execute()
 

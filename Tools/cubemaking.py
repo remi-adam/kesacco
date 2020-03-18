@@ -366,7 +366,7 @@ def model_cube(output_dir,
     npix = utilities.npix_from_fov_def(map_fov, map_reso)
     
     model = ctools.ctmodel()
-
+    
     if stack:
         model['inobs'] = output_dir+'/Ana_Countscube.fits'
     else:

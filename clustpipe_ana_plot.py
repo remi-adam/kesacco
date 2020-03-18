@@ -215,16 +215,17 @@ def spectrum(cpipe):
     models = gammalib.GModels(cpipe.output_dir+'/Ana_Model_Output.xml')
 
     for isource in range(len(models)):
-        srcname = models[isource].name()
-        specfile = cpipe.output_dir+'/Ana_Spectrum_'+srcname+'.fits'
-        outfile  = cpipe.output_dir+'/Ana_Spectrum_'+srcname+'.pdf'
-        butfile  = cpipe.output_dir+'/Ana_Spectrum_Buterfly_'+srcname+'.txt'
-        butexist = os.path.isfile(butfile)
-        if butexist:
-            plotting.show_spectrum(specfile, outfile, butfile=butfile)
-        else:
-            plotting.show_spectrum(specfile, outfile)
+        if models[isource].type() != 'CTACubeBackground':
+            srcname = models[isource].name()
+            specfile = cpipe.output_dir+'/Ana_Spectrum_'+srcname+'.fits'
+            outfile  = cpipe.output_dir+'/Ana_Spectrum_'+srcname+'.pdf'
+            butfile  = cpipe.output_dir+'/Ana_Spectrum_Buterfly_'+srcname+'.txt'
+            butexist = os.path.isfile(butfile)
+            if butexist:
+                plotting.show_spectrum(specfile, outfile, butfile=butfile)
+            else:
+                plotting.show_spectrum(specfile, outfile)
 
     #========== Residual counts in ROI
-    plotting.show_spectrum_residual(cpipe.output_dir+'/Ana_Spectrum_Residual.fits',
-                                    cpipe.output_dir+'/Ana_Spectrum_Residual.pdf')
+    #plotting.show_spectrum_residual(cpipe.output_dir+'/Ana_Spectrum_Residual.fits',
+    #                                cpipe.output_dir+'/Ana_Spectrum_Residual.pdf')

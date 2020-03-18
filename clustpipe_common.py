@@ -397,8 +397,8 @@ class Common():
         psfcube   = None
         bkgcube   = None
         edispcube = None
-        modcube   = self.output_dir+'/Ana_Model_Cube.fits'
-        modcubeCl = self.output_dir+'/Ana_Model_Cube_Cluster.fits'
+        modcube   = self.output_dir+'/Ana_Model_Cube.fits'         # Always the same because accounts
+        modcubeCl = self.output_dir+'/Ana_Model_Cube_Cluster.fits' # for likelihood fit model and stack
         
         if self.method_binned:
             if self.method_stack:
@@ -410,12 +410,10 @@ class Common():
                 if self.spec_edisp:
                     edispcube = self.output_dir+'/Ana_Edispcube.fits'
             else:
-                #inobs   = self.output_dir+'/Ana_Countscube.xml'
-                inobs   = self.output_dir+'/Ana_EventsSelected.xml'
+                inobs   = self.output_dir+'/Ana_Countscube.xml'
+                #inobs   = self.output_dir+'/Ana_EventsSelected.xml'
                 inmodel = self.output_dir+'/Ana_Model_Input_Unstack.xml'
 
+        # inobs = self.output_dir+'/Ana_ObsDef.xml'
 
-        inobs     = self.output_dir+'/Ana_ObsDef.xml'
-
-                
         return inobs, inmodel, expcube, psfcube, bkgcube, edispcube, modcube, modcubeCl

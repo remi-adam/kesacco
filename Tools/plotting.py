@@ -657,7 +657,7 @@ def show_pointings(xml_file, plotfile):
     fovx = (np.amax(xmax) - np.amin(xmin))*1.1/np.cos(yctr*np.pi/180)
     fovy = (np.amax(ymax) - np.amin(ymin))*1.1
         
-    plt.xlim(xctr-fovx/2, xctr+fovx/2)
+    plt.xlim(xctr+fovx/2, xctr-fovx/2)
     plt.ylim(yctr-fovy/2, yctr+fovy/2)
     plt.legend()
         
