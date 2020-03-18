@@ -9,6 +9,7 @@ This file contains plotting tools for the CTA analysis.
 
 import os
 import astropy.units as u
+import gammalib
 
 from ClusterPipe.Tools import plotting
 from clustpipe_sim_plot import skymap_quicklook
@@ -83,6 +84,7 @@ def events_quicklook(cpipe, obsID,
 #==================================================
 
 def combined_maps(cpipe,
+                  obsID,
                   smoothing_FWHM=0.1*u.deg):
     """
     Function running the map plotting
@@ -91,6 +93,7 @@ def combined_maps(cpipe,
     ----------
     - cpipe (ClusterPipe object): a cluster pipe object 
     associated to the analysis
+    - obsID (list): the list of obsID used for analysis
     - smoothing_fwhm (quantity): the FWHM value used for smoothing the maps
 
     Outputs
@@ -112,7 +115,7 @@ def combined_maps(cpipe,
     ptg_ra    = []
     ptg_dec   = []
     for i in range(len(cpipe.obs_setup.name)):
-        if self.obs_setup.obsid[i] in obsID:
+        if cpipe.obs_setup.obsid[i] in obsID:
             ptg_name.append(cpipe.obs_setup.name[i])
             ptg_ra.append(cpipe.obs_setup.coord[i].icrs.ra.to_value('deg'))
             ptg_dec.append(cpipe.obs_setup.coord[i].icrs.dec.to_value('deg'))
@@ -142,12 +145,15 @@ def combined_maps(cpipe,
         if alg == 'SIGNIFICANCE':
             is_significance = True
             btitle = 'Significance'
+            mrange = [-3, None]
         elif alg == 'SUB':
             is_significance = False
             btitle = 'Data-Model'
+            mrange = [None, None]
         elif alg == 'SUBDIV':
             is_significance = False
             btitle = '(Data-Model)/Model'
+            mrange = [None, None]
             
         plotting.show_map(cpipe.output_dir+'/Ana_ResmapTot_'+alg+'.fits',
                           cpipe.output_dir+'/Ana_ResmapTot_'+alg+'.pdf',
@@ -163,7 +169,7 @@ def combined_maps(cpipe,
                           ptg_dec=ptg_dec,
                           #PSF=PSF_tot,
                           bartitle=btitle,
-                          rangevalue=[-3, None],
+                          rangevalue=mrange,
                           logscale=False,
                           significance=is_significance,
                           cmap='magma')
@@ -182,7 +188,43 @@ def combined_maps(cpipe,
                           ptg_dec=ptg_dec,
                           #PSF=PSF_tot,
                           bartitle=btitle,
-                          rangevalue=[-3, None],
+                          rangevalue=mrange,
                           logscale=False,
                           significance=is_significance,
                           cmap='magma')
+        
+#==================================================
+# Spectrum
+#==================================================
+
+def spectrum(cpipe):
+    """
+    Function running the spectrum plots
+    
+    Parameters
+    ----------
+    - cpipe (ClusterPipe object): a cluster pipe object 
+    associated to the analysis
+
+    Outputs
+    --------
+    - plots
+    """
+
+    #========== Flux for each source
+    models = gammalib.GModels(cpipe.output_dir+'/Ana_Model_Output.xml')
+
+    for isource in range(len(models)):
+        srcname = models[isource].name()
+        specfile = cpipe.output_dir+'/Ana_Spectrum_'+srcname+'.fits'
+        outfile  = cpipe.output_dir+'/Ana_Spectrum_'+srcname+'.pdf'
+        butfile  = cpipe.output_dir+'/Ana_Spectrum_Buterfly_'+srcname+'.txt'
+        butexist = os.path.isfile(butfile)
+        if butexist:
+            plotting.show_spectrum(specfile, outfile, butfile=butfile)
+        else:
+            plotting.show_spectrum(specfile, outfile)
+
+    #========== Residual counts in ROI
+    plotting.show_spectrum_residual(cpipe.output_dir+'/Ana_Spectrum_Residual.fits',
+                                    cpipe.output_dir+'/Ana_Spectrum_Residual.pdf')

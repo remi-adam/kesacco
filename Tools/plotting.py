@@ -403,6 +403,8 @@ def show_profile(proffile, outfile,
     prof = data.data
     r_unit = data.columns['radius'].unit
     p_unit = data.columns['profile'].unit
+
+    print(p_unit)
     
     #---------- Plot
     fig, ax1 = plt.subplots()
@@ -698,7 +700,7 @@ def show_obsdef(xml_file, coord, plotfile):
 
 
 #==================================================
-# Plot the spectrum of sources
+# Plot the spectrum of the sources in a model
 #==================================================
 
 def show_model_spectrum(xml_file, plotfile,
@@ -753,3 +755,188 @@ def show_model_spectrum(xml_file, plotfile,
     plt.close()
     
     return
+
+
+#==================================================
+# Plot the spectrum of analysed sources
+#==================================================
+
+def show_spectrum(specfile, outfile, butfile=None):
+    """
+    Plot the spectrum to show.
+
+    Parameters
+    ----------
+    - mapfile (str): the spectrum fits file to use
+    - outfile (str): the output plot file
+    - butfile (str): the buterfly file
+
+    Outputs
+    --------
+    - validation plot spectrum
+    """
+    
+    #----- Read the data
+    hdu = fits.open(specfile)
+    spectrum = hdu[1].data
+    hdu.close()
+    
+    energy     = spectrum['Energy']*u.TeV
+    flux       = spectrum['Flux']*u.erg/u.cm**2/u.s
+    e_flux     = spectrum['e_Flux']*u.erg/u.cm**2/u.s
+    ed_Energy  = spectrum['ed_Energy']*u.TeV
+    eu_Energy  = spectrum['eu_Energy']*u.TeV
+    UpperLimit = spectrum['UpperLimit']*u.erg/u.cm**2/u.s
+    Npred      = spectrum['Npred']
+    TS         = spectrum['TS']
+    
+    idxbad   = np.where((flux/e_flux < 2) | (Npred < 2) | (e_flux == 0))[0]
+    wbad = np.array([False]*len(energy))
+    wbad[idxbad] = True
+    wgood  = ~wbad
+
+    #----- Plot the data
+    rngyp = 1.2*np.amax((flux+e_flux).to_value('GeV cm-2 s-1'))*u.GeV/u.cm**2/u.s
+    wpos = flux>0
+    if np.sum(wpos) > 0 :
+        rngym = 0.5*np.amin(flux[wpos].to_value('GeV cm-2 s-1'))*u.GeV/u.cm**2/u.s
+    else :
+        rngym = 1e-14*u.erg/u.cm**2/u.s # CTA sensitivity 
+
+    fig, ax1 = plt.subplots(figsize=(12,8))
+
+    # Buterfly plot can be added
+    if butfile is not None:
+        with open(butfile) as f:            
+            col = zip(*[line.split() for line in f])[0]
+            b_energy = np.array(col[0:])
+            b_energy = b_energy.astype(np.float)
+            b_energy = b_energy*u.MeV
+            
+        with open(butfile) as f:
+            col = zip(*[line.split() for line in f])[1]
+            b_bf = np.array(col[0:])
+            b_bf = b_bf.astype(np.float)
+            b_bf = b_bf / u.cm**2 / u.MeV / u.s
+
+        with open(butfile) as f:
+            col = zip(*[line.split() for line in f])[2]
+            b_ll = np.array(col[0:])
+            b_ll = b_ll.astype(np.float)
+            b_ll = b_ll / u.cm**2 / u.MeV / u.s
+
+        with open(butfile) as f:
+            col = zip(*[line.split() for line in f])[3]
+            b_ul = np.array(col[0:])
+            b_ul = b_ul.astype(np.float)
+            b_ul = b_ul / u.cm**2 / u.MeV / u.s
+            
+            ax1.plot(b_energy.to_value('GeV'), (b_energy**2 * b_bf).to_value('GeV cm-2 s-1'),
+                     ls='-', color='blue', label='68% CL')
+            ax1.plot(b_energy.to_value('GeV'), (b_energy**2 * b_ul).to_value('GeV cm-2 s-1'),
+                     ls='-.', color='blue')
+            ax1.plot(b_energy.to_value('GeV'), (b_energy**2 * b_ll).to_value('GeV cm-2 s-1'),
+                     ls='-.', color='blue')
+            ax1.fill_between(b_energy.to_value('GeV'), (b_energy**2 * b_ll).to_value('GeV cm-2 s-1'),
+                             (b_energy**2 * b_ul).to_value('GeV cm-2 s-1'),
+                             color='blue', alpha=0.2)
+
+    # Measeured spectrum
+    ax1.errorbar(energy[wgood].to_value('GeV'), flux[wgood].to_value('GeV cm-2 s-1'),
+                 yerr=e_flux[wgood].to_value('GeV cm-2 s-1'),
+                 xerr=[ed_Energy[wgood].to_value('GeV'), eu_Energy[wgood].to_value('GeV')],
+                 marker='o', color='red',
+                 markeredgecolor="black", markerfacecolor="red",
+                 ls ='', label='Data')
+    ax1.errorbar(energy[wbad].to_value('GeV'), UpperLimit[wbad].to_value('GeV cm-2 s-1'),
+                 xerr=[ed_Energy[wbad].to_value('GeV'), eu_Energy[wbad].to_value('GeV')],
+                 yerr=0.6*UpperLimit[wbad].to_value('GeV cm-2 s-1'), uplims=True,
+                 marker="o", color="red",
+                 markeredgecolor="red", markerfacecolor="red",
+                 linestyle="None")
+    ax1.set_xlabel('Energy (GeV)')
+    ax1.set_ylabel('$E^2 \\frac{dN}{dEdSdt}$ (GeV/cm$^2$/s)')
+    ax1.set_xscale('log')
+    ax1.set_yscale('log')
+    ax1.set_ylim([rngym.to_value('GeV cm-2 s-1'),rngyp.to_value('GeV cm-2 s-1')])
+    #ax1.set_ylim([5e-10,3e-8])
+    plt.legend()
+    
+    # Add extra unit axes
+    ax2 = ax1.twinx()
+    ax2.plot(energy[wgood].to_value('GeV'), flux[wgood].to_value('erg cm-2 s-1'), 'k-', alpha=0.0)
+    ax2.set_ylabel('$E^2 \\frac{dN}{dEdSdt}$ (erg/cm$^2$/s)')
+    ax2.set_yscale('log')
+    ax2.set_ylim([rngym.to_value('erg cm-2 s-1'), rngyp.to_value('erg cm-2 s-1')])
+    fig.savefig(outfile)
+    plt.close()
+
+
+#==================================================
+# Plot the residual spectrum of analysed sources
+#==================================================
+
+def show_spectrum_residual(specfile, outfile):
+    """
+    Plot the spectrum residual.
+
+    Parameters
+    ----------
+    Mandatory parameters:
+    - specfile (str): the spectrum fits file to use
+    - outfile (str): the output plot file
+
+    Outputs
+    --------
+    - validation plot spectrum
+    """
+    
+    #----- Read the data
+    hdu = fits.open(specfile)
+    spectrum = hdu[1].data
+    hdu.close()
+    
+    emin       = spectrum['Emin']*u.TeV
+    emax       = spectrum['Emax']*u.TeV
+    emean      = np.sqrt(emin * emax)
+    counts     = spectrum['Counts']
+    model      = spectrum['Model']
+    resid      = spectrum['Residuals']
+
+    estep = [emin[0].to_value('GeV')]
+    for i in range(len(emax)): estep.append(emax[i].to_value('GeV'))
+    estep = estep*u.GeV
+    
+    #----- Plot the data
+    fig = plt.figure(1, figsize=(18, 14))
+    frame1 = fig.add_axes((.1,.3,.8,.6))
+    
+    plt.errorbar(emean.to_value('GeV'), counts, yerr=np.sqrt(counts), xerr=[(emean-emin).to_value('GeV'),
+                                                                            (emax-emean).to_value('GeV')],
+                 fmt='ko', capsize=0, linewidth=2, zorder=2, label='Data')
+    plt.step(estep.to_value('GeV'), np.append(model, model[-1]), where='post', color='0.5',
+             linewidth=2, label='Model')
+    plt.ylabel('Counts')
+    plt.xscale('log')
+    plt.yscale('log')
+
+    skiplist = ['Counts', 'Model', 'Residuals', 'Counts_Off', 'Model_Off', 'Residuals_Off', 'Emin', 'Emax']
+    for s in range(len(spectrum.columns)):
+        if spectrum.columns[s].name not in skiplist:
+            component = spectrum[spectrum.columns[s].name]
+            plt.step(estep.to_value('GeV'), np.append(component, component[-1]), where='post',
+                     label=spectrum.columns[s].name)
+
+    plt.legend(loc='best')
+
+    frame2 = fig.add_axes((.1,.1,.8,.2))        
+    plt.errorbar(emean.to_value('GeV'), resid, yerr=1.0, xerr=[(emean-emin).to_value('GeV'),
+                                                               (emax-emean).to_value('GeV')],
+                      fmt='ko', capsize=0, linewidth=2, zorder=2)
+    plt.axhline(0, color='0.5', linestyle='--')
+    plt.xlabel('Energy (GeV)')
+    plt.ylabel('Residual ($\sigma$)')
+    plt.xscale('log')
+            
+    fig.savefig(outfile, bbox_inches='tight')
+    plt.close()

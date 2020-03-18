@@ -365,3 +365,57 @@ class Common():
         
         model_tot.save(self.output_dir+'/'+prefix+'_Unstack.xml')
         
+
+    #==================================================
+    # Define standard file name
+    #==================================================
+    
+    def _define_std_filenames(self):
+        """
+        This function defines the standard filenames
+        
+        Parameters
+        ----------
+
+        Outputs
+        -------
+        - inobs (str): input observation file, or
+        - inmodel (str): input model
+        - expcube (str): 
+        - psfcube (str): 
+        - bkgcube (str): 
+        - edispcube (str): 
+        - modcube (str): 
+        - modcubeCl (str): 
+
+        """
+
+        #----- Start with general unbinned names
+        inobs     = self.output_dir+'/Ana_EventsSelected.xml'
+        inmodel   = self.output_dir+'/Ana_Model_Input.xml'
+        expcube   = None
+        psfcube   = None
+        bkgcube   = None
+        edispcube = None
+        modcube   = self.output_dir+'/Ana_Model_Cube.fits'
+        modcubeCl = self.output_dir+'/Ana_Model_Cube_Cluster.fits'
+        
+        if self.method_binned:
+            if self.method_stack:
+                inobs       = self.output_dir+'/Ana_Countscube.fits'
+                inmodel     = self.output_dir+'/Ana_Model_Input_Stack.xml'
+                expcube     = self.output_dir+'/Ana_Expcube.fits'
+                psfcube     = self.output_dir+'/Ana_Psfcube.fits'
+                bkgcube     = self.output_dir+'/Ana_Bkgcube.fits'
+                if self.spec_edisp:
+                    edispcube = self.output_dir+'/Ana_Edispcube.fits'
+            else:
+                #inobs   = self.output_dir+'/Ana_Countscube.xml'
+                inobs   = self.output_dir+'/Ana_EventsSelected.xml'
+                inmodel = self.output_dir+'/Ana_Model_Input_Unstack.xml'
+
+
+        inobs     = self.output_dir+'/Ana_ObsDef.xml'
+
+                
+        return inobs, inmodel, expcube, psfcube, bkgcube, edispcube, modcube, modcubeCl
