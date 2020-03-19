@@ -33,7 +33,7 @@ import gammalib
 cta_energy_range   = [0.02, 100.0]*u.TeV
 fermi_energy_range = [0.1, 300.0]*u.GeV
 
-def set_default_plot_param():
+def set_default_plot_param(leftspace=0.18, rightspace=0.87):
     
     dict_base = {'font.size':        16, 
                  'legend.fontsize':  16,
@@ -43,8 +43,8 @@ def set_default_plot_param():
                  'axes.titlesize':   16,
                  'figure.titlesize': 16,
                  'figure.figsize':[8.0, 6.0],
-                 'figure.subplot.right':0.87,
-                 'figure.subplot.left':0.18, # Ensure enough space on the left so that all plot can be aligned
+                 'figure.subplot.right':rightspace,
+                 'figure.subplot.left':leftspace, # Ensure enough space on the left so that all plot can be aligned
                  'font.family':'serif',
                  'figure.facecolor': 'white',
                  'legend.frameon': True}
@@ -53,7 +53,7 @@ def set_default_plot_param():
 
     
 #==================================================
-# Usefull functions
+# Usefull plot functions
 #==================================================
 
 def heatmap(data, row_labels, col_labels, ax=None,
@@ -99,12 +99,10 @@ def heatmap(data, row_labels, col_labels, ax=None,
     ax.set_yticklabels(row_labels)
 
     # Let the horizontal axes labeling appear on top.
-    ax.tick_params(top=False, bottom=True,
-                   labeltop=False, labelbottom=True)
+    ax.tick_params(top=False, bottom=True, labeltop=False, labelbottom=True)
 
     # Rotate the tick labels and set their alignment.
-    plt.setp(ax.get_xticklabels(), rotation=+45, ha="right",
-             rotation_mode="anchor")
+    plt.setp(ax.get_xticklabels(), rotation=+30, ha="right", rotation_mode="anchor")
 
     # Turn spines off and create white grid.
     for edge, spine in ax.spines.items():
@@ -118,11 +116,29 @@ def heatmap(data, row_labels, col_labels, ax=None,
     return im, cbar
 
 
+#==================================================
+# Extract correlation matrix
+#==================================================
+
 def correlation_from_covariance(covariance):
+    """
+    Compute the correlation matrix from the covariance
+    
+    Parameters
+    ----------
+    - covariance (2d array): the covariance matrix
+
+    Output
+    ------
+    - correlation (2d array): the correlation matrix
+
+    """
+    
     v = np.sqrt(np.diag(covariance))
     outer_v = np.outer(v, v)
     correlation = covariance / outer_v
     correlation[covariance == 0] = 0
+    
     return correlation
 
     
@@ -455,6 +471,7 @@ def show_map(mapfile, outfile,
 #==================================================
 
 def show_profile(proffile, outfile,
+                 expected_file=None,
                  theta500=None,
                  logscale=True):
     """
@@ -479,30 +496,67 @@ def show_profile(proffile, outfile,
     prof = data.data
     r_unit = data.columns['radius'].unit
     p_unit = data.columns['profile'].unit
-    
+
+    if expected_file is not None:
+        exp = fits.open(expected_file)[1]
+        prof_exp = exp.data
+        
     #---------- Plot
-    fig, ax1 = plt.subplots()
-    ax1.set_xlabel('Radius ('+str(r_unit)+')', color='k')
-    ax1.set_ylabel('Profile ('+str(p_unit)+')', color='k')
+    fig = plt.figure(1, figsize=(12, 8))
+    frame1 = fig.add_axes((.1,.3,.8,.6))
+
+    plt.xlabel('Radius ('+str(r_unit)+')', color='k')
+    plt.ylabel('Profile ('+str(p_unit)+')', color='k')
+
+    w_pos = prof['profile'] > 0
+    w_neg = prof['profile'] < 0
 
     if logscale:
-        ax1.set_xscale('log')
-        ax1.set_yscale('log')
-        w_pos = prof['profile'] > 0
-        w_neg = prof['profile'] < 0
-        ax1.errorbar(prof['radius'][w_pos], prof['profile'][w_pos], yerr=prof['error'][w_pos],
+        plt.xscale('log')
+        plt.yscale('log')
+
+        plt.errorbar(prof['radius'][w_pos], prof['profile'][w_pos], yerr=prof['error'][w_pos],
                      color='blue',marker='o',linestyle='', label='values > 0')
-        ax1.errorbar(prof['radius'][w_neg], -prof['profile'][w_neg], yerr=prof['error'][w_neg],
+        plt.errorbar(prof['radius'][w_neg], -prof['profile'][w_neg], yerr=prof['error'][w_neg],
                      color='orange',marker='.',linestyle='', label='values < 0')
-        ax1.set_xlim(np.amin(prof['radius'])*0.5, np.amax(prof['radius']))
+        plt.xlim(np.amin(prof['radius'])*0.5, np.amax(prof['radius']))
+        plt.ylim(np.amin(prof['profile'][w_pos]))
     else:
-        ax1.errorbar(prof['radius'], prof['profile'], yerr=prof['error'], color='blue',marker='o',linestyle='')
-        ax1.set_xlim(0, np.amax(prof['radius']))
+        plt.errorbar(prof['radius'], prof['profile'], yerr=prof['error'], color='blue',marker='o',linestyle='')
+        plt.xlim(0, np.amax(prof['radius']))
+        plt.ylim(np.amin(prof['profile'][w_pos]))
+
+    if expected_file is not None:
+        plt.fill_between(prof_exp['radius'],
+                         prof_exp['profile']+prof_exp['error'],
+                         prof_exp['profile']-prof_exp['error'], color='red', alpha=0.2)
+        plt.plot(prof_exp['radius'], prof_exp['profile'], color='red', label='Input model (IRF convolved)')
+        plt.plot(prof_exp['radius'], prof_exp['profile']+prof_exp['error'], color='red', linestyle='--')
+        plt.plot(prof_exp['radius'], prof_exp['profile']-prof_exp['error'], color='red', linestyle='--')
         
     if theta500 is not None:
-        ax1.axvline(theta500.to_value(r_unit), ymin=1e-300, ymax=1e300,
-                    color='black', label='$\\theta_{500}$', linestyle='--')
-    ax1.legend()
+        plt.vlines(theta500.to_value(r_unit), ymin=1e-300, ymax=1e300,
+                   color='black', label='$\\theta_{500}$', linestyle='--')
+    plt.legend()
+    plt.xticks([])
+
+    frame2 = fig.add_axes((.1,.1,.8,.2))
+    plt.plot(prof['radius'], (prof['profile']-prof_exp['profile'])/prof['error'],
+             color='k', marker='.', linestyle='')
+    plt.hlines(0,  np.amin(prof['radius'])*0.5, 50, linestyle='-')
+    plt.hlines(-3, np.amin(prof['radius'])*0.5, 50, linestyle='--')
+    plt.hlines(+3, np.amin(prof['radius'])*0.5, 50, linestyle='--')
+    
+    if logscale:
+        plt.xscale('log')
+        plt.xlim(np.amin(prof['radius'])*0.5, np.amax(prof['radius']))
+    else:
+        plt.xlim(0, np.amax(prof['radius']))
+        
+    plt.ylim(-5, 5)
+    plt.xlabel('Radius ('+str(r_unit)+')', color='k')
+    plt.ylabel('$\\chi$')
+    
     fig.savefig(outfile)
     plt.close()
 
@@ -837,7 +891,7 @@ def show_model_spectrum(xml_file, plotfile,
 # Plot the spectrum of analysed sources
 #==================================================
 
-def show_spectrum(specfile, outfile, butfile=None):
+def show_spectrum(specfile, outfile, butfile=None, expected_file=None):
     """
     Plot the spectrum to show.
 
@@ -874,13 +928,6 @@ def show_spectrum(specfile, outfile, butfile=None):
     wgood  = (flux/e_flux > 2) * (e_flux > 0) * (np.sqrt(TSg) > 2)
     wbad   = ~wgood
     
-    #----- Define the range
-    rngyp = 1.2*np.amax((flux+e_flux).to_value('GeV cm-2 s-1'))*u.GeV/u.cm**2/u.s
-    if np.sum(wgood) > 0 :
-        rngym = 0.5*np.amin(flux[wgood].to_value('GeV cm-2 s-1'))*u.GeV/u.cm**2/u.s
-    else :
-        rngym = 1e-14*u.erg/u.cm**2/u.s # CTA sensitivity 
-
     #----- Start the plot
     fig, ax1 = plt.subplots(figsize=(12,8))
 
@@ -920,6 +967,33 @@ def show_spectrum(specfile, outfile, butfile=None):
                              (b_energy**2 * b_ul).to_value('GeV cm-2 s-1'),
                              color='blue', alpha=0.2)
 
+    # Expected data plot can be added
+    if expected_file is not None:
+        with open(expected_file) as f:
+            col = zip(*[line.split() for line in f])[0]
+            E_exp = np.array(col[1:])
+            E_exp = E_exp.astype(np.float)
+            E_exp = E_exp*u.MeV
+        with open(expected_file) as f:
+            col = zip(*[line.split() for line in f])[1]
+            dNdEdSdt_exp = np.array(col[1:])
+            dNdEdSdt_exp = dNdEdSdt_exp.astype(np.float)
+            dNdEdSdt_exp = dNdEdSdt_exp*u.MeV**-1*u.s**-1*u.cm**-2
+
+        ax1.plot(E_exp.to_value('GeV'), (E_exp**2 * dNdEdSdt_exp).to_value('GeV cm-2 s-1'),
+                 ls='--', linewidth=2, color='k', label='Expected spectrum')
+        max_expected = np.amax((E_exp**2 * dNdEdSdt_exp).to_value('GeV cm-2 s-1'))*u.GeV/u.cm**2/u.s
+
+    # Define the range
+    rngyp = 1.2*np.amax((flux+e_flux).to_value('GeV cm-2 s-1'))*u.GeV/u.cm**2/u.s
+    if expected_file is not None:
+        if max_expected*1.2 > rngyp:
+            rngyp = max_expected*1.2
+    if np.sum(wgood) > 0 :
+        rngym = 0.5*np.amin(flux[wgood].to_value('GeV cm-2 s-1'))*u.GeV/u.cm**2/u.s
+    else :
+        rngym = 1e-14*u.erg/u.cm**2/u.s # CTA sensitivity 
+        
     # Measured spectrum
     ax1.errorbar(energy[wgood].to_value('GeV'), flux[wgood].to_value('GeV cm-2 s-1'),
                  yerr=e_flux[wgood].to_value('GeV cm-2 s-1'),
@@ -1042,17 +1116,28 @@ def show_param_cormat(covfile, outfile):
     - validation plot
     """
 
+    set_default_plot_param(leftspace=0.28, rightspace=0.77)
+
     #----- Read the data
     hdul = fits.open(covfile)
     dat = hdul[1].data
     par = dat['Parameters'][0].split()
     cov = dat['Covariance'][0,:,:]
 
+    #----- Get the fixed param out
+    diag = np.diag(cov)
+    idx = np.where(diag == 0)[0]
+    wkeep = np.where(diag != 0)[0]
+    if len(idx) != 0:
+        cov = np.delete(cov, idx, 0)
+        cov = np.delete(cov, idx, 1)
+        par = np.array(par)[wkeep]
+
     #----- Compute the correlation matrix
     cor = correlation_from_covariance(cov)
 
     #----- show the plot
-    fig = plt.figure(1, figsize=(12, 8))
+    fig = plt.figure(1, figsize=(15, 10))
     im, cbar = heatmap(cor, par, par, vmin=-1, vmax=1,
                        cmap='RdBu', cbarlabel="Correlation matrix", origin='lower')
     fig.savefig(outfile)

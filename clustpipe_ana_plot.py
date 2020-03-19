@@ -215,7 +215,43 @@ def combined_maps(cpipe,
         else:
             if not cpipe.silent: print(cpipe.output_dir+'/Ana_ResmapCluster_'+alg+'.fits does not exist, no ResmapCluster_'+alg+' plot')
 
-            
+
+#==================================================
+# Profile
+#==================================================
+
+def profile(cpipe, profile_log=True):
+    """
+    Function running the profile plots
+    
+    Parameters
+    ----------
+    - cpipe (ClusterPipe object): a cluster pipe object 
+    associated to the analysis
+
+    Outputs
+    --------
+    - plots
+    """
+
+    expfile_exist = os.path.isfile(cpipe.output_dir+'/Ana_Expected_Cluster_profile.fits')
+    if expfile_exist:
+        expfile = cpipe.output_dir+'/Ana_Expected_Cluster_profile.fits'
+    else:
+        expfile = None
+        
+    
+    file_exist = os.path.isfile(cpipe.output_dir+'/Ana_ResmapCluster_profile.fits')
+    if file_exist:            
+        plotting.show_profile(cpipe.output_dir+'/Ana_ResmapCluster_profile.fits',
+                              cpipe.output_dir+'/Ana_ResmapCluster_profile.pdf',
+                              expected_file=expfile,
+                              theta500=cpipe.cluster.theta500,
+                              logscale=profile_log)
+    else:
+        if not cpipe.silent: print(cpipe.output_dir+'/Ana_ResmapCluster_profile.fits does not exist, no ResmapCluster_profile plot')
+        
+
 #==================================================
 # Spectrum
 #==================================================
@@ -244,13 +280,19 @@ def spectrum(cpipe):
             outfile  = cpipe.output_dir+'/Ana_Spectrum_'+srcname+'.pdf'
             butfile  = cpipe.output_dir+'/Ana_Spectrum_Buterfly_'+srcname+'.txt'
             butexist = os.path.isfile(butfile)
+            if butexist:
+                butfile_spec = butfile
+            else:
+                butfile_spec = None
+            if srcname == cpipe.cluster.name:
+                expfile  = cpipe.output_dir+'/Sim_Model_Spectrum.txt'
+            else:
+                expfile = None
 
             file_exist = os.path.isfile(specfile)
             if file_exist:            
-                if butexist:
-                    plotting.show_spectrum(specfile, outfile, butfile=butfile)
-                else:
-                    plotting.show_spectrum(specfile, outfile)
+                plotting.show_spectrum(specfile, outfile,
+                                       butfile=butfile_spec, expected_file=expfile)
             else:
                 if not cpipe.silent: print(specfile+' does not exist, no Spectrum_'+srcname+' plot')
                 
@@ -289,4 +331,4 @@ def covmat(cpipe):
         plotting.show_param_cormat(infile, outfile)
     else:
         if not cpipe.silent: print(infile+' does not exist, no Model_Output_Covmat plot')
-                
+    

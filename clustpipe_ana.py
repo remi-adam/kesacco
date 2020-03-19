@@ -24,6 +24,7 @@ from ClusterPipe.Tools import tools_timing
 from ClusterPipe.Tools import plotting
 from ClusterPipe.Tools import cubemaking
 from ClusterPipe.Tools import utilities
+from ClusterPipe.Tools import build_ctools_model
 from ClusterPipe       import clustpipe_ana_plot
 
 from ClusterModel.ClusterTools.map_tools import radial_profile
@@ -57,16 +58,11 @@ class CTAana(object):
     
     def run_analysis(self,
                      obsID=None,
-                     refit=False,
-                     like_accuracy=0.005,
-                     max_iter=50,
-                     fix_spat_for_ts=False,
+                     refit=False,like_accuracy=0.005,max_iter=50,fix_spat_for_ts=False,
                      imaging_bkgsubtract='NONE',
-                     do_Skymap=False,
-                     do_SourceDet=False,
-                     do_Res=False,
-                     do_TS=False,
-                     profile_reso=0.05*u.deg):
+                     do_Skymap=False, do_SourceDet=False, do_ResMap=False, do_TSmap=False, profile_reso=0.05*u.deg,
+                     do_Spec=True, do_Butterfly=True, do_Resspec=True,
+                     smoothing_FWHM=0.1*u.deg, profile_log=True):
         """
         Run the standard cluster analysis.
         
@@ -85,17 +81,17 @@ class CTAana(object):
         
         #----- Imaging analysis
         self.run_ana_imaging(bkgsubtract=imaging_bkgsubtract,
-                             do_Skymap=do_Skymap, do_SourceDet=do_SourceDet, do_Res=do_Res, do_TS=do_TS,
+                             do_Skymap=do_Skymap, do_SourceDet=do_SourceDet, do_Res=do_Resmap, do_TS=do_TSmap,
                              profile_reso=profile_reso)
         
         #----- Spectral analysis
-        self.run_ana_spectral()
+        self.run_ana_spectral(do_Spec=do_Spec, do_Butterfly=do_Butterfly, do_Res=do_Resspec)
 
         #----- Timing analysis
         #self.run_ana_timing()
         
         #----- Output plots
-        self.run_ana_plots()
+        self.run_ana_plots(obsID=obsID, smoothing_FWHM=smoothing_FWHM, profile_log=profile_log)
         
         
     #==================================================
@@ -580,7 +576,65 @@ class CTAana(object):
 
             #----- Compute lightcurve
             tools_timing.find_variability()
-            
+
+
+    #==================================================
+    # Compute expected model 
+    #==================================================
+    
+    def run_ana_expected_output(self, obsID,
+                                profile_reso=0.05*u.deg):
+        """
+        Run the expected output
+        
+        Parameters
+        ----------
+        
+        """
+
+        #----- Make sure the map definition is ok
+        if self.map_UsePtgRef:
+            self._match_cluster_to_pointing()
+            self._match_anamap_to_pointing()
+        
+        #----- Compute the expected spectrum
+        model_exp = gammalib.GModels()
+        build_ctools_model.cluster(model_exp,
+                                   self.output_dir+'/Sim_Model_Map.fits',
+                                   self.output_dir+'/Sim_Model_Spectrum.txt',
+                                   ClusterName=self.cluster.name)
+        model_exp.save(self.output_dir+'/Ana_Expected_Cluster.xml')
+        
+        #----- Compute the expected count map
+        modcube_Cl = cubemaking.model_cube(self.output_dir,
+                                           self.map_reso, self.map_coord, self.map_fov,
+                                           self.spec_emin, self.spec_emax,
+                                           self.spec_enumbins, self.spec_ebinalg,
+                                           edisp=self.spec_edisp,
+                                           stack=True, silent=self.silent,
+                                           inmodel_usr=self.output_dir+'/Ana_Expected_Cluster.xml',
+                                           outmap_usr=self.output_dir+'/Ana_Expected_Cluster_Counts.fits')
+
+        #----- Extract the profile
+        mcube = fits.open(self.output_dir+'/Ana_Expected_Cluster_Counts.fits')
+        header = mcube[0].header
+        model_cnt_map = np.sum(mcube[0].data, axis=0)
+        header.remove('NAXIS3')
+        header['NAXIS'] = 2
+        
+        r_mod, p_mod, err_mod = radial_profile(model_cnt_map,
+                                               [self.cluster.coord.icrs.ra.to_value('deg'),
+                                                self.cluster.coord.icrs.dec.to_value('deg')],
+                                               stddev=np.sqrt(model_cnt_map), header=header,
+                                               binsize=profile_reso.to_value('deg'),
+                                               stat='POISSON',
+                                               counts2brightness=True)
+        tab  = Table()
+        tab['radius']  = Column(r_mod, unit='deg', description='Cluster-centric angle')
+        tab['profile'] = Column(p_mod, unit='deg$^{-2}$', description='Counts per deg^-2')
+        tab['error']   = Column(err_mod, unit='deg$^{-2}$', description='Counts per deg^-2 uncertainty')
+        tab.write(self.output_dir+'/Ana_Expected_Cluster_profile.fits', overwrite=True)
+        
             
     #==================================================
     # Run the plotting tools
@@ -602,23 +656,21 @@ class CTAana(object):
         if not self.silent: print('----- ObsID to be looked at: '+str(obsID))
      
         #========== Plot the observing properties
-        clustpipe_ana_plot.observing_setup(self)
-     
-        #========== Show events
-        clustpipe_ana_plot.events_quicklook(self, obsID, smoothing_FWHM=smoothing_FWHM)
-        
-        #========== Show Combined map
-        clustpipe_ana_plot.combined_maps(self, obsID, smoothing_FWHM=smoothing_FWHM)
-     
+    #    clustpipe_ana_plot.observing_setup(self)
+    # 
+    #    #========== Show events
+    #    clustpipe_ana_plot.events_quicklook(self, obsID, smoothing_FWHM=smoothing_FWHM)
+    #    
+    #    #========== Show Combined map
+    #    clustpipe_ana_plot.combined_maps(self, obsID, smoothing_FWHM=smoothing_FWHM)
+    # 
         #========== Profile plot
-        plotting.show_profile(self.output_dir+'/Ana_ResmapCluster_profile.fits', 
-                              self.output_dir+'/Ana_ResmapCluster_profile.pdf',
-                              theta500=self.cluster.theta500, logscale=profile_log)
-
+        clustpipe_ana_plot.profile(self, profile_log=profile_log)
+    
         #========== Spectrum
         clustpipe_ana_plot.spectrum(self)
         
         #========== Lightcurve
-
+    
         #========== Parameter fit correlation matrix
         clustpipe_ana_plot.covmat(self)
