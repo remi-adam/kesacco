@@ -43,14 +43,88 @@ def set_default_plot_param():
                  'axes.titlesize':   16,
                  'figure.titlesize': 16,
                  'figure.figsize':[8.0, 6.0],
-                 'figure.subplot.right':0.97,
+                 'figure.subplot.right':0.87,
                  'figure.subplot.left':0.18, # Ensure enough space on the left so that all plot can be aligned
                  'font.family':'serif',
                  'figure.facecolor': 'white',
                  'legend.frameon': True}
 
     plt.rcParams.update(dict_base)
+
     
+#==================================================
+# Usefull functions
+#==================================================
+
+def heatmap(data, row_labels, col_labels, ax=None,
+            cbar_kw={}, cbarlabel="", **kwargs):
+    """
+    Create a heatmap from a numpy array and two lists of labels.
+    From https://matplotlib.org/3.1.1/gallery/images_contours_and_fields/image_annotated_heatmap.html
+    
+    Parameters
+    ----------
+    data
+        A 2D numpy array of shape (N, M).
+    row_labels
+        A list or array of length N with the labels for the rows.
+    col_labels
+        A list or array of length M with the labels for the columns.
+    ax
+        A `matplotlib.axes.Axes` instance to which the heatmap is plotted.  If
+        not provided, use current axes or create a new one.  Optional.
+    cbar_kw
+        A dictionary with arguments to `matplotlib.Figure.colorbar`.  Optional.
+    cbarlabel
+        The label for the colorbar.  Optional.
+    **kwargs
+        All other arguments are forwarded to `imshow`.
+    """
+    
+    if not ax:
+        ax = plt.gca()
+        
+    # Plot the heatmap
+    im = ax.imshow(data, **kwargs)
+
+    # Create colorbar
+    cbar = ax.figure.colorbar(im, ax=ax, **cbar_kw)
+    cbar.ax.set_ylabel(cbarlabel)
+
+    # We want to show all ticks...
+    ax.set_xticks(np.arange(data.shape[1]))
+    ax.set_yticks(np.arange(data.shape[0]))
+    # ... and label them with the respective list entries.
+    ax.set_xticklabels(col_labels)
+    ax.set_yticklabels(row_labels)
+
+    # Let the horizontal axes labeling appear on top.
+    ax.tick_params(top=False, bottom=True,
+                   labeltop=False, labelbottom=True)
+
+    # Rotate the tick labels and set their alignment.
+    plt.setp(ax.get_xticklabels(), rotation=+45, ha="right",
+             rotation_mode="anchor")
+
+    # Turn spines off and create white grid.
+    for edge, spine in ax.spines.items():
+        spine.set_visible(False)
+
+    ax.set_xticks(np.arange(data.shape[1]+1)-.5, minor=True)
+    ax.set_yticks(np.arange(data.shape[0]+1)-.5, minor=True)
+    ax.grid(which="minor", color="w", linestyle='-', linewidth=3)
+    ax.tick_params(which="minor", bottom=False, left=False)
+
+    return im, cbar
+
+
+def correlation_from_covariance(covariance):
+    v = np.sqrt(np.diag(covariance))
+    outer_v = np.outer(v, v)
+    correlation = covariance / outer_v
+    correlation[covariance == 0] = 0
+    return correlation
+
     
 #==================================================
 # Get the CTA PSF given the IRF
@@ -168,7 +242,7 @@ def show_irf(caldb_in, irf_in, plotfile,
             (gammalib.toupper(mission), instrument, response, selection)
 
         # Create figure
-        fig = plt.figure(figsize=(16,12))
+        fig = plt.figure(figsize=(12,12))
         
         # Add title
         fig.suptitle(title, fontsize=16)
@@ -265,10 +339,11 @@ def show_map(mapfile, outfile,
     image = ndimage.gaussian_filter(image, sigma=sigma_sm)
 
     if significance:
-        norm = 2*sigma_sm*np.sqrt(np.pi) # Mean noise reduction when smoothing, assuming gaussian non correlated noise
+        norm = 2*sigma_sm*np.sqrt(np.pi) # Mean noise smoothing reduction, assuming gaussian correlated noise
         image *= norm
         print('WARNING: The significance is boosted accounting for smoothing.')
-        print('         This assumes weak noise spatial variarion (w.r.t. smoothing), gaussian regime, and uncorrelated pixels.')
+        print('         This assumes weak noise spatial variarion (w.r.t. smoothing),')
+        print('         gaussian regime, and uncorrelated pixels.')
         
     #--------- map range
     if rangevalue[0] is None:
@@ -283,7 +358,7 @@ def show_map(mapfile, outfile,
         
     #---------- Plot
     if not ((np.amax(image) == 0) and (np.amin(image) == 0)) :
-        fig = plt.figure(1, figsize=(12, 12))
+        fig = plt.figure(1, figsize=(12, 9))
         ax = plt.subplot(111, projection=wcs_map)
 
         if logscale :
@@ -345,7 +420,8 @@ def show_map(mapfile, outfile,
                 
         # Show the PSF
         if PSF is not None:
-            dec_mean_cor = np.cos((wcs_map.wcs.crval[1]-(wcs_map.wcs.crpix*wcs_map.wcs.cdelt)[1]+0.3) * np.pi/180.0)
+            dec_mean_cor = np.cos((wcs_map.wcs.crval[1]-(wcs_map.wcs.crpix*wcs_map.wcs.cdelt)[1]+0.3)
+                                  * np.pi/180.0)
             circle_ra = wcs_map.wcs.crval[0]-(wcs_map.wcs.crpix*wcs_map.wcs.cdelt)[0]/dec_mean_cor-0.3
             circle_dec = wcs_map.wcs.crval[1]-(wcs_map.wcs.crpix*wcs_map.wcs.cdelt)[1]+0.3
             circle_PSF = matplotlib.patches.Ellipse((circle_ra, circle_dec),
@@ -367,7 +443,7 @@ def show_map(mapfile, outfile,
         ax.set_title(maptitle)
         cbar = plt.colorbar()
         cbar.set_label(bartitle)
-        fig.savefig(outfile, bbox_inches='tight')
+        fig.savefig(outfile)
         plt.close()
 
     else :
@@ -403,8 +479,6 @@ def show_profile(proffile, outfile,
     prof = data.data
     r_unit = data.columns['radius'].unit
     p_unit = data.columns['profile'].unit
-
-    print(p_unit)
     
     #---------- Plot
     fig, ax1 = plt.subplots()
@@ -493,7 +567,8 @@ def events_quicklook(evfile, outfile):
         
         # Time counts histogram
         plt.subplot(223)
-        plt.hist((events_data1['TIME'] - np.amin(events_data1['TIME']))/3600.0, bins=200, log=False, color='black', alpha=0.3)
+        plt.hist((events_data1['TIME'] - np.amin(events_data1['TIME']))/3600.0, bins=200,
+                 log=False, color='black', alpha=0.3)
         plt.xlabel('Time (h)')
         plt.ylabel('Photon counts')
         plt.title('Photon time histogram')
@@ -517,7 +592,7 @@ def events_quicklook(evfile, outfile):
         plt.text(0.1, 0.20, t3, ha='left', rotation=0, wrap=True)
         plt.axis('off')
         
-        fig.savefig(outfile, bbox_inches='tight', dpi=200)
+        fig.savefig(outfile, dpi=200)
         plt.close()
         
     except:
@@ -688,6 +763,7 @@ def show_obsdef(xml_file, coord, plotfile):
     """
 
     set_default_plot_param()
+    
     info = plotting_obsfile.run_csobsinfo(xml_file,
                                           coord.icrs.ra.to_value('deg'),
                                           coord.icrs.dec.to_value('deg'))
@@ -775,6 +851,8 @@ def show_spectrum(specfile, outfile, butfile=None):
     --------
     - validation plot spectrum
     """
+
+    set_default_plot_param()
     
     #----- Read the data
     hdu = fits.open(specfile)
@@ -789,20 +867,21 @@ def show_spectrum(specfile, outfile, butfile=None):
     UpperLimit = spectrum['UpperLimit']*u.erg/u.cm**2/u.s
     Npred      = spectrum['Npred']
     TS         = spectrum['TS']
-    
-    idxbad   = np.where((flux/e_flux < 2) | (Npred < 2) | (e_flux == 0))[0]
-    wbad = np.array([False]*len(energy))
-    wbad[idxbad] = True
-    wgood  = ~wbad
 
-    #----- Plot the data
+    #----- Define "good" and "bad" points
+    TSg = TS*1
+    TSg[TSg <= 1] = 1
+    wgood  = (flux/e_flux > 2) * (e_flux > 0) * (np.sqrt(TSg) > 2)
+    wbad   = ~wgood
+    
+    #----- Define the range
     rngyp = 1.2*np.amax((flux+e_flux).to_value('GeV cm-2 s-1'))*u.GeV/u.cm**2/u.s
-    wpos = flux>0
-    if np.sum(wpos) > 0 :
-        rngym = 0.5*np.amin(flux[wpos].to_value('GeV cm-2 s-1'))*u.GeV/u.cm**2/u.s
+    if np.sum(wgood) > 0 :
+        rngym = 0.5*np.amin(flux[wgood].to_value('GeV cm-2 s-1'))*u.GeV/u.cm**2/u.s
     else :
         rngym = 1e-14*u.erg/u.cm**2/u.s # CTA sensitivity 
 
+    #----- Start the plot
     fig, ax1 = plt.subplots(figsize=(12,8))
 
     # Buterfly plot can be added
@@ -841,18 +920,18 @@ def show_spectrum(specfile, outfile, butfile=None):
                              (b_energy**2 * b_ul).to_value('GeV cm-2 s-1'),
                              color='blue', alpha=0.2)
 
-    # Measeured spectrum
+    # Measured spectrum
     ax1.errorbar(energy[wgood].to_value('GeV'), flux[wgood].to_value('GeV cm-2 s-1'),
                  yerr=e_flux[wgood].to_value('GeV cm-2 s-1'),
                  xerr=[ed_Energy[wgood].to_value('GeV'), eu_Energy[wgood].to_value('GeV')],
-                 marker='o', color='red',
+                 marker='o', elinewidth=2, color='red',
                  markeredgecolor="black", markerfacecolor="red",
                  ls ='', label='Data')
     ax1.errorbar(energy[wbad].to_value('GeV'), UpperLimit[wbad].to_value('GeV cm-2 s-1'),
                  xerr=[ed_Energy[wbad].to_value('GeV'), eu_Energy[wbad].to_value('GeV')],
-                 yerr=0.6*UpperLimit[wbad].to_value('GeV cm-2 s-1'), uplims=True,
-                 marker="o", color="red",
-                 markeredgecolor="red", markerfacecolor="red",
+                 yerr=0.1*UpperLimit[wbad].to_value('GeV cm-2 s-1'), uplims=True,
+                 marker="", elinewidth=2, color="pink",
+                 markeredgecolor="pink", markerfacecolor="pink",
                  linestyle="None")
     ax1.set_xlabel('Energy (GeV)')
     ax1.set_ylabel('$E^2 \\frac{dN}{dEdSdt}$ (GeV/cm$^2$/s)')
@@ -890,6 +969,8 @@ def show_spectrum_residual(specfile, outfile):
     --------
     - validation plot spectrum
     """
+
+    set_default_plot_param()
     
     #----- Read the data
     hdu = fits.open(specfile)
@@ -908,7 +989,7 @@ def show_spectrum_residual(specfile, outfile):
     estep = estep*u.GeV
     
     #----- Plot the data
-    fig = plt.figure(1, figsize=(18, 14))
+    fig = plt.figure(1, figsize=(12, 8))
     frame1 = fig.add_axes((.1,.3,.8,.6))
     
     plt.errorbar(emean.to_value('GeV'), counts, yerr=np.sqrt(counts), xerr=[(emean-emin).to_value('GeV'),
@@ -938,5 +1019,42 @@ def show_spectrum_residual(specfile, outfile):
     plt.ylabel('Residual ($\sigma$)')
     plt.xscale('log')
             
-    fig.savefig(outfile, bbox_inches='tight')
+    fig.savefig(outfile)
     plt.close()
+
+    
+#==================================================
+# Plot the residual spectrum of analysed sources
+#==================================================
+
+def show_param_cormat(covfile, outfile):
+    """
+    Plot the parameter covariance matrix.
+
+    Parameters
+    ----------
+    Mandatory parameters:
+    - covfile (str): the covariance matrix fits file
+    - outfile (str): the output plot file
+
+    Outputs
+    --------
+    - validation plot
+    """
+
+    #----- Read the data
+    hdul = fits.open(covfile)
+    dat = hdul[1].data
+    par = dat['Parameters'][0].split()
+    cov = dat['Covariance'][0,:,:]
+
+    #----- Compute the correlation matrix
+    cor = correlation_from_covariance(cov)
+
+    #----- show the plot
+    fig = plt.figure(1, figsize=(12, 8))
+    im, cbar = heatmap(cor, par, par, vmin=-1, vmax=1,
+                       cmap='RdBu', cbarlabel="Correlation matrix", origin='lower')
+    fig.savefig(outfile)
+    plt.close()
+

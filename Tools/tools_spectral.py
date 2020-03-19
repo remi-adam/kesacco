@@ -11,6 +11,7 @@ import cscripts
 #==================================================
 # Spectrum
 #==================================================
+
 def spectrum(inobs, inmodel, srcname, outfile,
              emin=1e-2, emax=1e+3, enumbins=20, ebinalg='LOG',
              expcube=None, 
@@ -99,61 +100,86 @@ def spectrum(inobs, inmodel, srcname, outfile,
 #==================================================
 # Butterfly
 #==================================================
-def butterfly():
+
+def butterfly(inobs, inmodel, srcname, outfile,
+              emin=5e-3, emax=5e+3, enumbins=100, ebinalg='LOG',
+              expcube=None, 
+              psfcube=None,
+              bkgcube=None,
+              edispcube=None,
+              caldb=None,
+              irf=None,
+              edisp=False,
+              fit=False,
+              method='GAUSSIAN',
+              confidence=0.68,
+              statistic='DEFAULT',
+              like_accuracy=0.005,
+              max_iter=50,
+              matrix='NONE',
+              silent=False):
     """
     Computes butterfly diagram for a given spectral model.
     See http://cta.irap.omp.eu/ctools/users/reference_manual/ctbutterfly.html
 
     Parameters
     ----------
-    - 
-    -
-    -
-    -
+    - inobs (string): input observation file
+    - inmodel (string): input model
+    - srcname (str): name of the source to compute
+    - outfile (str): output spectrum file
+    - emin,emax (float) min and max energy considered in TeV
+    - enumbins (int): number of energy bins
+    - ebinalg (string): energy bining algorithm
+    - modcube (string): model map cube
+    - expcube (string): exposure map cube
+    - psfcube (string): psfcube 
+    - bkgcube (string): background cube
+    - edispcube (string): energy dispersion cube
+    - caldb (string): calibration database
+    - irf (string): instrument response function
+    - edisp (bool): apply energy dispersion
+    - fit (bool): Performs maximum likelihood fitting of input 
+    model ignoring any provided covariance matrix.
+    - method (string): method for butterfly contours
+    - confidence (float): confidence limit
+    - statistic (str): Optimization statistic.
+    - like_accuracy (float): Absolute accuracy of maximum likelihood value
+    - max_iter (int): Maximum number of fit iterations.
+    - matrix (string): fir covariance matrix
+    - silent (bool): print information or not
 
     Outputs
     --------
-    - create butterfly fits
+    - create butterfly ascii file
 
     """
     
     but = ctools.ctbutterfly()
 
-    '''
-            #========== Binned analysis     
-            if param['binned']:
-                but['inobs']     = param['output_dir']+'/clustana_DataPrep_ctbin.fits'
-                but['inmodel']   = param['output_dir']+'/clustana_output_model.xml'
-                but['expcube']   = param['output_dir']+'/clustana_DataPrep_ctexpcube.fits'
-                but['psfcube']   = param['output_dir']+'/clustana_DataPrep_ctpsfcube.fits'
-                if param["apply_edisp"]:
-                    but['edispcube'] = param['output_dir']+'/clustana_DataPrep_ctedispcube.fits'
-                if param['bkg_spec_Prefactor'] > 0:
-                    but['bkgcube']   = param['output_dir']+'/clustana_DataPrep_ctbkgcube.fits'
-                else: 
-                    but['bkgcube']   = 'NONE'
-            
-            #========== Unbinned analysis  
-            else:
-                but['inobs']     = param['output_dir']+'/clustana_DataPrep_ctselect.fits'
-                but['inmodel']   = param['output_dir']+'/clustana_output_model.xml'
-
-            #========== General param and run
-            but['srcname']    = isource_name
-            but['caldb']      = param['caldb']
-            but['irf']        = param['irf']
-            but['edisp']      = param['apply_edisp']
-            but['outfile']    = param['output_dir']+'/clustana_spectrumb_'+isource_name+'.txt'
-            but['fit']        = False # To refit
-            but['method']     = 'GAUSSIAN'
-            but['confidence'] = 0.68
-            but['statistic']  = 'DEFAULT'
-            but['matrix']     = 'NONE' #param['output_dir']+'/clustana_likelihood_covmat.fits'
-            but['ebinalg']    = param['ebinalg']
-            but['emin']       = param['emin'].to_value('TeV') * 0.5
-            but['emax']       = param['emax'].to_value('TeV') * 2.0
-            but['enumbins']   = 100
-    '''
+    but['inobs']   = inobs
+    but['inmodel'] = inmodel
+    but['srcname'] = srcname
+    if expcube   is not None: but['expcube']   = expcube
+    if psfcube   is not None: but['psfcube']   = psfcube
+    if edispcube is not None: but['edispcube'] = edispcube
+    if bkgcube   is not None: but['bkgcube']   = bkgcube
+    if caldb     is not None: but['caldb']     = caldb     
+    if irf       is not None: but['irf']       = irf       
+    but['edisp']         = edisp
+    but['outfile']       = outfile
+    but['fit']           = fit
+    but['method']        = method
+    but['confidence']    = confidence
+    but['statistic']     = statistic
+    but['like_accuracy'] = like_accuracy
+    but['max_iter']      = max_iter
+    but['matrix']        = matrix
+    but['ebinalg']       = ebinalg
+    but['emin']          = emin 
+    but['emax']          = emax
+    but['enumbins']      = enumbins
+    but['ebinfile']      = 'NONE'
 
     but.execute()
 
@@ -163,12 +189,28 @@ def butterfly():
     return but
 
 
-
-
 #==================================================
 # Spectrum residual
 #==================================================
-def residual():
+
+def residual(inobs, inmodel, outfile,
+             npix, reso, cra, cdec,
+             res_ra=None, res_dec=None, res_rad=1.0,
+             emin=1e-2, emax=1e+3, enumbins=20, ebinalg='LOG',
+             modcube=None, 
+             expcube=None, 
+             psfcube=None,
+             bkgcube=None,
+             edispcube=None,
+             caldb=None,
+             irf=None,
+             edisp=False,
+             statistic='DEFAULT',
+             components=False,
+             stack=False,
+             mask=False,
+             algorithm='SIGNIFICANCE',
+             silent=False):
     """
     Generates residual spectrum.
     See http://cta.irap.omp.eu/ctools/users/reference_manual/csresspec.html
@@ -185,47 +227,47 @@ def residual():
     - create residual spectrum fits
 
     """
+
+    if res_ra is None:
+        res_ra  = cra
+    if res_dec is None:
+        res_dec = cdec
     
     rspec = cscripts.csresspec()
 
-    '''
-    #========== Binned analysis     
-    if param['binned']:
-        resi['inobs']     = param['output_dir']+'/clustana_DataPrep_ctbin.fits'
-        resi['inmodel']   = param['output_dir']+'/clustana_output_model.xml'
-        resi['expcube']   = param['output_dir']+'/clustana_DataPrep_ctexpcube.fits'
-        resi['psfcube']   = param['output_dir']+'/clustana_DataPrep_ctpsfcube.fits'
-        if param["apply_edisp"]:
-            resi['edispcube'] = param['output_dir']+'/clustana_DataPrep_ctedispcube.fits'
-        if param['bkg_spec_Prefactor'] > 0:
-            resi['bkgcube']   = param['output_dir']+'/clustana_DataPrep_ctbkgcube.fits'
-        else: 
-            resi['bkgcube']   = 'NONE'
-            
-    #========== Unbinned analysis  
-    else:
-        resi['inobs']     = param['output_dir']+'/clustana_DataPrep_ctselect.fits'
-        resi['inmodel']   = param['output_dir']+'/clustana_output_model.xml'
+    rspec['inobs']      = inobs
+    rspec['inmodel']    = inmodel
+    if modcube   is not None: rspec['modcube']   = modcube
+    if expcube   is not None: rspec['expcube']   = expcube
+    if psfcube   is not None: rspec['psfcube']   = psfcube
+    if edispcube is not None: rspec['edispcube'] = edispcube
+    if bkgcube   is not None: rspec['bkgcube']   = bkgcube
+    if caldb     is not None: rspec['caldb']     = caldb     
+    if irf       is not None: rspec['irf']       = irf       
+    rspec['edisp']      = edisp
+    rspec['outfile']    = outfile
+    rspec['statistic']  = statistic
+    rspec['components'] = components
+    rspec['ebinalg']    = ebinalg
+    rspec['emin']       = emin
+    rspec['emax']       = emax
+    rspec['enumbins']   = enumbins
+    rspec['ebinfile']   = 'NONE'
+    rspec['stack']      = stack
+    rspec['coordsys']   = 'CEL'
+    rspec['proj']       = 'TAN'
+    rspec['xref']       = cra
+    rspec['yref']       = cdec
+    rspec['nxpix']      = npix
+    rspec['nypix']      = npix
+    rspec['binsz']      = reso
+    rspec['mask']       = mask
+    rspec['ra']         = res_ra
+    rspec['dec']        = res_dec
+    rspec['rad']        = res_rad
+    rspec['regfile']    = 'NONE'
+    rspec['algorithm']  = algorithm
 
-    #========== General param and run
-    resi['caldb']      = param['caldb']
-    resi['irf']        = param['irf']
-    resi['edisp']      = param['apply_edisp']
-    resi['outfile']    = param['output_dir']+'/clustana_spectrumr.fits'
-    resi['statistic']  = 'DEFAULT'
-    resi['components'] = True
-    resi['ebinalg']    = param['ebinalg']
-    resi['emin']       = param['emin'].to_value('TeV')
-    resi['emax']       = param['emax'].to_value('TeV')
-    resi['enumbins']   = param['enumbins']
-    resi['mask']       = False
-    resi['ra']         = param['cluster_ra'].to_value('deg')
-    resi['dec']        = param['cluster_dec'].to_value('deg')
-    resi['rad']        = param['cluster_t500'].to_value('deg')
-    resi['algorithm']  = 'SIGNIFICANCE'
-
-    '''
-    
     rspec.execute()
 
     if not silent:

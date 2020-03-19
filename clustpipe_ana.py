@@ -457,7 +457,7 @@ class CTAana(object):
     # Run the spectral analysis
     #==================================================
     
-    def run_ana_spectral(self):
+    def run_ana_spectral(self, do_Spec=True, do_Butterfly=True, do_Res=True):
         """
         Run the spectral analysis
         
@@ -466,6 +466,13 @@ class CTAana(object):
         
         """
 
+        #========== Make sure the map definition is ok
+        if self.map_UsePtgRef:
+            self._match_cluster_to_pointing()      # Cluster map defined using pointings
+            self._match_anamap_to_pointing()       # Analysis map defined using pointings
+            
+        npix = utilities.npix_from_fov_def(self.map_fov, self.map_reso)
+        
         #========== Defines cubes
         inobs, inmodel, expcube, psfcube, bkgcube, edispcube, modcube, modcubeCl = self._define_std_filenames()
 
@@ -477,39 +484,80 @@ class CTAana(object):
             
             srcname = models[isource].name()
 
-            #----- Compute spectra
             if models[isource].type() != 'CTACubeBackground':
                 if not self.silent:
                     print('--- Computing spectrum: '+srcname)
 
-                spec_i = tools_spectral.spectrum(inobs, inmodel,
-                                                 srcname, self.output_dir+'/Ana_Spectrum_'+srcname+'.fits',
-                                                 emin=self.spec_emin.to_value('TeV'),
-                                                 emax=self.spec_emax.to_value('TeV'),
-                                                 enumbins=self.spec_enumbins, ebinalg=self.spec_ebinalg,
-                                                 expcube=expcube,
-                                                 psfcube=psfcube,
-                                                 bkgcube=bkgcube,
-                                                 edispcube=edispcube,
-                                                 caldb=None,
-                                                 irf=None,
-                                                 edisp=self.spec_edisp,
-                                                 method='SLICE',
-                                                 statistic=self.method_stat,
-                                                 calc_ts=True,
-                                                 calc_ulim=True,
-                                                 fix_srcs=True,
-                                                 fix_bkg=False,
-                                                 silent=self.silent)
-            
-            #----- Compute butterfly
-            #tools_spectral.butterfly()
-            
-            #----- Compute residual
-            #tools_spectral.residual()
-            
+                #----- Compute spectra
+                if do_Spec:
+                    tools_spectral.spectrum(inobs,  self.output_dir+'/Ana_Model_Output.xml',
+                                            srcname, self.output_dir+'/Ana_Spectrum_'+srcname+'.fits',
+                                            emin=self.spec_emin.to_value('TeV'),
+                                            emax=self.spec_emax.to_value('TeV'),
+                                            enumbins=self.spec_enumbins, ebinalg=self.spec_ebinalg,
+                                            expcube=expcube,
+                                            psfcube=psfcube,
+                                            bkgcube=bkgcube,
+                                            edispcube=edispcube,
+                                            caldb=None,
+                                            irf=None,
+                                            edisp=self.spec_edisp,
+                                            method='SLICE',
+                                            statistic=self.method_stat,
+                                            calc_ts=True,
+                                            calc_ulim=True,
+                                            fix_srcs=True,
+                                            fix_bkg=False,
+                                            silent=self.silent)
 
+                #----- Compute butterfly
+                if do_Butterfly:
+                    tools_spectral.butterfly(inobs, self.output_dir+'/Ana_Model_Output.xml',
+                                             srcname, self.output_dir+'/Ana_Spectrum_Buterfly_'+srcname+'.txt',
+                                             emin=5e-3, emax=5e+3,
+                                             enumbins=100, ebinalg=self.spec_ebinalg,
+                                             expcube=expcube,
+                                             psfcube=psfcube,
+                                             bkgcube=bkgcube,
+                                             edispcube=edispcube,
+                                             caldb=None,
+                                             irf=None,
+                                             edisp=self.spec_edisp,
+                                             fit=False,
+                                             method='GAUSSIAN',
+                                             confidence=0.68,
+                                             statistic=self.method_stat,
+                                             like_accuracy=0.005,
+                                             max_iter=50,
+                                             matrix='NONE', #self.output_dir+'/Ana_Model_Output_Covmat.fits',
+                                             silent=self.silent)
 
+        #----- Compute residual in R500
+        if do_Res:
+            tools_spectral.residual(inobs, self.output_dir+'/Ana_Model_Output.xml',
+                                    self.output_dir+'/Ana_Spectrum_Residual.fits',
+                                    npix, self.map_reso.to_value('deg'),
+                                    self.map_coord.icrs.ra.to_value('deg'),
+                                    self.map_coord.icrs.dec.to_value('deg'),
+                                    res_ra=self.cluster.coord.icrs.ra.to_value('deg'),
+                                    res_dec=self.cluster.coord.icrs.dec.to_value('deg'),
+                                    res_rad=self.cluster.theta500.to_value('deg'),
+                                    emin=self.spec_emin.to_value('TeV'),
+                                    emax=self.spec_emax.to_value('TeV'),
+                                    enumbins=self.spec_enumbins, ebinalg=self.spec_ebinalg,
+                                    modcube=modcube,
+                                    expcube=expcube, psfcube=psfcube,
+                                    bkgcube=bkgcube, edispcube=edispcube,
+                                    caldb=None, irf=None,
+                                    edisp=self.spec_edisp,
+                                    statistic=self.method_stat,
+                                    components=True,
+                                    stack=True,
+                                    mask=False,
+                                    algorithm='SIGNIFICANCE',
+                                    silent=self.silent)
+                
+                
     #==================================================
     # Timing analysis
     #==================================================
@@ -552,16 +600,16 @@ class CTAana(object):
         #========== Get the obs ID to run (defaults is all of them)
         obsID = self._check_obsID(obsID)
         if not self.silent: print('----- ObsID to be looked at: '+str(obsID))
-
+     
         #========== Plot the observing properties
         clustpipe_ana_plot.observing_setup(self)
-
+     
         #========== Show events
         clustpipe_ana_plot.events_quicklook(self, obsID, smoothing_FWHM=smoothing_FWHM)
-
+        
         #========== Show Combined map
         clustpipe_ana_plot.combined_maps(self, obsID, smoothing_FWHM=smoothing_FWHM)
-
+     
         #========== Profile plot
         plotting.show_profile(self.output_dir+'/Ana_ResmapCluster_profile.fits', 
                               self.output_dir+'/Ana_ResmapCluster_profile.pdf',
@@ -573,3 +621,4 @@ class CTAana(object):
         #========== Lightcurve
 
         #========== Parameter fit correlation matrix
+        clustpipe_ana_plot.covmat(self)
