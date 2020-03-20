@@ -58,11 +58,21 @@ class CTAana(object):
     
     def run_analysis(self,
                      obsID=None,
-                     refit=False,like_accuracy=0.005,max_iter=50,fix_spat_for_ts=False,
+                     refit=False,
+                     like_accuracy=0.005,
+                     max_iter=50,
+                     fix_spat_for_ts=False,
                      imaging_bkgsubtract='NONE',
-                     do_Skymap=False, do_SourceDet=False, do_ResMap=False, do_TSmap=False, profile_reso=0.05*u.deg,
-                     do_Spec=True, do_Butterfly=True, do_Resspec=True,
-                     smoothing_FWHM=0.1*u.deg, profile_log=True):
+                     do_Skymap=False,
+                     do_SourceDet=False,
+                     do_ResMap=False,
+                     do_TSmap=False,
+                     profile_reso=0.05*u.deg,
+                     do_Spec=True,
+                     do_Butterfly=True,
+                     do_Resspec=True,
+                     smoothing_FWHM=0.1*u.deg,
+                     profile_log=True):
         """
         Run the standard cluster analysis.
         
@@ -72,36 +82,51 @@ class CTAana(object):
         
         """
 
+        #----- Check binned/stacked
+        if self.binned == False:
+            self.stack = False
+        
         #----- Data preparation
         self.run_ana_dataprep(obsID=obsID)
         
         #----- Likelihood fit
-        self.run_ana_likelihood(refit=refit, like_accuracy=like_accuracy,
-                                max_iter=max_iter, fix_spat_for_ts=fix_spat_for_ts)
+        self.run_ana_likelihood(refit=refit,
+                                like_accuracy=like_accuracy,
+                                max_iter=max_iter,
+                                fix_spat_for_ts=fix_spat_for_ts)
         
         #----- Imaging analysis
         self.run_ana_imaging(bkgsubtract=imaging_bkgsubtract,
-                             do_Skymap=do_Skymap, do_SourceDet=do_SourceDet, do_Res=do_ResMap, do_TS=do_TSmap,
+                             do_Skymap=do_Skymap,
+                             do_SourceDet=do_SourceDet,
+                             do_Res=do_ResMap,
+                             do_TS=do_TSmap,
                              profile_reso=profile_reso)
         
         #----- Spectral analysis
-        self.run_ana_spectral(do_Spec=do_Spec, do_Butterfly=do_Butterfly, do_Res=do_Resspec)
+        self.run_ana_spectral(do_Spec=do_Spec,
+                              do_Butterfly=do_Butterfly,
+                              do_Res=do_Resspec)
 
         #----- Timing analysis
         #self.run_ana_timing()
 
         #----- Expected output computation
-        self.run_ana_expected_output(obsID, profile_reso=profile_reso)
+        self.run_ana_expected_output(obsID,
+                                     profile_reso=profile_reso)
         
         #----- Output plots
-        self.run_ana_plot(obsID=obsID, smoothing_FWHM=smoothing_FWHM, profile_log=profile_log)
+        self.run_ana_plot(obsID=obsID,
+                          smoothing_FWHM=smoothing_FWHM,
+                          profile_log=profile_log)
         
         
     #==================================================
     # Data preparation
     #==================================================
     
-    def run_ana_dataprep(self, obsID=None):
+    def run_ana_dataprep(self,
+                         obsID=None):
         """
         This function is used to prepare the data to the 
         analysis.
@@ -112,9 +137,14 @@ class CTAana(object):
         By default, all of the are used.
         
         """
+
+        #----- Check binned/stacked
+        if self.binned == False:
+            self.stack = False
         
         #----- Create the output directory if needed
-        if not os.path.exists(self.output_dir): os.mkdir(self.output_dir)
+        if not os.path.exists(self.output_dir):
+            os.mkdir(self.output_dir)
 
         #----- Make sure the map definition is ok
         if self.map_UsePtgRef:
@@ -123,16 +153,20 @@ class CTAana(object):
             
         #----- Get the obs ID to run
         obsID = self._check_obsID(obsID)
-        if not self.silent: print('----- ObsID to be analysed: '+str(obsID))
+        if not self.silent:
+            print('----- ObsID to be analysed: '+str(obsID))
         self.obs_setup.match_bkg_id() # make sure Bkg are unique
         
         #----- Observation definition file
-        self.obs_setup.write_pnt(self.output_dir+'/Ana_Pnt.def', obsid=obsID)
-        self.obs_setup.run_csobsdef(self.output_dir+'/Ana_Pnt.def', self.output_dir+'/Ana_ObsDef.xml')
+        self.obs_setup.write_pnt(self.output_dir+'/Ana_Pnt.def',
+                                 obsid=obsID)
+        self.obs_setup.run_csobsdef(self.output_dir+'/Ana_Pnt.def',
+                                    self.output_dir+'/Ana_ObsDef.xml')
 
         #----- Get the events xml file for the considered obsID
         self._write_new_xmlevent_from_obsid(self.output_dir+'/Events.xml',
-                                            self.output_dir+'/Ana_Events.xml', obsID)
+                                            self.output_dir+'/Ana_Events.xml',
+                                            obsID)
         
         #----- Data selection
         sel = ctools.ctselect()
@@ -159,7 +193,8 @@ class CTAana(object):
         sel.execute()
         
         #----- Model
-        self._make_model(prefix='Ana_Model_Input', obsID=obsID) # Compute the model files
+        self._make_model(prefix='Ana_Model_Input',
+                         obsID=obsID) # Compute the model files
 
         #----- Binning (needed even if unbinned likelihood)
         for stacklist in [True, False]:
@@ -210,6 +245,10 @@ class CTAana(object):
         
         """
 
+        #----- Check binned/stacked
+        if self.binned == False:
+            self.stack = False
+        
         #----- Make sure the map definition is ok
         if self.map_UsePtgRef:
             self._match_cluster_to_pointing()      # Cluster map defined using pointings
@@ -432,9 +471,9 @@ class CTAana(object):
                                                binsize=profile_reso.to_value('deg'), stat='POISSON',
                                                counts2brightness=True)
             tab  = Table()
-            tab['radius']  = Column(radius, unit='deg', description='Cluster-centric angle')
-            tab['profile'] = Column(prof, unit='deg$^{-2}$', description='Counts per deg^-2')
-            tab['error']   = Column(err, unit='deg$^{-2}$', description='Counts per deg^-2 uncertainty')
+            tab['radius']  = Column(radius, unit='deg',    description='Cluster-centric angle')
+            tab['profile'] = Column(prof,   unit='deg-2', description='Counts per deg-2')
+            tab['error']   = Column(err,    unit='deg-2', description='Counts per deg-2 uncertainty')
             tab.write(self.output_dir+'/Ana_ResmapCluster_profile.fits', overwrite=True)
             
         #----- Compute the TS map

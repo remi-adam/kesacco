@@ -12,6 +12,7 @@ import os
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.pylab as pl
+from matplotlib.gridspec import GridSpec
 from matplotlib.colors import SymLogNorm
 import astropy.units as u
 from astropy.io import fits
@@ -497,6 +498,17 @@ def show_profile(proffile, outfile,
     r_unit = data.columns['radius'].unit
     p_unit = data.columns['profile'].unit
 
+    # Get the unit and adapt deg,arcmin,arcsec
+    r_str_label = u.Unit(r_unit).to_string(format='latex_inline')
+    p_str_label = u.Unit(p_unit).to_string(format='latex_inline')
+    r_str_label = r_str_label.replace('{}^{\circ}', 'deg', 10)
+    r_str_label = r_str_label.replace('{}^{\prime}', 'arcmin', 10)
+    r_str_label = r_str_label.replace('{}^{\prime\prime}', 'arcsec', 10)
+    p_str_label = p_str_label.replace('{}^{\circ}', 'deg', 10)
+    p_str_label = p_str_label.replace('{}^{\prime}', 'arcmin', 10)
+    p_str_label = p_str_label.replace('{}^{\prime\prime}', 'arcsec', 10)
+
+    # Check if expected file is there
     if expected_file is not None:
         exp = fits.open(expected_file)[1]
         prof_exp = exp.data
@@ -508,7 +520,10 @@ def show_profile(proffile, outfile,
     fig = plt.figure(1, figsize=(12, 8))
 
     # First frame
-    frame1 = fig.add_axes((.1,.3,.8,.6))
+    if expected_file is not None:
+        frame1 = fig.add_axes((.1,.3,.8,.6))
+    else:
+        frame1 = fig.add_axes((.1,.1,.8,.8))
 
     if logscale:
         plt.errorbar(prof['radius'][w_pos], prof['profile'][w_pos], yerr=prof['error'][w_pos],
@@ -543,33 +558,37 @@ def show_profile(proffile, outfile,
 
     plt.xlim(xlim[0], xlim[1])
     plt.ylim(ylim[0], ylim[1])
-    plt.xlabel('Radius ('+str(r_unit)+')', color='k')
-    plt.ylabel('Profile ('+str(p_unit)+')', color='k')
-    plt.xticks([])
+    plt.xlabel('Radius ('+r_str_label+')', color='k')
+    plt.ylabel('Profile ('+p_str_label+')', color='k')
+    if expected_file is not None: plt.xticks([])
     plt.legend()
 
     # Second frame
-    frame2 = fig.add_axes((.1,.1,.8,.2))
-    
-    plt.plot(prof['radius'], (prof['profile']-prof_exp['profile'])/prof['error'],
-             color='k', marker='o', linestyle='')
-    plt.hlines(0,  xlim[0], xlim[1], linestyle='-')
-    plt.hlines(-3, xlim[0], xlim[1], linestyle='--')
-    plt.hlines(+3, xlim[0], xlim[1], linestyle='--')
+    if expected_file is not None:
+        frame2 = fig.add_axes((.1,.1,.8,.2))
 
-    if theta500 is not None:
-        plt.vlines(theta500.to_value(r_unit), ymin=-5, ymax=5,
-                   color='orange', label='$\\theta_{500}$', linestyle='-.')
-    
-    if logscale:
-        plt.xscale('log')
-    else:
-        plt.xscale('linear')
+        itpl = interpolate.interp1d(prof_exp['radius'], prof_exp['profile'])
+        prof_exp_itpl = itpl(prof['radius'])
+        
+        plt.plot(prof['radius'], (prof['profile']-prof_exp_itpl)/prof['error'],
+                 color='k', marker='o', linestyle='')
+        plt.hlines(0,  xlim[0], xlim[1], linestyle='-')
+        plt.hlines(-3, xlim[0], xlim[1], linestyle='--')
+        plt.hlines(+3, xlim[0], xlim[1], linestyle='--')
 
-    plt.xlim(xlim[0], xlim[1])
-    plt.ylim(-5, 5)
-    plt.xlabel('Radius ('+str(r_unit)+')', color='k')
-    plt.ylabel('$\\chi$')
+        if theta500 is not None:
+            plt.vlines(theta500.to_value(r_unit), ymin=-5, ymax=5,
+                       color='orange', label='$\\theta_{500}$', linestyle='-.')
+    
+        if logscale:
+            plt.xscale('log')
+        else:
+            plt.xscale('linear')
+
+        plt.xlim(xlim[0], xlim[1])
+        plt.ylim(-5, 5)
+        plt.xlabel('Radius ('+r_str_label+')', color='k')
+        plt.ylabel('$\\chi$')
     
     fig.savefig(outfile)
     plt.close()
@@ -936,15 +955,6 @@ def show_spectrum(specfile, outfile, butfile=None, expected_file=None):
     Npred      = spectrum['Npred']
     TS         = spectrum['TS']
 
-    #----- Define "good" and "bad" points
-    TSg = TS*1
-    TSg[TSg <= 1] = 1
-    wgood  = (flux/e_flux > 2) * (e_flux > 0) * (np.sqrt(TSg) > 2)
-    wbad   = ~wgood
-    
-    #----- Start the plot
-    fig, ax1 = plt.subplots(figsize=(12,8))
-
     # Buterfly plot can be added
     if butfile is not None:
         with open(butfile) as f:            
@@ -970,16 +980,6 @@ def show_spectrum(specfile, outfile, butfile=None, expected_file=None):
             b_ul = np.array(col[0:])
             b_ul = b_ul.astype(np.float)
             b_ul = b_ul / u.cm**2 / u.MeV / u.s
-            
-            ax1.plot(b_energy.to_value('GeV'), (b_energy**2 * b_bf).to_value('GeV cm-2 s-1'),
-                     ls='-', color='blue', label='68% CL')
-            ax1.plot(b_energy.to_value('GeV'), (b_energy**2 * b_ul).to_value('GeV cm-2 s-1'),
-                     ls='-.', color='blue')
-            ax1.plot(b_energy.to_value('GeV'), (b_energy**2 * b_ll).to_value('GeV cm-2 s-1'),
-                     ls='-.', color='blue')
-            ax1.fill_between(b_energy.to_value('GeV'), (b_energy**2 * b_ll).to_value('GeV cm-2 s-1'),
-                             (b_energy**2 * b_ul).to_value('GeV cm-2 s-1'),
-                             color='blue', alpha=0.2)
 
     # Expected data plot can be added
     if expected_file is not None:
@@ -993,21 +993,61 @@ def show_spectrum(specfile, outfile, butfile=None, expected_file=None):
             dNdEdSdt_exp = np.array(col[1:])
             dNdEdSdt_exp = dNdEdSdt_exp.astype(np.float)
             dNdEdSdt_exp = dNdEdSdt_exp*u.MeV**-1*u.s**-1*u.cm**-2
+        max_expected = np.nanmax((E_exp**2 * dNdEdSdt_exp).to_value('GeV cm-2 s-1'))*u.GeV/u.cm**2/u.s
 
-        ax1.plot(E_exp.to_value('GeV'), (E_exp**2 * dNdEdSdt_exp).to_value('GeV cm-2 s-1'),
-                 ls='--', linewidth=2, color='k', label='Expected spectrum')
-        max_expected = np.amax((E_exp**2 * dNdEdSdt_exp).to_value('GeV cm-2 s-1'))*u.GeV/u.cm**2/u.s
+        itpl = interpolate.interp1d(E_exp.to_value('GeV'), (E_exp**2*dNdEdSdt_exp).to_value('GeV cm-2 s-1'))
+        dNdEdSdt_exp_itpl = itpl(energy.to_value('GeV'))*u.GeV/u.cm**2/u.s
 
-    # Define the range
-    rngyp = 1.2*np.amax((flux+e_flux).to_value('GeV cm-2 s-1'))*u.GeV/u.cm**2/u.s
+    #----- Define "good" and "bad" points
+    TSg = TS*1
+    TSg[TSg <= 1] = 1
+    wgood  = (flux/e_flux > 2) * (e_flux > 0) * (np.sqrt(TSg) > 2)
+    wbad   = ~wgood
+
+    #----- Define the range
+    rngyp = 1.2*np.nanmax((flux+e_flux).to_value('GeV cm-2 s-1'))*u.GeV/u.cm**2/u.s
     if expected_file is not None:
         if max_expected*1.2 > rngyp:
             rngyp = max_expected*1.2
     if np.sum(wgood) > 0 :
-        rngym = 0.5*np.amin(flux[wgood].to_value('GeV cm-2 s-1'))*u.GeV/u.cm**2/u.s
+        rngym = 0.5*np.nanmin(flux[wgood].to_value('GeV cm-2 s-1'))*u.GeV/u.cm**2/u.s
     else :
-        rngym = 1e-14*u.erg/u.cm**2/u.s # CTA sensitivity 
+        rngym = 1e-14*u.erg/u.cm**2/u.s # CTA sensitivity         
+
+    rngxm = np.nanmin(energy.to_value('GeV'))*u.GeV
+    rngxp = np.nanmax(energy.to_value('GeV'))*u.GeV
+    if expected_file is not None:
+        rngxm = np.nanmin([np.nanmin(E_exp.to_value('GeV')), rngxm.to_value('GeV')])*u.GeV
+        rngxp = np.nanmax([np.nanmax(E_exp.to_value('GeV')), rngxp.to_value('GeV')])*u.GeV
         
+    xlim = [rngxm, rngxp]
+    ylim = [rngym, rngyp]
+        
+    #----- Start the plot
+    fig = plt.figure(figsize=(12,8))
+    if expected_file is not None:
+        gs = GridSpec(2,1, height_ratios=[3,1], hspace=0)
+        ax1 = plt.subplot(gs[0])
+        ax3 = plt.subplot(gs[1])
+    else:
+        gs = GridSpec(1,1)
+        ax1 = plt.subplot(gs[0])
+
+    if butfile is not None:
+        ax1.plot(b_energy.to_value('GeV'), (b_energy**2 * b_bf).to_value('GeV cm-2 s-1'),
+                 ls='-', color='blue', label='68% CL')
+        ax1.plot(b_energy.to_value('GeV'), (b_energy**2 * b_ul).to_value('GeV cm-2 s-1'),
+                 ls='-.', color='blue')
+        ax1.plot(b_energy.to_value('GeV'), (b_energy**2 * b_ll).to_value('GeV cm-2 s-1'),
+                 ls='-.', color='blue')
+        ax1.fill_between(b_energy.to_value('GeV'), (b_energy**2 * b_ll).to_value('GeV cm-2 s-1'),
+                         (b_energy**2 * b_ul).to_value('GeV cm-2 s-1'),
+                         color='blue', alpha=0.2)
+
+    if expected_file is not None:
+        ax1.plot(E_exp.to_value('GeV'), (E_exp**2 * dNdEdSdt_exp).to_value('GeV cm-2 s-1'),
+                 ls='--', linewidth=2, color='k', label='Expected spectrum')
+
     # Measured spectrum
     ax1.errorbar(energy[wgood].to_value('GeV'), flux[wgood].to_value('GeV cm-2 s-1'),
                  yerr=e_flux[wgood].to_value('GeV cm-2 s-1'),
@@ -1021,20 +1061,38 @@ def show_spectrum(specfile, outfile, butfile=None, expected_file=None):
                  marker="", elinewidth=2, color="pink",
                  markeredgecolor="pink", markerfacecolor="pink",
                  linestyle="None")
-    ax1.set_xlabel('Energy (GeV)')
     ax1.set_ylabel('$E^2 \\frac{dN}{dEdSdt}$ (GeV/cm$^2$/s)')
     ax1.set_xscale('log')
     ax1.set_yscale('log')
-    ax1.set_ylim([rngym.to_value('GeV cm-2 s-1'),rngyp.to_value('GeV cm-2 s-1')])
-    #ax1.set_ylim([5e-10,3e-8])
-    plt.legend()
+    ax1.set_xlim(xlim[0].to_value('GeV'),          xlim[1].to_value('GeV'))
+    ax1.set_ylim(ylim[0].to_value('GeV cm-2 s-1'), ylim[1].to_value('GeV cm-2 s-1'))
+    if expected_file is not None:
+        ax1.set_xticks([])
+    else:
+        ax1.set_xlabel('Energy (GeV)')
+    ax1.legend()
     
     # Add extra unit axes
     ax2 = ax1.twinx()
     ax2.plot(energy[wgood].to_value('GeV'), flux[wgood].to_value('erg cm-2 s-1'), 'k-', alpha=0.0)
     ax2.set_ylabel('$E^2 \\frac{dN}{dEdSdt}$ (erg/cm$^2$/s)')
     ax2.set_yscale('log')
-    ax2.set_ylim([rngym.to_value('erg cm-2 s-1'), rngyp.to_value('erg cm-2 s-1')])
+    ax2.set_ylim(ylim[0].to_value('erg cm-2 s-1'), ylim[1].to_value('erg cm-2 s-1'))
+
+    # Residual plot
+    if expected_file is not None:
+        ax3.plot(energy.to_value('GeV'),
+                 ((flux-dNdEdSdt_exp_itpl).to_value('GeV cm-2 s-1'))/e_flux.to_value('GeV cm-2 s-1'),
+                 linestyle='', marker='o', color='k')
+        ax3.axhline(0,  xlim[0].to_value('GeV')*0.1, xlim[1].to_value('GeV')*10, linestyle='-', color='k')
+        ax3.axhline(-3, xlim[0].to_value('GeV')*0.1, xlim[1].to_value('GeV')*10, linestyle='--', color='k')
+        ax3.axhline(+3, xlim[0].to_value('GeV')*0.1, xlim[1].to_value('GeV')*10, linestyle='--', color='k')
+        ax3.set_xlabel('Energy (GeV)')
+        ax3.set_ylabel('$\\chi$')
+        ax3.set_xscale('log')
+        ax3.set_xlim(xlim[0].to_value('GeV'), xlim[1].to_value('GeV'))
+        ax3.set_ylim(-5, 5)
+        
     fig.savefig(outfile)
     plt.close()
 
