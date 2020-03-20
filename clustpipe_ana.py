@@ -89,6 +89,9 @@ class CTAana(object):
 
         #----- Timing analysis
         #self.run_ana_timing()
+
+        #----- Expected output computation
+        self.run_ana_expected_output(obsID, profile_reso=profile_reso)
         
         #----- Output plots
         self.run_ana_plots(obsID=obsID, smoothing_FWHM=smoothing_FWHM, profile_log=profile_log)
@@ -359,13 +362,16 @@ class CTAana(object):
         
         #========== Search for sources
         if do_SourceDet:
-            srcmap = tools_imaging.src_detect(self.output_dir+'/Ana_SkymapTot.fits',
-                                              self.output_dir+'/Ana_Sourcedetect.xml',
-                                              self.output_dir+'/Ana_Sourcedetect.reg',
-                                              threshold=4.0, maxsrcs=10, avgrad=1.0,
-                                              corr_rad=0.05, exclrad=0.2,
-                                              silent=self.silent)
-        
+            if os.path.isfile(self.output_dir+'/Ana_SkymapTot.fits'):
+                srcmap = tools_imaging.src_detect(self.output_dir+'/Ana_SkymapTot.fits',
+                                                  self.output_dir+'/Ana_Sourcedetect.xml',
+                                                  self.output_dir+'/Ana_Sourcedetect.reg',
+                                                  threshold=4.0, maxsrcs=10, avgrad=1.0,
+                                                  corr_rad=0.05, exclrad=0.2,
+                                                  silent=self.silent)
+            else:
+                print(self.output_dir+'/Ana_SkymapTot.fits what not created and is needed for source detection.')
+                
         #========== Compute residual (w/wo cluster subtracted)
         if do_Res:
             #----- Total residual and keeping the cluster
