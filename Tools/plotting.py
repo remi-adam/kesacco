@@ -502,57 +502,71 @@ def show_profile(proffile, outfile,
         prof_exp = exp.data
         
     #---------- Plot
-    fig = plt.figure(1, figsize=(12, 8))
-    frame1 = fig.add_axes((.1,.3,.8,.6))
-
-    plt.xlabel('Radius ('+str(r_unit)+')', color='k')
-    plt.ylabel('Profile ('+str(p_unit)+')', color='k')
-
     w_pos = prof['profile'] > 0
     w_neg = prof['profile'] < 0
+    
+    fig = plt.figure(1, figsize=(12, 8))
+
+    # First frame
+    frame1 = fig.add_axes((.1,.3,.8,.6))
 
     if logscale:
+        plt.errorbar(prof['radius'][w_pos], prof['profile'][w_pos], yerr=prof['error'][w_pos],
+                     color='blue', marker='o', linestyle='', label='data (> 0)')
+        plt.errorbar(prof['radius'][w_neg], -prof['profile'][w_neg], yerr=prof['error'][w_neg],
+                     color='cyan', marker='D', linestyle='', label='data (< 0)')
+        xlim = [np.amin(prof['radius'])*0.5,         np.amax(prof['radius'])*1.1]
+        ylim = [np.amin(prof['profile'][w_pos])*0.5, np.amax(prof['profile']+prof['error'])*1.5]
         plt.xscale('log')
         plt.yscale('log')
-
-        plt.errorbar(prof['radius'][w_pos], prof['profile'][w_pos], yerr=prof['error'][w_pos],
-                     color='blue',marker='o',linestyle='', label='values > 0')
-        plt.errorbar(prof['radius'][w_neg], -prof['profile'][w_neg], yerr=prof['error'][w_neg],
-                     color='orange',marker='.',linestyle='', label='values < 0')
-        plt.xlim(np.amin(prof['radius'])*0.5, np.amax(prof['radius']))
-        plt.ylim(np.amin(prof['profile'][w_pos]))
     else:
-        plt.errorbar(prof['radius'], prof['profile'], yerr=prof['error'], color='blue',marker='o',linestyle='')
-        plt.xlim(0, np.amax(prof['radius']))
-        plt.ylim(np.amin(prof['profile'][w_pos]))
-
+        plt.errorbar(prof['radius'], prof['profile'], yerr=prof['error'],
+                     color='blue', marker='o', linestyle='', label='data')
+        xlim = [0, np.amax(prof['radius'])*1.1]
+        ylim = [np.amin(prof['profile'][w_pos]), np.amax(prof['profile']+prof['error'])]
+        plt.xscale('linear')
+        plt.yscale('linear')
+        
     if expected_file is not None:
         plt.fill_between(prof_exp['radius'],
                          prof_exp['profile']+prof_exp['error'],
                          prof_exp['profile']-prof_exp['error'], color='red', alpha=0.2)
         plt.plot(prof_exp['radius'], prof_exp['profile'], color='red', label='Input model (IRF convolved)')
-        plt.plot(prof_exp['radius'], prof_exp['profile']+prof_exp['error'], color='red', linestyle='--')
-        plt.plot(prof_exp['radius'], prof_exp['profile']-prof_exp['error'], color='red', linestyle='--')
-        
+        plt.plot(prof_exp['radius'], prof_exp['profile']+prof_exp['error'],
+                 color='red', linestyle='--', linewidth=0.5)
+        plt.plot(prof_exp['radius'], prof_exp['profile']-prof_exp['error'],
+                 color='red', linestyle='--', linewidth=0.5)
+    
     if theta500 is not None:
-        plt.vlines(theta500.to_value(r_unit), ymin=1e-300, ymax=1e300,
-                   color='black', label='$\\theta_{500}$', linestyle='--')
-    plt.legend()
-    plt.xticks([])
+        plt.vlines(theta500.to_value(r_unit), ymin=ylim[0], ymax=ylim[1],
+                   color='orange', label='$\\theta_{500}$', linestyle='-.')
 
+    plt.xlim(xlim[0], xlim[1])
+    plt.ylim(ylim[0], ylim[1])
+    plt.xlabel('Radius ('+str(r_unit)+')', color='k')
+    plt.ylabel('Profile ('+str(p_unit)+')', color='k')
+    plt.xticks([])
+    plt.legend()
+
+    # Second frame
     frame2 = fig.add_axes((.1,.1,.8,.2))
+    
     plt.plot(prof['radius'], (prof['profile']-prof_exp['profile'])/prof['error'],
-             color='k', marker='.', linestyle='')
-    plt.hlines(0,  np.amin(prof['radius'])*0.5, 50, linestyle='-')
-    plt.hlines(-3, np.amin(prof['radius'])*0.5, 50, linestyle='--')
-    plt.hlines(+3, np.amin(prof['radius'])*0.5, 50, linestyle='--')
+             color='k', marker='o', linestyle='')
+    plt.hlines(0,  xlim[0], xlim[1], linestyle='-')
+    plt.hlines(-3, xlim[0], xlim[1], linestyle='--')
+    plt.hlines(+3, xlim[0], xlim[1], linestyle='--')
+
+    if theta500 is not None:
+        plt.vlines(theta500.to_value(r_unit), ymin=-5, ymax=5,
+                   color='orange', label='$\\theta_{500}$', linestyle='-.')
     
     if logscale:
         plt.xscale('log')
-        plt.xlim(np.amin(prof['radius'])*0.5, np.amax(prof['radius']))
     else:
-        plt.xlim(0, np.amax(prof['radius']))
-        
+        plt.xscale('linear')
+
+    plt.xlim(xlim[0], xlim[1])
     plt.ylim(-5, 5)
     plt.xlabel('Radius ('+str(r_unit)+')', color='k')
     plt.ylabel('$\\chi$')

@@ -95,7 +95,6 @@ class ClusterPipe(Common, CTAsim, CTAana):
         self.method_stack  = True
         self.method_binned = True
         self.method_stat   = 'DEFAULT' # CSTAT, WSTAT, CHI2
-        self.method_onoff  = False
 
         # Map related
         self.map_reso      = 0.02*u.deg

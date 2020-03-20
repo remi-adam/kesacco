@@ -656,14 +656,14 @@ class CTAana(object):
         if not self.silent: print('----- ObsID to be looked at: '+str(obsID))
      
         #========== Plot the observing properties
-    #    clustpipe_ana_plot.observing_setup(self)
-    # 
-    #    #========== Show events
-    #    clustpipe_ana_plot.events_quicklook(self, obsID, smoothing_FWHM=smoothing_FWHM)
-    #    
-    #    #========== Show Combined map
-    #    clustpipe_ana_plot.combined_maps(self, obsID, smoothing_FWHM=smoothing_FWHM)
-    # 
+        clustpipe_ana_plot.observing_setup(self)
+     
+        #========== Show events
+        clustpipe_ana_plot.events_quicklook(self, obsID, smoothing_FWHM=smoothing_FWHM)
+        
+        #========== Show Combined map
+        clustpipe_ana_plot.combined_maps(self, obsID, smoothing_FWHM=smoothing_FWHM)
+     
         #========== Profile plot
         clustpipe_ana_plot.profile(self, profile_log=profile_log)
     
