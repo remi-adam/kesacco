@@ -1,0 +1,148 @@
+2020-03-20T16:12:33: ********************************************************************************
+2020-03-20T16:12:33: *                                   csresspec                                  *
+2020-03-20T16:12:33: * ---------------------------------------------------------------------------- *
+2020-03-20T16:12:33: * Version: 1.6.3                                                               *
+2020-03-20T16:12:33: ********************************************************************************
+2020-03-20T16:12:34: +============+
+2020-03-20T16:12:34: | Parameters |
+2020-03-20T16:12:34: +============+
+2020-03-20T16:12:34:  inobs .....................: /Users/adam/Project/CTA/Phys/Outputs/KESACCO_binned_unstack/Ana_Countscube.xml
+2020-03-20T16:12:34:  inmodel ...................: /Users/adam/Project/CTA/Phys/Outputs/KESACCO_binned_unstack/Ana_Model_Output.xml
+2020-03-20T16:12:34:  modcube ...................: /Users/adam/Project/CTA/Phys/Outputs/KESACCO_binned_unstack/Ana_Model_Cube.fits
+2020-03-20T16:12:34:  expcube ...................: [not queried]
+2020-03-20T16:12:34:  psfcube ...................: [not queried]
+2020-03-20T16:12:34:  edispcube .................: [not queried]
+2020-03-20T16:12:34:  bkgcube ...................: [not queried]
+2020-03-20T16:12:34:  caldb .....................: [not queried]
+2020-03-20T16:12:34:  irf .......................: [not queried]
+2020-03-20T16:12:34:  edisp .....................: no
+2020-03-20T16:12:34:  outfile ...................: /Users/adam/Project/CTA/Phys/Outputs/KESACCO_binned_unstack/Ana_Spectrum_Residual.fits
+2020-03-20T16:12:34:  statistic .................: DEFAULT
+2020-03-20T16:12:34:  components ................: yes
+2020-03-20T16:12:34:  ebinalg ...................: LOG
+2020-03-20T16:12:34:  emin ......................: 0.05
+2020-03-20T16:12:34:  emax ......................: 100
+2020-03-20T16:12:34:  enumbins ..................: 10
+2020-03-20T16:12:34:  ebinfile ..................: NONE
+2020-03-20T16:12:34:  stack .....................: yes
+2020-03-20T16:12:34:  coordsys ..................: CEL
+2020-03-20T16:12:34:  proj ......................: TAN
+2020-03-20T16:12:34:  xref ......................: 49.9466666666667
+2020-03-20T16:12:34:  yref ......................: 41.5130555555556
+2020-03-20T16:12:34:  nxpix .....................: 41
+2020-03-20T16:12:34:  nypix .....................: 41
+2020-03-20T16:12:34:  binsz .....................: 0.1
+2020-03-20T16:12:34:  mask ......................: no
+2020-03-20T16:12:34:  ra ........................: 49.9466666666667
+2020-03-20T16:12:34:  dec .......................: 41.5130555555556
+2020-03-20T16:12:34:  rad .......................: 0.973853085549094
+2020-03-20T16:12:34:  regfile ...................: NONE
+2020-03-20T16:12:34:  algorithm .................: SIGNIFICANCE
+2020-03-20T16:12:34:  publish ...................: no
+2020-03-20T16:12:34:  chatter ...................: 2
+2020-03-20T16:12:34:  clobber ...................: yes
+2020-03-20T16:12:34:  debug .....................: no
+2020-03-20T16:12:34:  mode ......................: ql
+2020-03-20T16:12:34:  logfile ...................: csresspec.log
+2020-03-20T16:12:34: 
+2020-03-20T16:12:34: WARNING: Energy dispersion will *NOT* be considered for the computation. To consider
+2020-03-20T16:12:34:          energy dispersion, please set the "edisp" parameter to "yes". Be aware that
+2020-03-20T16:12:34:          using energy dispersion will considerably slow down the computations.
+2020-03-20T16:12:34: 
+2020-03-20T16:12:34: +====================+
+2020-03-20T16:12:34: | Observation census |
+2020-03-20T16:12:34: +====================+
+2020-03-20T16:12:34:  Unbinned CTA observations .: 0
+2020-03-20T16:12:34:  Binned CTA observations ...: 5
+2020-03-20T16:12:34:  On/off CTA observations ...: 0
+2020-03-20T16:12:34:  Other observations ........: 0
+2020-03-20T16:12:34: 
+2020-03-20T16:12:34: +==============+
+2020-03-20T16:12:34: | Observations |
+2020-03-20T16:12:34: +==============+
+2020-03-20T16:12:34: === GObservations ===
+2020-03-20T16:12:34:  Number of observations ....: 5
+2020-03-20T16:12:34:  Number of models ..........: 8
+2020-03-20T16:12:34:  Number of observed events .: 574786
+2020-03-20T16:12:34:  Number of predicted events : 0
+2020-03-20T16:12:34: 
+2020-03-20T16:12:34: +=========================+
+2020-03-20T16:12:34: | Processing Observations |
+2020-03-20T16:12:34: +=========================+
+2020-03-20T16:12:34: +----------------------------+
+2020-03-20T16:12:34: | Processing observation 011 |
+2020-03-20T16:12:34: +----------------------------+
+2020-03-20T16:12:34: Computing model cube
+2020-03-20T16:12:51: Computing counts, model, and residual spectra
+2020-03-20T16:12:51:  Computing model component .: Perseus
+2020-03-20T16:12:51:  Computing model component .: NGC1275
+2020-03-20T16:12:51:  Computing model component .: IC310
+2020-03-20T16:12:51:  Computing model component .: Background_011
+2020-03-20T16:12:51:  Computing model component .: Background_012
+2020-03-20T16:12:51:  Computing model component .: Background_013
+2020-03-20T16:12:51:  Computing model component .: Background_014
+2020-03-20T16:12:51:  Computing model component .: Background_015
+2020-03-20T16:12:51: Filling residual table
+2020-03-20T16:12:51: +----------------------------+
+2020-03-20T16:12:51: | Processing observation 012 |
+2020-03-20T16:12:51: +----------------------------+
+2020-03-20T16:12:51: Computing model cube
+2020-03-20T16:13:15: Computing counts, model, and residual spectra
+2020-03-20T16:13:15:  Computing model component .: Perseus
+2020-03-20T16:13:15:  Computing model component .: NGC1275
+2020-03-20T16:13:15:  Computing model component .: IC310
+2020-03-20T16:13:15:  Computing model component .: Background_011
+2020-03-20T16:13:15:  Computing model component .: Background_012
+2020-03-20T16:13:15:  Computing model component .: Background_013
+2020-03-20T16:13:15:  Computing model component .: Background_014
+2020-03-20T16:13:16:  Computing model component .: Background_015
+2020-03-20T16:13:16: Filling residual table
+2020-03-20T16:13:16: +----------------------------+
+2020-03-20T16:13:16: | Processing observation 013 |
+2020-03-20T16:13:16: +----------------------------+
+2020-03-20T16:13:16: Computing model cube
+2020-03-20T16:13:36: Computing counts, model, and residual spectra
+2020-03-20T16:13:36:  Computing model component .: Perseus
+2020-03-20T16:13:36:  Computing model component .: NGC1275
+2020-03-20T16:13:36:  Computing model component .: IC310
+2020-03-20T16:13:36:  Computing model component .: Background_011
+2020-03-20T16:13:36:  Computing model component .: Background_012
+2020-03-20T16:13:36:  Computing model component .: Background_013
+2020-03-20T16:13:36:  Computing model component .: Background_014
+2020-03-20T16:13:36:  Computing model component .: Background_015
+2020-03-20T16:13:36: Filling residual table
+2020-03-20T16:13:36: +----------------------------+
+2020-03-20T16:13:36: | Processing observation 014 |
+2020-03-20T16:13:36: +----------------------------+
+2020-03-20T16:13:36: Computing model cube
+2020-03-20T16:13:56: Computing counts, model, and residual spectra
+2020-03-20T16:13:56:  Computing model component .: Perseus
+2020-03-20T16:13:56:  Computing model component .: NGC1275
+2020-03-20T16:13:56:  Computing model component .: IC310
+2020-03-20T16:13:57:  Computing model component .: Background_011
+2020-03-20T16:13:57:  Computing model component .: Background_012
+2020-03-20T16:13:57:  Computing model component .: Background_013
+2020-03-20T16:13:57:  Computing model component .: Background_014
+2020-03-20T16:13:57:  Computing model component .: Background_015
+2020-03-20T16:13:57: Filling residual table
+2020-03-20T16:13:57: +----------------------------+
+2020-03-20T16:13:57: | Processing observation 015 |
+2020-03-20T16:13:57: +----------------------------+
+2020-03-20T16:13:57: Computing model cube
+2020-03-20T16:14:18: Computing counts, model, and residual spectra
+2020-03-20T16:14:18:  Computing model component .: Perseus
+2020-03-20T16:14:18:  Computing model component .: NGC1275
+2020-03-20T16:14:18:  Computing model component .: IC310
+2020-03-20T16:14:18:  Computing model component .: Background_011
+2020-03-20T16:14:18:  Computing model component .: Background_012
+2020-03-20T16:14:18:  Computing model component .: Background_013
+2020-03-20T16:14:18:  Computing model component .: Background_014
+2020-03-20T16:14:18:  Computing model component .: Background_015
+2020-03-20T16:14:18: Filling residual table
+2020-03-20T16:14:18: 
+2020-03-20T16:14:18: +================+
+2020-03-20T16:14:18: | Save residuals |
+2020-03-20T16:14:18: +================+
+2020-03-20T16:14:18:  Residuals file ............: /Users/adam/Project/CTA/Phys/Outputs/KESACCO_binned_unstack/Ana_Spectrum_Residual.fits
+2020-03-20T16:14:18: 
+2020-03-20T16:14:18: Application "csresspec" terminated after 105 wall clock seconds, consuming 96.9772 seconds of CPU time.

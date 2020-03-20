@@ -515,15 +515,15 @@ def show_profile(proffile, outfile,
                      color='blue', marker='o', linestyle='', label='data (> 0)')
         plt.errorbar(prof['radius'][w_neg], -prof['profile'][w_neg], yerr=prof['error'][w_neg],
                      color='cyan', marker='D', linestyle='', label='data (< 0)')
-        xlim = [np.amin(prof['radius'])*0.5,         np.amax(prof['radius'])*1.1]
-        ylim = [np.amin(prof['profile'][w_pos])*0.5, np.amax(prof['profile']+prof['error'])*1.5]
+        xlim = [np.nanmin(prof['radius'])*0.5,         np.nanmax(prof['radius'])*1.1]
+        ylim = [np.nanmin(prof['profile'][w_pos])*0.5, np.nanmax(prof['profile']+prof['error'])*1.5]
         plt.xscale('log')
         plt.yscale('log')
     else:
         plt.errorbar(prof['radius'], prof['profile'], yerr=prof['error'],
                      color='blue', marker='o', linestyle='', label='data')
-        xlim = [0, np.amax(prof['radius'])*1.1]
-        ylim = [np.amin(prof['profile'][w_pos]), np.amax(prof['profile']+prof['error'])]
+        xlim = [0, np.nanmax(prof['radius'])*1.1]
+        ylim = [np.nanmin(prof['profile'][w_pos]), np.nanmax(prof['profile']+prof['error'])]
         plt.xscale('linear')
         plt.yscale('linear')
         

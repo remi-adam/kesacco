@@ -1,58 +1,58 @@
-2020-03-18T20:08:56: ********************************************************************************
-2020-03-18T20:08:56: *                                   csresmap                                   *
-2020-03-18T20:08:56: * ---------------------------------------------------------------------------- *
-2020-03-18T20:08:56: * Version: 1.6.3                                                               *
-2020-03-18T20:08:56: ********************************************************************************
-2020-03-18T20:08:56: +============+
-2020-03-18T20:08:56: | Parameters |
-2020-03-18T20:08:56: +============+
-2020-03-18T20:08:56:  inobs .....................: /Users/adam/Project/CTA/Phys/Outputs/KESACCO/Ana_Countscube.fits
-2020-03-18T20:08:56:  inmodel ...................: /Users/adam/Project/CTA/Phys/Outputs/KESACCO/Ana_Model_Output_Cluster.xml
-2020-03-18T20:08:56:  modcube ...................: /Users/adam/Project/CTA/Phys/Outputs/KESACCO/Ana_Model_Cube_Cluster.fits
-2020-03-18T20:08:56:  expcube ...................: /Users/adam/Project/CTA/Phys/Outputs/KESACCO/Ana_Expcube.fits
-2020-03-18T20:08:56:  psfcube ...................: /Users/adam/Project/CTA/Phys/Outputs/KESACCO/Ana_Psfcube.fits
-2020-03-18T20:08:56:  edispcube .................: [not queried]
-2020-03-18T20:08:56:  bkgcube ...................: /Users/adam/Project/CTA/Phys/Outputs/KESACCO/Ana_Bkgcube.fits
-2020-03-18T20:08:56:  caldb .....................: [not queried]
-2020-03-18T20:08:56:  irf .......................: [not queried]
-2020-03-18T20:08:56:  edisp .....................: no
-2020-03-18T20:08:56:  outmap ....................: /Users/adam/Project/CTA/Phys/Outputs/KESACCO/Ana_ResmapCluster_SUBDIV.fits
-2020-03-18T20:08:56:  ebinalg ...................: LOG
-2020-03-18T20:08:56:  emin ......................: 0.05
-2020-03-18T20:08:56:  emax ......................: 100
-2020-03-18T20:08:56:  enumbins ..................: 20
-2020-03-18T20:08:56:  ebinfile ..................: NONE
-2020-03-18T20:08:56:  coordsys ..................: CEL
-2020-03-18T20:08:56:  proj ......................: TAN
-2020-03-18T20:08:56:  xref ......................: 49.9420320110077
-2020-03-18T20:08:56:  yref ......................: 41.515220913547
-2020-03-18T20:08:56:  nxpix .....................: 151
-2020-03-18T20:08:56:  nypix .....................: 151
-2020-03-18T20:08:56:  binsz .....................: 0.05
-2020-03-18T20:08:56:  algorithm .................: SUBDIV
-2020-03-18T20:08:56:  publish ...................: no
-2020-03-18T20:08:56:  chatter ...................: 2
-2020-03-18T20:08:56:  clobber ...................: yes
-2020-03-18T20:08:56:  debug .....................: no
-2020-03-18T20:08:56:  mode ......................: ql
-2020-03-18T20:08:56:  logfile ...................: csresmap.log
-2020-03-18T20:08:56: 
-2020-03-18T20:08:56: WARNING: Energy dispersion will *NOT* be considered for the computation. To consider
-2020-03-18T20:08:56:          energy dispersion, please set the "edisp" parameter to "yes". Be aware that
-2020-03-18T20:08:56:          using energy dispersion will considerably slow down the computations.
-2020-03-18T20:08:56: 
-2020-03-18T20:08:56: +==============+
-2020-03-18T20:08:56: | Observations |
-2020-03-18T20:08:56: +==============+
-2020-03-18T20:08:56: === GObservations ===
-2020-03-18T20:08:56:  Number of observations ....: 0
-2020-03-18T20:08:56:  Number of models ..........: 0
-2020-03-18T20:08:56:  Number of observed events .: 0
-2020-03-18T20:08:56:  Number of predicted events : 0
-2020-03-18T20:08:56: 
-2020-03-18T20:08:56: +===================+
-2020-03-18T20:08:56: | Save residual map |
-2020-03-18T20:08:56: +===================+
-2020-03-18T20:08:56:  Residual map file .........: /Users/adam/Project/CTA/Phys/Outputs/KESACCO/Ana_ResmapCluster_SUBDIV.fits
-2020-03-18T20:08:56: 
-2020-03-18T20:08:56: Application "csresmap" terminated after 0 wall clock seconds, consuming 0.279161 seconds of CPU time. This was rather quick!
+2020-03-20T14:36:53: ********************************************************************************
+2020-03-20T14:36:53: *                                   csresmap                                   *
+2020-03-20T14:36:53: * ---------------------------------------------------------------------------- *
+2020-03-20T14:36:53: * Version: 1.6.3                                                               *
+2020-03-20T14:36:53: ********************************************************************************
+2020-03-20T14:36:53: +============+
+2020-03-20T14:36:53: | Parameters |
+2020-03-20T14:36:53: +============+
+2020-03-20T14:36:53:  inobs .....................: /Users/adam/Project/CTA/Phys/Outputs/KESACCO_binned_unstack/Ana_Countscube.fits
+2020-03-20T14:36:53:  inmodel ...................: /Users/adam/Project/CTA/Phys/Outputs/KESACCO_binned_unstack/Ana_Model_Output_Cluster.xml
+2020-03-20T14:36:53:  modcube ...................: /Users/adam/Project/CTA/Phys/Outputs/KESACCO_binned_unstack/Ana_Model_Cube_Cluster.fits
+2020-03-20T14:36:53:  expcube ...................: [not queried]
+2020-03-20T14:36:53:  psfcube ...................: [not queried]
+2020-03-20T14:36:53:  edispcube .................: [not queried]
+2020-03-20T14:36:53:  bkgcube ...................: [not queried]
+2020-03-20T14:36:53:  caldb .....................: [not queried]
+2020-03-20T14:36:53:  irf .......................: [not queried]
+2020-03-20T14:36:53:  edisp .....................: no
+2020-03-20T14:36:53:  outmap ....................: /Users/adam/Project/CTA/Phys/Outputs/KESACCO_binned_unstack/Ana_ResmapCluster_SUBDIV.fits
+2020-03-20T14:36:53:  ebinalg ...................: LOG
+2020-03-20T14:36:53:  emin ......................: 0.05
+2020-03-20T14:36:53:  emax ......................: 100
+2020-03-20T14:36:53:  enumbins ..................: 10
+2020-03-20T14:36:53:  ebinfile ..................: NONE
+2020-03-20T14:36:53:  coordsys ..................: CEL
+2020-03-20T14:36:53:  proj ......................: TAN
+2020-03-20T14:36:53:  xref ......................: 49.9466666666667
+2020-03-20T14:36:53:  yref ......................: 41.5130555555556
+2020-03-20T14:36:53:  nxpix .....................: 41
+2020-03-20T14:36:53:  nypix .....................: 41
+2020-03-20T14:36:53:  binsz .....................: 0.1
+2020-03-20T14:36:53:  algorithm .................: SUBDIV
+2020-03-20T14:36:53:  publish ...................: no
+2020-03-20T14:36:53:  chatter ...................: 2
+2020-03-20T14:36:53:  clobber ...................: yes
+2020-03-20T14:36:53:  debug .....................: no
+2020-03-20T14:36:53:  mode ......................: ql
+2020-03-20T14:36:53:  logfile ...................: csresmap.log
+2020-03-20T14:36:53: 
+2020-03-20T14:36:53: WARNING: Energy dispersion will *NOT* be considered for the computation. To consider
+2020-03-20T14:36:53:          energy dispersion, please set the "edisp" parameter to "yes". Be aware that
+2020-03-20T14:36:53:          using energy dispersion will considerably slow down the computations.
+2020-03-20T14:36:53: 
+2020-03-20T14:36:53: +==============+
+2020-03-20T14:36:53: | Observations |
+2020-03-20T14:36:53: +==============+
+2020-03-20T14:36:53: === GObservations ===
+2020-03-20T14:36:53:  Number of observations ....: 0
+2020-03-20T14:36:53:  Number of models ..........: 0
+2020-03-20T14:36:53:  Number of observed events .: 0
+2020-03-20T14:36:53:  Number of predicted events : 0
+2020-03-20T14:36:53: 
+2020-03-20T14:36:53: +===================+
+2020-03-20T14:36:53: | Save residual map |
+2020-03-20T14:36:53: +===================+
+2020-03-20T14:36:53:  Residual map file .........: /Users/adam/Project/CTA/Phys/Outputs/KESACCO_binned_unstack/Ana_ResmapCluster_SUBDIV.fits
+2020-03-20T14:36:53: 
+2020-03-20T14:36:53: Application "csresmap" terminated after 0 wall clock seconds, consuming 0.066118 seconds of CPU time. This was rather quick!

@@ -81,7 +81,7 @@ class CTAana(object):
         
         #----- Imaging analysis
         self.run_ana_imaging(bkgsubtract=imaging_bkgsubtract,
-                             do_Skymap=do_Skymap, do_SourceDet=do_SourceDet, do_Res=do_Resmap, do_TS=do_TSmap,
+                             do_Skymap=do_Skymap, do_SourceDet=do_SourceDet, do_Res=do_ResMap, do_TS=do_TSmap,
                              profile_reso=profile_reso)
         
         #----- Spectral analysis
@@ -94,7 +94,7 @@ class CTAana(object):
         self.run_ana_expected_output(obsID, profile_reso=profile_reso)
         
         #----- Output plots
-        self.run_ana_plots(obsID=obsID, smoothing_FWHM=smoothing_FWHM, profile_log=profile_log)
+        self.run_ana_plot(obsID=obsID, smoothing_FWHM=smoothing_FWHM, profile_log=profile_log)
         
         
     #==================================================
@@ -486,7 +486,7 @@ class CTAana(object):
             
             srcname = models[isource].name()
 
-            if models[isource].type() != 'CTACubeBackground':
+            if models[isource].type() not in ['CTACubeBackground', 'CTAIrfBackground']:
                 if not self.silent:
                     print('--- Computing spectrum: '+srcname)
 
