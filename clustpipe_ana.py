@@ -83,8 +83,8 @@ class CTAana(object):
         """
 
         #----- Check binned/stacked
-        if self.binned == False:
-            self.stack = False
+        if self.method_binned == False:
+            self.method_stack = False
         
         #----- Data preparation
         self.run_ana_dataprep(obsID=obsID)
@@ -139,8 +139,8 @@ class CTAana(object):
         """
 
         #----- Check binned/stacked
-        if self.binned == False:
-            self.stack = False
+        if self.method_binned == False:
+            self.method_stack = False
         
         #----- Create the output directory if needed
         if not os.path.exists(self.output_dir):
@@ -246,8 +246,8 @@ class CTAana(object):
         """
 
         #----- Check binned/stacked
-        if self.binned == False:
-            self.stack = False
+        if self.method_binned == False:
+            self.method_stack = False
         
         #----- Make sure the map definition is ok
         if self.map_UsePtgRef:

@@ -1,0 +1,85 @@
+2020-03-21T11:10:21: ********************************************************************************
+2020-03-21T11:10:21: *                                   csresspec                                  *
+2020-03-21T11:10:21: * ---------------------------------------------------------------------------- *
+2020-03-21T11:10:21: * Version: 1.6.3                                                               *
+2020-03-21T11:10:21: ********************************************************************************
+2020-03-21T11:10:27: +============+
+2020-03-21T11:10:27: | Parameters |
+2020-03-21T11:10:27: +============+
+2020-03-21T11:10:27:  inobs .....................: /Users/adam/Project/CTA/Phys/Outputs/KESACCO_binned_stack/Ana_Countscube.fits
+2020-03-21T11:10:27:  inmodel ...................: /Users/adam/Project/CTA/Phys/Outputs/KESACCO_binned_stack/Ana_Model_Output.xml
+2020-03-21T11:10:27:  modcube ...................: /Users/adam/Project/CTA/Phys/Outputs/KESACCO_binned_stack/Ana_Model_Cube.fits
+2020-03-21T11:10:27:  expcube ...................: /Users/adam/Project/CTA/Phys/Outputs/KESACCO_binned_stack/Ana_Expcube.fits
+2020-03-21T11:10:27:  psfcube ...................: /Users/adam/Project/CTA/Phys/Outputs/KESACCO_binned_stack/Ana_Psfcube.fits
+2020-03-21T11:10:27:  edispcube .................: [not queried]
+2020-03-21T11:10:27:  bkgcube ...................: /Users/adam/Project/CTA/Phys/Outputs/KESACCO_binned_stack/Ana_Bkgcube.fits
+2020-03-21T11:10:27:  caldb .....................: [not queried]
+2020-03-21T11:10:27:  irf .......................: [not queried]
+2020-03-21T11:10:27:  edisp .....................: no
+2020-03-21T11:10:27:  outfile ...................: /Users/adam/Project/CTA/Phys/Outputs/KESACCO_binned_stack/Ana_Spectrum_Residual.fits
+2020-03-21T11:10:27:  statistic .................: DEFAULT
+2020-03-21T11:10:27:  components ................: yes
+2020-03-21T11:10:27:  ebinalg ...................: LOG
+2020-03-21T11:10:27:  emin ......................: 0.05
+2020-03-21T11:10:27:  emax ......................: 100
+2020-03-21T11:10:27:  enumbins ..................: 30
+2020-03-21T11:10:27:  ebinfile ..................: NONE
+2020-03-21T11:10:27:  stack .....................: yes
+2020-03-21T11:10:27:  coordsys ..................: CEL
+2020-03-21T11:10:27:  proj ......................: TAN
+2020-03-21T11:10:27:  xref ......................: 49.9466666666667
+2020-03-21T11:10:27:  yref ......................: 41.5130555555556
+2020-03-21T11:10:27:  nxpix .....................: 151
+2020-03-21T11:10:27:  nypix .....................: 151
+2020-03-21T11:10:27:  binsz .....................: 0.02
+2020-03-21T11:10:27:  mask ......................: no
+2020-03-21T11:10:27:  ra ........................: 49.9466666666667
+2020-03-21T11:10:27:  dec .......................: 41.5130555555556
+2020-03-21T11:10:27:  rad .......................: 0.973853085549094
+2020-03-21T11:10:27:  regfile ...................: NONE
+2020-03-21T11:10:27:  algorithm .................: SIGNIFICANCE
+2020-03-21T11:10:27:  publish ...................: no
+2020-03-21T11:10:27:  chatter ...................: 2
+2020-03-21T11:10:27:  clobber ...................: yes
+2020-03-21T11:10:27:  debug .....................: no
+2020-03-21T11:10:27:  mode ......................: ql
+2020-03-21T11:10:27:  logfile ...................: csresspec.log
+2020-03-21T11:10:27: 
+2020-03-21T11:10:27: WARNING: Energy dispersion will *NOT* be considered for the computation. To consider
+2020-03-21T11:10:27:          energy dispersion, please set the "edisp" parameter to "yes". Be aware that
+2020-03-21T11:10:27:          using energy dispersion will considerably slow down the computations.
+2020-03-21T11:10:27: 
+2020-03-21T11:10:27: +====================+
+2020-03-21T11:10:27: | Observation census |
+2020-03-21T11:10:27: +====================+
+2020-03-21T11:10:27:  Unbinned CTA observations .: 0
+2020-03-21T11:10:27:  Binned CTA observations ...: 1
+2020-03-21T11:10:27:  On/off CTA observations ...: 0
+2020-03-21T11:10:27:  Other observations ........: 0
+2020-03-21T11:10:27: 
+2020-03-21T11:10:27: +=============+
+2020-03-21T11:10:27: | Observation |
+2020-03-21T11:10:27: +=============+
+2020-03-21T11:10:27: === GObservations ===
+2020-03-21T11:10:27:  Number of observations ....: 1
+2020-03-21T11:10:27:  Number of models ..........: 4
+2020-03-21T11:10:27:  Number of observed events .: 465209
+2020-03-21T11:10:27:  Number of predicted events : 0
+2020-03-21T11:10:27: 
+2020-03-21T11:10:27: +=========================+
+2020-03-21T11:10:27: | Processing Observations |
+2020-03-21T11:10:27: +=========================+
+2020-03-21T11:10:28: Computing model cube
+2020-03-21T11:13:37: Computing counts, model, and residual spectra
+2020-03-21T11:13:37:  Computing model component .: Perseus
+2020-03-21T11:13:38:  Computing model component .: NGC1275
+2020-03-21T11:13:39:  Computing model component .: IC310
+2020-03-21T11:13:40:  Computing model component .: BackgroundModel
+2020-03-21T11:13:42: Filling residual table
+2020-03-21T11:13:42: 
+2020-03-21T11:13:42: +================+
+2020-03-21T11:13:42: | Save residuals |
+2020-03-21T11:13:42: +================+
+2020-03-21T11:13:42:  Residuals file ............: /Users/adam/Project/CTA/Phys/Outputs/KESACCO_binned_stack/Ana_Spectrum_Residual.fits
+2020-03-21T11:13:43: 
+2020-03-21T11:13:43: Application "csresspec" terminated after 202 wall clock seconds, consuming 200.76 seconds of CPU time.
