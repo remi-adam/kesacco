@@ -342,7 +342,7 @@ def plot_edisp(edisp, emin=None, emax=None, tmin=None, tmax=None,
     f1 = plt.subplot(223)
 
     # Plot image
-    c1    = f1.imshow(image_mean, extent=[emin,emax,tmin,tmax], aspect=0.5, vmin=0, vmax=1.6)
+    c1    = f1.imshow(image_mean, extent=[emin,emax,tmin,tmax], aspect=0.5, vmin=0.8, vmax=1.5)
     cbar1 = plt.colorbar(c1, orientation='horizontal', shrink=0.8)
     tick_locator = ticker.MaxNLocator(nbins=5)
     cbar1.locator = tick_locator
@@ -361,7 +361,7 @@ def plot_edisp(edisp, emin=None, emax=None, tmin=None, tmax=None,
     f2 = plt.subplot(224)
 
     # Plot image
-    c2    = f2.imshow(image_std, extent=[emin,emax,tmin,tmax], aspect=0.5, vmin=0, vmax=0.3)
+    c2    = f2.imshow(image_std, extent=[emin,emax,tmin,tmax], aspect=0.5, vmin=0, vmax=0.25)
     cbar2 = plt.colorbar(c2, orientation='horizontal', shrink=0.8)
     tick_locator = ticker.MaxNLocator(nbins=5)
     cbar2.locator = tick_locator

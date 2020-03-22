@@ -259,7 +259,7 @@ def show_irf(caldb_in, irf_in, plotfile,
             (gammalib.toupper(mission), instrument, response, selection)
 
         # Create figure
-        fig = plt.figure(figsize=(12,12))
+        fig = plt.figure(figsize=(20,12))
         
         # Add title
         fig.suptitle(title, fontsize=16)

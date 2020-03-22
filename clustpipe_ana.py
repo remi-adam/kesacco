@@ -173,9 +173,9 @@ class CTAana(object):
         sel['inobs']  = self.output_dir+'/Ana_Events.xml'
         sel['outobs'] = self.output_dir+'/Ana_EventsSelected.xml'
         sel['prefix'] = self.output_dir+'/Ana_Selected'
-        sel['rad']    = self.map_fov.to_value('deg')
-        sel['ra']     = self.map_coord.icrs.ra.to_value('deg')  * np.sqrt(2)/2.0
-        sel['dec']    = self.map_coord.icrs.dec.to_value('deg') * np.sqrt(2)/2.0
+        sel['rad']    = self.map_fov.to_value('deg') * np.sqrt(2)/2.0
+        sel['ra']     = self.map_coord.icrs.ra.to_value('deg')
+        sel['dec']    = self.map_coord.icrs.dec.to_value('deg')
         sel['emin']   = self.spec_emin.to_value('TeV')
         sel['emax']   = self.spec_emax.to_value('TeV')
         if self.time_tmin is not None:
@@ -676,8 +676,8 @@ class CTAana(object):
                                                counts2brightness=True)
         tab  = Table()
         tab['radius']  = Column(r_mod, unit='deg', description='Cluster-centric angle')
-        tab['profile'] = Column(p_mod, unit='deg$^{-2}$', description='Counts per deg^-2')
-        tab['error']   = Column(err_mod, unit='deg$^{-2}$', description='Counts per deg^-2 uncertainty')
+        tab['profile'] = Column(p_mod, unit='deg-2', description='Counts per deg^-2')
+        tab['error']   = Column(err_mod, unit='deg-2', description='Counts per deg^-2 uncertainty')
         tab.write(self.output_dir+'/Ana_Expected_Cluster_profile.fits', overwrite=True)
         
             
