@@ -93,7 +93,8 @@ def spectrum(inobs, inmodel, srcname, outfile,
 
     if not silent:
         print(spec)
-        
+        print('')
+
     return spec
 
 
@@ -185,6 +186,7 @@ def butterfly(inobs, inmodel, srcname, outfile,
 
     if not silent:
         print(but)
+        print('')
 
     return but
 
@@ -272,6 +274,7 @@ def residual(inobs, inmodel, outfile,
 
     if not silent:
         print(rspec)
+        print('')
 
     return rspec
 

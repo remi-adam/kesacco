@@ -73,10 +73,11 @@ def counts_cube(output_dir,
     ctscube['xref']       = map_coord.icrs.ra.to_value('deg')
     ctscube['yref']       = map_coord.icrs.dec.to_value('deg')
 
+    ctscube.execute()
+
     if not silent:
         print(ctscube)
-
-    ctscube.execute()
+        print('')
     
     return ctscube
 
@@ -137,12 +138,13 @@ def exp_cube(output_dir,
     expcube['proj']       = 'TAN'
     expcube['xref']       = map_coord.icrs.ra.to_value('deg')
     expcube['yref']       = map_coord.icrs.dec.to_value('deg')
+        
+    expcube.execute()
 
     if not silent:
         print(expcube)
+        print('')
         
-    expcube.execute()
-    
     return expcube
 
 
@@ -208,10 +210,11 @@ def psf_cube(output_dir,
     psfcube['amax']       = amax
     psfcube['anumbins']   = anumbins
 
+    psfcube.execute()
+
     if not silent:
         print(psfcube)
-
-    psfcube.execute()
+        print('')
 
     return psfcube
 
@@ -248,11 +251,12 @@ def bkg_cube(output_dir, silent=False):
     bkgcube['outcube']  = output_dir+'/Ana_Bkgcube.fits'
     bkgcube['outmodel'] = output_dir+'/Ana_Model_Input_Stack.xml'
 
+    bkgcube.execute()
+
     if not silent:
         print(bkgcube)
-
-    bkgcube.execute()
-    
+        print('')
+        
     return bkgcube
 
 
@@ -318,10 +322,11 @@ def edisp_cube(output_dir,
     edcube['migramax']   = migramax
     edcube['migrabins']  = migrabins
     
+    edcube.execute()
+
     if not silent:
         print(edcube)
-
-    edcube.execute()
+        print('')
     
     return edcube
 
@@ -415,11 +420,12 @@ def model_cube(output_dir,
     model['xref']      = map_coord.icrs.ra.to_value('deg')
     model['yref']      = map_coord.icrs.dec.to_value('deg')
 
-    if not silent:
-        print(model)
-    
     model.execute()
     
+    if not silent:
+        print(model)
+        print('')
+        
     return model
 
 

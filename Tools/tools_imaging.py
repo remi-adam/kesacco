@@ -88,6 +88,7 @@ def skymap(inobs, outmap,
 
     if not silent:
         print(smap)
+        print('')
 
     return smap
 
@@ -147,6 +148,7 @@ def src_detect(inskymap, outmodel, outds9file,
     
     if not silent:
         print(srcdet)
+        print('')
 
     return srcdet
 
@@ -227,10 +229,11 @@ def tsmap(inobs, inmodel, outmap, srcname,
     #ts_map['binmax']        = -1
     #ts_map['logL0']         = -1.0
     
+    ts_map.execute()
+
     if not silent:
         print(ts_map)
-
-    ts_map.execute()
+        print('')
         
     return ts_map
 
@@ -314,6 +317,7 @@ def resmap(inobs, inmodel, output_map,
 
     if not silent:
         print(rmap)
+        print('')
     
     return rmap
 

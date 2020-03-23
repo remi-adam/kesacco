@@ -259,7 +259,7 @@ def show_irf(caldb_in, irf_in, plotfile,
             (gammalib.toupper(mission), instrument, response, selection)
 
         # Create figure
-        fig = plt.figure(figsize=(20,12))
+        fig = plt.figure(figsize=(22,12))
         
         # Add title
         fig.suptitle(title, fontsize=16)
@@ -281,7 +281,7 @@ def show_irf(caldb_in, irf_in, plotfile,
         plotting_irf.plot_edisp(irf.edisp(), emin=emin, emax=emax, tmin=tmin, tmax=tmax)
         
         # Show plots or save it into file
-        plt.savefig(plotfile+'_'+list_use[i]+'.png')
+        plt.savefig(plotfile+'_'+list_use[i]+'.pdf')
         plt.close()
 
     return
@@ -392,7 +392,8 @@ def show_map(mapfile, outfile,
                                                     linewidth=2, fill=False, zorder=2,
                                                     edgecolor='lightgray', linestyle='dashed',
                                                     facecolor='none',
-                                                    transform=ax.get_transform('fk5'))
+                                                    transform=ax.get_transform('fk5'),
+                                                    label='$R_{500}$')
             ax.add_patch(circle_500)
             txt_r500 = plt.text(cluster_ra - cluster_t500, cluster_dec - cluster_t500,
                                 '$R_{500}$',
@@ -403,24 +404,26 @@ def show_map(mapfile, outfile,
         # Show the pointing
         if (ptg_ra is not None) * (ptg_dec is not None) :
             ax.scatter(ptg_ra, ptg_dec,
-                       transform=ax.get_transform('icrs'), color='white', marker='x', s=100)
+                       transform=ax.get_transform('icrs'), color='gray', marker='+', s=100,
+                       label='Pointings')
 
             try:
                 txt_ptg = plt.text(ptg_ra, ptg_dec+0.2, 'Pointing',
                                    transform=ax.get_transform('fk5'),fontsize=10,
-                                   color='white', horizontalalignment='center',
+                                   color='gray', horizontalalignment='center',
                                    verticalalignment='center')
             except:
                 txt_ptg = plt.text(ptg_ra[0], ptg_dec[0]+0.2, 'Pointings',
                                    transform=ax.get_transform('fk5'),fontsize=10,
-                                   color='white', horizontalalignment='center',
+                                   color='gray', horizontalalignment='center',
                                    verticalalignment='center')
 
                 
         # Show the cluster center
         if (cluster_ra is not None) * (cluster_dec is not None) :
             ax.scatter(cluster_ra, cluster_dec,
-                       transform=ax.get_transform('icrs'), color='cyan', marker='x', s=100)
+                       transform=ax.get_transform('icrs'), color='cyan', marker='x', s=100,
+                       label=cluster_name+' center')
             txt_clust = plt.text(cluster_ra, cluster_dec-0.2, cluster_name,
                              transform=ax.get_transform('fk5'), fontsize=10,
                              color='cyan', horizontalalignment='center',
@@ -431,7 +434,7 @@ def show_map(mapfile, outfile,
             if (ps_ra[i] is not None) * (ps_dec[i] is not None) :
                 ax.scatter(ps_ra[i], ps_dec[i],
                            transform=ax.get_transform('icrs'), s=200, marker='o',
-                           facecolors='none', edgecolors='green')
+                           facecolors='none', edgecolors='green', label='Point sources')
                 txt_ps = plt.text(ps_ra[i]-0.1, ps_dec[i]+0.1, ps_name[i],
                                   transform=ax.get_transform('fk5'),fontsize=10, color='green')
                 
@@ -460,6 +463,7 @@ def show_map(mapfile, outfile,
         ax.set_title(maptitle)
         cbar = plt.colorbar()
         cbar.set_label(bartitle)
+        #plt.legend(framealpha=1)
         fig.savefig(outfile)
         plt.close()
 
@@ -777,7 +781,7 @@ def show_pointings(xml_file, plotfile):
     
     # Create figure
     plt.figure()
-    fig = plt.figure(1, figsize=(20, 20))
+    fig = plt.figure(1, figsize=(10, 10))
     ax  = plt.subplot(111)
     colors = pl.cm.jet(np.linspace(0,1,len(pnt)))
 
@@ -804,7 +808,8 @@ def show_pointings(xml_file, plotfile):
                                             height=2*roi_rad,
                                             alpha=0.1,
                                             linewidth=1,
-                                            color=color,
+                                            #color=color,
+                                            facecolor=color,
                                             edgecolor=color, label='ObsID'+obsid)
         ax.add_patch(circle)
         
@@ -1001,7 +1006,10 @@ def show_spectrum(specfile, outfile, butfile=None, expected_file=None):
     #----- Define "good" and "bad" points
     TSg = TS*1
     TSg[TSg <= 1] = 1
+    w0 = (e_flux==0)
+    e_flux[w0] = -1*u.erg/u.cm**2/u.s
     wgood  = (flux/e_flux > 2) * (e_flux > 0) * (np.sqrt(TSg) > 2)
+    e_flux[w0] = 0*u.erg/u.cm**2/u.s
     wbad   = ~wgood
 
     #----- Define the range
@@ -1081,9 +1089,27 @@ def show_spectrum(specfile, outfile, butfile=None, expected_file=None):
 
     # Residual plot
     if expected_file is not None:
-        ax3.plot(energy.to_value('GeV'),
-                 ((flux-dNdEdSdt_exp_itpl).to_value('GeV cm-2 s-1'))/e_flux.to_value('GeV cm-2 s-1'),
+        wplt = (e_flux != 0)
+        e_flux[~wplt] = -1*u.erg/u.cm**2/u.s
+        w_gt5 = wplt * (((flux-dNdEdSdt_exp_itpl).to_value('GeV cm-2 s-1'))/e_flux.to_value('GeV cm-2 s-1') > 5)
+        w_lt5 = wplt * (((flux-dNdEdSdt_exp_itpl).to_value('GeV cm-2 s-1'))/e_flux.to_value('GeV cm-2 s-1') < -5)
+        e_flux[~wplt] = 0*u.erg/u.cm**2/u.s
+        ax3.plot(energy[wplt].to_value('GeV'),
+                 ((flux[wplt]-dNdEdSdt_exp_itpl[wplt]).to_value('GeV cm-2 s-1'))/e_flux[wplt].to_value('GeV cm-2 s-1'),
                  linestyle='', marker='o', color='k')
+
+        ax3.errorbar(energy[w_gt5].to_value('GeV'), energy[w_gt5].to_value('GeV')*0+4,
+                     yerr=0.5, lolims=True,
+                     marker="", elinewidth=2, color="pink",
+                     markeredgecolor="pink", markerfacecolor="pink",
+                     linestyle="None")
+
+        ax3.errorbar(energy[w_lt5].to_value('GeV'), energy[w_lt5].to_value('GeV')*0-4,
+                     yerr=0.5, uplims=True,
+                     marker="", elinewidth=2, color="pink",
+                     markeredgecolor="pink", markerfacecolor="pink",
+                     linestyle="None")
+        
         ax3.axhline(0,  xlim[0].to_value('GeV')*0.1, xlim[1].to_value('GeV')*10, linestyle='-', color='k')
         ax3.axhline(-3, xlim[0].to_value('GeV')*0.1, xlim[1].to_value('GeV')*10, linestyle='--', color='k')
         ax3.axhline(+3, xlim[0].to_value('GeV')*0.1, xlim[1].to_value('GeV')*10, linestyle='--', color='k')
@@ -1095,7 +1121,6 @@ def show_spectrum(specfile, outfile, butfile=None, expected_file=None):
         
     fig.savefig(outfile)
     plt.close()
-
 
 #==================================================
 # Plot the residual spectrum of analysed sources

@@ -113,8 +113,8 @@ def plot_aeff(sub, aeff, emin=None, emax=None, tmin=None, tmax=None,
     cbar.set_label('cm$^2$')
 
     # Show boundary contours
-    contours = sub.contour(logenergies, thetas, image, [0.0], colors=('white'))
-    sub.clabel(contours, inline=1, fontsize=8)
+    contours = sub.contour(logenergies, thetas, image, [1e7,1e8,1e9], colors=('white'))
+    sub.clabel(contours, inline=1, fontsize=8, fmt="%1.1e")
 
     # Plot title and axis
     sub.set_title('Effective area')
@@ -208,7 +208,7 @@ def plot_psf(sub, psf, emin=None, emax=None, tmin=None, tmax=None,
     cbar.set_label('arcmin')
 
     # Show boundary contours
-    contours = sub.contour(logenergies, thetas, image, [0.0], colors=('white'))
+    contours = sub.contour(logenergies, thetas, image, [2,4,6,8,10,12,14], colors=('white'))
     sub.clabel(contours, inline=1, fontsize=8)
 
     # Plot title and axis
@@ -349,7 +349,7 @@ def plot_edisp(edisp, emin=None, emax=None, tmin=None, tmax=None,
     cbar1.set_label('E$_{reco}$ / E$_{true}$')
 
     # Show boundary contours
-    contours = f1.contour(logenergies, thetas, image_mean, [0.0], colors=('white'))
+    contours = f1.contour(logenergies, thetas, image_mean, [0.9,1.0,1.1,1.2,1.3,1.4], colors=('white'))
     f1.clabel(contours, inline=1, fontsize=8)
 
     # Plot title and axis
@@ -368,7 +368,7 @@ def plot_edisp(edisp, emin=None, emax=None, tmin=None, tmax=None,
     cbar2.set_label('E$_{reco}$ / E$_{true}$')
 
     # Show boundary contours
-    contours = f2.contour(logenergies, thetas, image_std, [0.0], colors=('white'))
+    contours = f2.contour(logenergies, thetas, image_std, [0.05,0.10,0.15,0.20], colors=('white'))
     f2.clabel(contours, inline=1, fontsize=8)
 
     # Plot title and axis
@@ -476,8 +476,8 @@ def plot_bkg(sub, bkg, emin=None, emax=None, tmin=None, tmax=None,
     cbar.set_label('s$^{-1}$ MeV$^{-1}$ sr$^{-1}$')
 
     # Show boundary contours
-    contours = sub.contour(logenergies, thetas, image, [0.0], colors=('white'))
-    sub.clabel(contours, inline=1, fontsize=8)
+    contours = sub.contour(logenergies, thetas, image, [1e-10, 1e-8, 1e-6, 1e-4, 1e-2], colors=('white'))
+    sub.clabel(contours, inline=1, fontsize=8, fmt="%1.1e")
 
     # Plot title and axis
     sub.set_title('Background acceptance')
