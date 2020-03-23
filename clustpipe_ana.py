@@ -155,6 +155,7 @@ class CTAana(object):
         obsID = self._check_obsID(obsID)
         if not self.silent:
             print('----- ObsID to be analysed: '+str(obsID))
+            print('')
         self.obs_setup.match_bkg_id() # make sure Bkg are unique
         
         #----- Observation definition file
@@ -170,14 +171,16 @@ class CTAana(object):
         
         #----- Data selection
         sel = ctools.ctselect()
-        sel['inobs']  = self.output_dir+'/Ana_Events.xml'
-        sel['outobs'] = self.output_dir+'/Ana_EventsSelected.xml'
-        sel['prefix'] = self.output_dir+'/Ana_Selected'
-        sel['rad']    = self.map_fov.to_value('deg') * np.sqrt(2)/2.0
-        sel['ra']     = self.map_coord.icrs.ra.to_value('deg')
-        sel['dec']    = self.map_coord.icrs.dec.to_value('deg')
-        sel['emin']   = self.spec_emin.to_value('TeV')
-        sel['emax']   = self.spec_emax.to_value('TeV')
+        sel['inobs']    = self.output_dir+'/Ana_Events.xml'
+        sel['outobs']   = self.output_dir+'/Ana_EventsSelected.xml'
+        sel['prefix']   = self.output_dir+'/Ana_Selected'
+        sel['usepnt']   = False
+        sel['ra']       = self.map_coord.icrs.ra.to_value('deg')
+        sel['dec']      = self.map_coord.icrs.dec.to_value('deg')
+        sel['rad']      = self.map_fov.to_value('deg') * np.sqrt(2)/2.0
+        sel['forcesel'] = True
+        sel['emin']     = self.spec_emin.to_value('TeV')
+        sel['emax']     = self.spec_emax.to_value('TeV')
         if self.time_tmin is not None:
             sel['tmin'] = self.time_tmin
         else:
@@ -186,13 +189,27 @@ class CTAana(object):
             sel['tmax'] = self.time_tmax
         else:
             sel['tmax'] = 'NONE'
+        sel['phase']    = 'NONE'
+        sel['expr']     = ''
+        sel['usethres'] = 'NONE'
+        sel['logfile']  = self.output_dir+'/Ana_EventsSelected_log.txt'
+        sel['chatter']  = 2
         
+        sel.logFileOpen()
+        sel.execute()
+        sel.logFileClose()
+
         if not self.silent:
             print(sel)
-        
-        sel.execute()
+            print('')
         
         #----- Model
+        map_template_fov = np.amin(self.cluster.map_fov.to_value('deg'))
+        if (not self.silent) and (2*self.cluster.theta_truncation.to_value('deg') > map_template_fov):
+            print('WARNING: the cluster extent is larger than the model map field of view.')
+            print('         The recovered normalization will thus be biased low.')
+            print('')
+            
         self._make_model(prefix='Ana_Model_Input',
                          obsID=obsID) # Compute the model files
 
@@ -202,25 +219,32 @@ class CTAana(object):
                                              self.map_reso, self.map_coord, self.map_fov,
                                              self.spec_emin, self.spec_emax,
                                              self.spec_enumbins, self.spec_ebinalg,
-                                             stack=stacklist, silent=self.silent)
+                                             stack=stacklist,
+                                             logfile=self.output_dir+'/Ana_Countscube_log.txt',
+                                             silent=self.silent)
         
         expcube = cubemaking.exp_cube(self.output_dir,
                                       self.map_reso, self.map_coord, self.map_fov,
                                       self.spec_emin, self.spec_emax,
                                       self.spec_enumbins, self.spec_ebinalg,
+                                      logfile=self.output_dir+'/Ana_Expcube_log.txt',
                                       silent=self.silent)
         psfcube = cubemaking.psf_cube(self.output_dir,
                                       self.map_reso, self.map_coord, self.map_fov,
                                       self.spec_emin, self.spec_emax,
                                       self.spec_enumbins, self.spec_ebinalg,
+                                      logfile=self.output_dir+'/Ana_Psfcube_log.txt',
                                       silent=self.silent)
-        bkgcube = cubemaking.bkg_cube(self.output_dir, silent=self.silent)
+        bkgcube = cubemaking.bkg_cube(self.output_dir,
+                                      logfile=self.output_dir+'/Ana_Bkgcube_log.txt',
+                                      silent=self.silent)
         
         if self.spec_edisp:
             edcube = cubemaking.edisp_cube(self.output_dir,
                                            self.map_coord, self.map_fov,
                                            self.spec_emin, self.spec_emax,
                                            self.spec_enumbins, self.spec_ebinalg,
+                                           logfile=self.output_dir+'/Ana_Edispcube_log.txt',
                                            silent=self.silent)
                     
                     
@@ -258,6 +282,7 @@ class CTAana(object):
         if not self.silent:
             if (not self.method_binned) and self.method_stack:
                 print('WARNING: unbinned likelihood are not stacked')
+                print('')
         
         like = ctools.ctlike()
         
@@ -321,13 +346,19 @@ class CTAana(object):
 
         # Fix spatial parameters for TS computation.
         like['fix_spat_for_ts']  = fix_spat_for_ts
-        
+
+        # Log file
+        like['logfile'] = self.output_dir+'/Ana_Model_Output_log.txt'
+
+        like.logFileOpen()
         like.execute()
-        
+        like.logFileClose()
+    
         if not self.silent:
             print(like.opt())
             print(like.obs())
             print(like.obs().models())
+            print('')
 
         #========== Compute a fit model file without the cluster
         self._rm_source_xml(self.output_dir+'/Ana_Model_Output.xml',
@@ -339,13 +370,16 @@ class CTAana(object):
                                         self.map_reso, self.map_coord, self.map_fov,
                                         self.spec_emin, self.spec_emax, self.spec_enumbins, self.spec_ebinalg,
                                         edisp=self.spec_edisp,
-                                        stack=self.method_stack, silent=self.silent)
+                                        stack=self.method_stack,
+                                        logfile=self.output_dir+'/Ana_Model_Cube_log.txt',
+                                        silent=self.silent)
             
         modcube_Cl = cubemaking.model_cube(self.output_dir,
                                            self.map_reso, self.map_coord, self.map_fov,
                                            self.spec_emin, self.spec_emax, self.spec_enumbins, self.spec_ebinalg,
                                            edisp=self.spec_edisp,
                                            stack=self.method_stack, silent=self.silent,
+                                           logfile=self.output_dir+'/Ana_Model_Cube_Cluster_log.txt',
                                            inmodel_usr=self.output_dir+'/Ana_Model_Output_Cluster.xml',
                                            outmap_usr=self.output_dir+'/Ana_Model_Cube_Cluster.fits')
         
@@ -397,6 +431,7 @@ class CTAana(object):
                                           bkgsubtract=bkgsubtract,
                                           roiradius=0.1, inradius=1.0, outradius=2.0,
                                           iterations=3, threshold=3,
+                                          logfile=self.output_dir+'/Ana_SkymapTot_log.txt',
                                           silent=self.silent)
         
         #========== Search for sources
@@ -407,9 +442,11 @@ class CTAana(object):
                                                   self.output_dir+'/Ana_Sourcedetect.reg',
                                                   threshold=4.0, maxsrcs=10, avgrad=1.0,
                                                   corr_rad=0.05, exclrad=0.2,
+                                                  logfile=self.output_dir+'/Ana_Sourcedetect_log.txt',
                                                   silent=self.silent)
             else:
                 print(self.output_dir+'/Ana_SkymapTot.fits what not created and is needed for source detection.')
+                print('')
                 
         #========== Compute residual (w/wo cluster subtracted)
         if do_Res:
@@ -430,6 +467,7 @@ class CTAana(object):
                                               caldb=None, irf=None,
                                               edisp=self.spec_edisp,
                                               algo=alg,
+                                              logfile=self.output_dir+'/Ana_ResmapTot_'+alg+'_log.txt',
                                               silent=self.silent)
 
                 resmap = tools_imaging.resmap(self.output_dir+'/Ana_Countscube.fits',
@@ -447,6 +485,7 @@ class CTAana(object):
                                               caldb=None, irf=None,
                                               edisp=self.spec_edisp,
                                               algo=alg,
+                                              logfile=self.output_dir+'/Ana_ResmapCluster_'+alg+'_log.txt',
                                               silent=self.silent)
 
             #----- Cluster profile
@@ -471,7 +510,8 @@ class CTAana(object):
                                                binsize=profile_reso.to_value('deg'), stat='POISSON',
                                                counts2brightness=True)
             tab  = Table()
-            tab['radius']  = Column(radius, unit='deg',    description='Cluster-centric angle')
+            tab['radius']  = Column(radius, unit='deg',
+                                    description='Cluster offset (bin='+str(profile_reso.to_value('deg'))+'deg')
             tab['profile'] = Column(prof,   unit='deg-2', description='Counts per deg-2')
             tab['error']   = Column(err,    unit='deg-2', description='Counts per deg-2 uncertainty')
             tab.write(self.output_dir+'/Ana_ResmapCluster_profile.fits', overwrite=True)
@@ -491,6 +531,7 @@ class CTAana(object):
                                             expcube=None, psfcube=None, bkgcube=None, edispcube=None,
                                             caldb=None, irf=None, edisp=self.spec_edisp,
                                             statistic=self.method_stat,
+                                            logfile=self.output_dir+'/Ana_TSmap_'+src+'_log.txt',
                                             silent=self.silent)
                 
                 
@@ -549,6 +590,7 @@ class CTAana(object):
                                             calc_ulim=True,
                                             fix_srcs=True,
                                             fix_bkg=False,
+                                            logfile=self.output_dir+'/Ana_Spectrum_'+srcname+'_log.txt',
                                             silent=self.silent)
 
                 #----- Compute butterfly
@@ -571,6 +613,7 @@ class CTAana(object):
                                              like_accuracy=0.005,
                                              max_iter=50,
                                              matrix='NONE', #self.output_dir+'/Ana_Model_Output_Covmat.fits',
+                                             logfile=self.output_dir+'/Ana_Spectrum_Buterfly_'+srcname+'_log.txt',
                                              silent=self.silent)
 
         #----- Compute residual in R500
@@ -596,6 +639,7 @@ class CTAana(object):
                                     stack=True,
                                     mask=False,
                                     algorithm='SIGNIFICANCE',
+                                    logfile=self.output_dir+'/Ana_Spectrum_Residual_log.txt',
                                     silent=self.silent)
                 
                 
@@ -657,6 +701,7 @@ class CTAana(object):
                                            self.spec_enumbins, self.spec_ebinalg,
                                            edisp=self.spec_edisp,
                                            stack=True, silent=self.silent,
+                                           logfile=self.output_dir+'/Ana_Expected_Cluster_Counts_log.txt',
                                            inmodel_usr=self.output_dir+'/Ana_Expected_Cluster.xml',
                                            outmap_usr=self.output_dir+'/Ana_Expected_Cluster_Counts.fits')
 
@@ -675,9 +720,10 @@ class CTAana(object):
                                                stat='POISSON',
                                                counts2brightness=True)
         tab  = Table()
-        tab['radius']  = Column(r_mod, unit='deg', description='Cluster-centric angle')
-        tab['profile'] = Column(p_mod, unit='deg-2', description='Counts per deg^-2')
-        tab['error']   = Column(err_mod, unit='deg-2', description='Counts per deg^-2 uncertainty')
+        tab['radius']  = Column(r_mod, unit='deg',
+                                description='Cluster offset (bin='+str(profile_reso.to_value('deg'))+'deg')
+        tab['profile'] = Column(p_mod, unit='deg-2', description='Counts per deg-2')
+        tab['error']   = Column(err_mod, unit='deg-2', description='Counts per deg-2 uncertainty')
         tab.write(self.output_dir+'/Ana_Expected_Cluster_profile.fits', overwrite=True)
         
             
@@ -698,7 +744,9 @@ class CTAana(object):
         
         #========== Get the obs ID to run (defaults is all of them)
         obsID = self._check_obsID(obsID)
-        if not self.silent: print('----- ObsID to be looked at: '+str(obsID))
+        if not self.silent:
+            print('----- ObsID to be looked at: '+str(obsID))
+            print('')
      
         #========== Plot the observing properties
         clustpipe_ana_plot.observing_setup(self)

@@ -64,6 +64,9 @@ class CTAsim(object):
         
         #----- Make cluster templates
         self._make_model(prefix='Sim_Model', includeIC=True)
+        self.cluster.save_param()
+        os.rename(self.cluster.output_dir+'/parameters.txt', self.cluster.output_dir+'/Sim_Model_Cluster_param.txt')
+        os.rename(self.cluster.output_dir+'/parameters.pkl', self.cluster.output_dir+'/Sim_Model_Cluster_param.pkl')
 
         #----- Make observation files
         self.obs_setup.write_pnt(self.output_dir+'/Sim_Pnt.def', obsid=obsID)
@@ -76,13 +79,29 @@ class CTAsim(object):
         obssim = ctools.ctobssim()
         obssim['inobs']      = self.output_dir+'/Sim_ObsDef.xml'
         obssim['inmodel']    = self.output_dir+'/Sim_Model_Unstack.xml'
-        obssim['prefix']     = self.output_dir+'/TmpEvents'
-        obssim['outevents']  = self.output_dir+'/Events.xml'
+        #obssim['caldb']  = 
+        #obssim['irf']  = 
         obssim['edisp']      = self.spec_edisp
+        obssim['outevents']  = self.output_dir+'/Events.xml'
+        obssim['prefix']     = self.output_dir+'/TmpEvents'
         obssim['startindex'] = 1
-        obssim['maxrate']    = 1e6
         obssim['seed']       = seed
+        #obssim['ra'] =
+        #obssim['dec'] =
+        #obssim['rad'] =
+        #obssim['tmin'] =
+        #obssim['tmax'] =
+        #obssim['mjdref'] =
+        #obssim['emin'] = 
+        #obssim['emax'] = 
+        #obssim['deadc']    = 
+        obssim['maxrate']    = 1e6
+        obssim['logfile']  = self.output_dir+'/Events_log.txt'
+        obssim['chatter']  = 2
+        obssim.logFileOpen()
         obssim.execute()
+        obssim.logFileClose()
+        
         if not self.silent:
             print('------- Simulation log -------')
             print(obssim)
