@@ -16,7 +16,7 @@ import gammalib
 # Cluster
 #==================================================
 
-def cluster(model_tot, file_map, file_spec, ClusterName='Cluster'):
+def cluster(model_tot, file_map, file_spec, ClusterName='Cluster', tscalc=True):
     """
     Build a ctools model for the cluster.
         
@@ -25,7 +25,9 @@ def cluster(model_tot, file_map, file_spec, ClusterName='Cluster'):
     - model_tot: a gammalib.GModels object
     - file_map (str): the full name of the fits map
     - file_spec (str): the full name of the text file spectrum
-    
+    - ClusterName (str): the name of the source
+    - tscalc (bool): request TS computation or not
+
     Outputs
     --------
     - the model is updated to include the cluster
@@ -37,6 +39,7 @@ def cluster(model_tot, file_map, file_spec, ClusterName='Cluster'):
     
     model    = gammalib.GModelSky(spatial, spectral, timing)
     model.name(ClusterName)
+    model.tscalc(tscalc)
 
     model_tot.append(model)
     
@@ -45,7 +48,7 @@ def cluster(model_tot, file_map, file_spec, ClusterName='Cluster'):
 # Point sources
 #==================================================
 
-def compact_sources(model_tot, source_dict):
+def compact_sources(model_tot, source_dict, tscalc=True):
     """
     Build a ctools model for the compact sources.
     
@@ -54,7 +57,8 @@ def compact_sources(model_tot, source_dict):
     - model_tot: a gammalib.GModels object
     - source_dict (dictionary): the source dictionary 
     as defined by the CompactSource class
-    
+    - tscalc (bool): request TS computation or not
+
     Outputs
     --------
     - the model is updated to include the sources
@@ -111,6 +115,7 @@ def compact_sources(model_tot, source_dict):
 	#----- Overal model for each source
 	model = gammalib.GModelSky(spatial, spectral, temporal)
 	model.name(source_dict.name[ips])
+        model.tscalc(tscalc)
 	
 	#----- Append model for each source
 	model_tot.append(model)

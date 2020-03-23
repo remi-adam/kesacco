@@ -331,9 +331,10 @@ class Common():
         """
         
         #----- Make cluster template files
-        if (not self.silent) and (self.cluster.map_reso > 0.02*u.deg):
-            print('WARNING: the FITS map resolution (self.cluster.map_reso) ')
-            print('         is larger than 0.02 deg, i.e. the PSF at 100 TeV')
+        if (not self.silent) and (self.cluster.map_reso > 0.01*u.deg):
+            print('WARNING: the FITS map resolution (self.cluster.map_reso) is larger')
+            print('         than 0.01 deg, while the PSF at 100 TeV is ~0.02 deg.    ')
+            print('')
         
         make_cluster_template.make_map(self.cluster,
                                        self.output_dir+'/'+prefix+'_Map.fits',
@@ -353,9 +354,12 @@ class Common():
             build_ctools_model.cluster(model_tot,
                                        self.output_dir+'/'+prefix+'_Map.fits',
                                        self.output_dir+'/'+prefix+'_Spectrum.txt',
-                                       ClusterName=self.cluster.name)
+                                       ClusterName=self.cluster.name,
+                                       tscalc=True)
             
-        build_ctools_model.compact_sources(model_tot, self.compact_source)
+        build_ctools_model.compact_sources(model_tot,
+                                           self.compact_source,
+                                           tscalc=True)
         
         if obsID is None:
             background = self.obs_setup.bkg
