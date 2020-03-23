@@ -27,6 +27,7 @@ def skymap(inobs, outmap,
            outradius=2.0,
            iterations=3,
            threshold=3,
+           logfile=None,
            silent=False):
     """
     Compute sky map.
@@ -83,8 +84,11 @@ def skymap(inobs, outmap,
     smap['threshold']   = threshold
     smap['inexclusion'] = 'NONE'
     smap['usefft']      = True
+    if logfile is not None: smap['logfile'] = logfile
 
+    if logfile is not None: smap.logFileOpen()
     smap.execute()
+    if logfile is not None: smap.logFileClose()
 
     if not silent:
         print(smap)
@@ -103,6 +107,7 @@ def src_detect(inskymap, outmodel, outds9file,
                avgrad=1.0,
                corr_rad=0.2,
                exclrad=0.2,
+               logfile=None,
                silent=False):
     """
     Detect sources from a map
@@ -143,8 +148,11 @@ def src_detect(inskymap, outmodel, outds9file,
     srcdet['exclrad']    = exclrad
     srcdet['fit_pos']    = True
     srcdet['fit_shape']  = True
-        
+    if logfile is not None: srcdet['logfile'] = logfile
+
+    if logfile is not None: srcdet.logFileOpen()
     srcdet.execute()
+    if logfile is not None: srcdet.logFileClose()
     
     if not silent:
         print(srcdet)
@@ -169,6 +177,7 @@ def tsmap(inobs, inmodel, outmap, srcname,
           statistic='DEFAULT',
           like_accuracy=0.005,
           max_iter=50,
+          logfile=None,
           silent=False):
     """
     Compute TS map.
@@ -228,9 +237,12 @@ def tsmap(inobs, inmodel, outmap, srcname,
     #ts_map['binmin']        = -1
     #ts_map['binmax']        = -1
     #ts_map['logL0']         = -1.0
-    
-    ts_map.execute()
+    if logfile is not None: ts_map['logfile'] = logfile
 
+    if logfile is not None: ts_map.logFileOpen()
+    ts_map.execute()
+    if logfile is not None: ts_map.logFileClose()
+    
     if not silent:
         print(ts_map)
         print('')
@@ -254,6 +266,7 @@ def resmap(inobs, inmodel, output_map,
            irf=None,
            edisp=False,
            algo='SIGNIFICANCE',
+           logfile=None,
            silent=False):
     """
     Compute a residual map.
@@ -312,9 +325,12 @@ def resmap(inobs, inmodel, output_map,
     rmap['nypix']     = npix
     rmap['binsz']     = reso
     rmap['algorithm'] = algo
-    
-    rmap.execute()
+    if logfile is not None: rmap['logfile'] = logfile
 
+    if logfile is not None: rmap.logFileOpen()
+    rmap.execute()
+    if logfile is not None: rmap.logFileClose()
+    
     if not silent:
         print(rmap)
         print('')

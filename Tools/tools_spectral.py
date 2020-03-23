@@ -27,6 +27,7 @@ def spectrum(inobs, inmodel, srcname, outfile,
              calc_ulim=True,
              fix_srcs=True,
              fix_bkg=False,
+             logfile=None,
              silent=False):    
     """
     Compute a spectrum for a given source.
@@ -88,9 +89,12 @@ def spectrum(inobs, inmodel, srcname, outfile,
     spec['calc_ulim'] = calc_ulim
     spec['fix_srcs']  = fix_srcs
     spec['fix_bkg']   = fix_bkg
+    if logfile is not None: spec['logfile'] = logfile
 
+    if logfile is not None: spec.logFileOpen()
     spec.execute()
-
+    if logfile is not None: spec.logFileClose()
+        
     if not silent:
         print(spec)
         print('')
@@ -118,6 +122,7 @@ def butterfly(inobs, inmodel, srcname, outfile,
               like_accuracy=0.005,
               max_iter=50,
               matrix='NONE',
+              logfile=None,
               silent=False):
     """
     Computes butterfly diagram for a given spectral model.
@@ -181,9 +186,12 @@ def butterfly(inobs, inmodel, srcname, outfile,
     but['emax']          = emax
     but['enumbins']      = enumbins
     but['ebinfile']      = 'NONE'
+    if logfile is not None: but['logfile'] = logfile
 
+    if logfile is not None: but.logFileOpen()
     but.execute()
-
+    if logfile is not None: but.logFileClose()
+        
     if not silent:
         print(but)
         print('')
@@ -212,6 +220,7 @@ def residual(inobs, inmodel, outfile,
              stack=False,
              mask=False,
              algorithm='SIGNIFICANCE',
+             logfile=None,
              silent=False):
     """
     Generates residual spectrum.
@@ -269,9 +278,12 @@ def residual(inobs, inmodel, outfile,
     rspec['rad']        = res_rad
     rspec['regfile']    = 'NONE'
     rspec['algorithm']  = algorithm
+    if logfile is not None: rspec['logfile'] = logfile
 
+    if logfile is not None: rspec.logFileOpen()
     rspec.execute()
-
+    if logfile is not None: rspec.logFileClose()
+    
     if not silent:
         print(rspec)
         print('')

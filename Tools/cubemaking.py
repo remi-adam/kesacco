@@ -19,6 +19,7 @@ def counts_cube(output_dir,
                 map_reso, map_coord, map_fov,
                 emin, emax, enumbins, ebinalg,
                 stack=True,
+                logfile=None,
                 silent=False):
     """
     Compute counts cube.
@@ -72,8 +73,11 @@ def counts_cube(output_dir,
     ctscube['proj']       = 'TAN'
     ctscube['xref']       = map_coord.icrs.ra.to_value('deg')
     ctscube['yref']       = map_coord.icrs.dec.to_value('deg')
+    if logfile is not None: ctscube['logfile'] = logfile
 
+    if logfile is not None: ctscube.logFileOpen()
     ctscube.execute()
+    if logfile is not None: ctscube.logFileClose()
 
     if not silent:
         print(ctscube)
@@ -89,6 +93,7 @@ def counts_cube(output_dir,
 def exp_cube(output_dir,
              map_reso, map_coord, map_fov,
              emin, emax, enumbins, ebinalg,
+             logfile=None,
              silent=False):
     """
     Compute a exposure cube.
@@ -138,9 +143,12 @@ def exp_cube(output_dir,
     expcube['proj']       = 'TAN'
     expcube['xref']       = map_coord.icrs.ra.to_value('deg')
     expcube['yref']       = map_coord.icrs.dec.to_value('deg')
-        
-    expcube.execute()
+    if logfile is not None: expcube['logfile'] = logfile
 
+    if logfile is not None: expcube.logFileOpen()
+    expcube.execute()
+    if logfile is not None: expcube.logFileClose()
+    
     if not silent:
         print(expcube)
         print('')
@@ -156,6 +164,7 @@ def psf_cube(output_dir,
              map_reso, map_coord, map_fov,
              emin, emax, enumbins, ebinalg,
              amax=0.3, anumbins=200,
+             logfile=None,
              silent=False):
     """
     Compute a PSF cube.
@@ -209,8 +218,11 @@ def psf_cube(output_dir,
     psfcube['yref']       = map_coord.icrs.dec.to_value('deg')
     psfcube['amax']       = amax
     psfcube['anumbins']   = anumbins
+    if logfile is not None: psfcube['logfile'] = logfile
 
+    if logfile is not None: psfcube.logFileOpen()
     psfcube.execute()
+    if logfile is not None: psfcube.logFileClose()
 
     if not silent:
         print(psfcube)
@@ -223,7 +235,9 @@ def psf_cube(output_dir,
 # Bkg cube
 #==================================================
 
-def bkg_cube(output_dir, silent=False):
+def bkg_cube(output_dir,
+             logfile=None,
+             silent=False):
     """
     Compute a background cube.
     http://cta.irap.omp.eu/ctools/users/reference_manual/ctbkgcube.html
@@ -250,9 +264,12 @@ def bkg_cube(output_dir, silent=False):
     #bkgcube['irf']      =
     bkgcube['outcube']  = output_dir+'/Ana_Bkgcube.fits'
     bkgcube['outmodel'] = output_dir+'/Ana_Model_Input_Stack.xml'
+    if logfile is not None: bkgcube['logfile'] = logfile
 
+    if logfile is not None: bkgcube.logFileOpen()
     bkgcube.execute()
-
+    if logfile is not None: bkgcube.logFileClose()
+    
     if not silent:
         print(bkgcube)
         print('')
@@ -268,6 +285,7 @@ def edisp_cube(output_dir,
                map_coord, map_fov,
                emin, emax, enumbins, ebinalg,
                binsz=1.0,migramax=2.0, migrabins=100,
+               logfile=None,
                silent=False):
     """
     Compute an energy dispersion cube.
@@ -321,9 +339,12 @@ def edisp_cube(output_dir,
     edcube['yref']       = map_coord.icrs.dec.to_value('deg')
     edcube['migramax']   = migramax
     edcube['migrabins']  = migrabins
-    
-    edcube.execute()
+    if logfile is not None: edcube['logfile'] = logfile
 
+    if logfile is not None: edcube.logFileOpen()
+    edcube.execute()
+    if logfile is not None: edcube.logFileClose()
+    
     if not silent:
         print(edcube)
         print('')
@@ -342,6 +363,7 @@ def model_cube(output_dir,
                stack=True,
                inmodel_usr=None,
                outmap_usr=None,
+               logfile=None,
                silent=False):
     """
     Compute a model cube.
@@ -419,8 +441,11 @@ def model_cube(output_dir,
     model['proj']      = 'TAN'
     model['xref']      = map_coord.icrs.ra.to_value('deg')
     model['yref']      = map_coord.icrs.dec.to_value('deg')
+    if logfile is not None: model['logfile'] = logfile
 
+    if logfile is not None: model.logFileOpen()
     model.execute()
+    if logfile is not None: model.logFileClose()
     
     if not silent:
         print(model)
