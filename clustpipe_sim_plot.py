@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import astropy.units as u
 import numpy as np
 from astropy.io import fits
+import os
 
 from ClusterPipe.Tools import tools_imaging
 from ClusterPipe.Tools import plotting
@@ -153,7 +154,7 @@ def main(output_dir,
     if os.path.exists(output_dir+'/Events'+setup_obs.obsid[0]+'.fits'):
         #---------- Plot the events
         plotting.events_quicklook(output_dir+'/Events'+setup_obs.obsid[0]+'.fits',
-                                  output_dir+'/Events'+setup_obs.obsid[0]+'.png')
+                                  output_dir+'/Events'+setup_obs.obsid[0]+'.pdf')
         
         #---------- Skymaps    
         skymap_quicklook(output_dir+'/Sim_Skymap'+setup_obs.obsid[0],
