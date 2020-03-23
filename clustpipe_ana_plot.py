@@ -36,7 +36,7 @@ def observing_setup(cpipe):
     #========== Pointing plot
     file_exist = os.path.isfile(cpipe.output_dir+'/Ana_ObsDef.xml')
     if file_exist:
-        plotting.show_pointings(cpipe.output_dir+'/Ana_ObsDef.xml', cpipe.output_dir+'/Ana_ObsPointing.png')
+        plotting.show_pointings(cpipe.output_dir+'/Ana_ObsDef.xml', cpipe.output_dir+'/Ana_ObsPointing.pdf')
     else:
         if not cpipe.silent: print(cpipe.output_dir+'/Ana_ObsDef.xml does not exist, no ObsPointing plot')
         
@@ -44,7 +44,7 @@ def observing_setup(cpipe):
     file_exist = os.path.isfile(cpipe.output_dir+'/Ana_ObsDef.xml')
     if file_exist:
         plotting.show_obsdef(cpipe.output_dir+'/Ana_ObsDef.xml', cpipe.cluster.coord,
-                             cpipe.output_dir+'/Ana_ObsDef.png')
+                             cpipe.output_dir+'/Ana_ObsDef.pdf')
     else:
         if not cpipe.silent: print(cpipe.output_dir+'/Ana_ObsDef.xml does not exist, no ObsDef plot')
         
@@ -79,7 +79,7 @@ def events_quicklook(cpipe, obsID,
             plotting.events_quicklook(cpipe.output_dir+'/Ana_SelectedEvents'+
                                       cpipe.obs_setup.select_obs(iobs).obsid[0]+'.fits',
                                       cpipe.output_dir+'/Ana_SelectedEvents'+
-                                      cpipe.obs_setup.select_obs(iobs).obsid[0]+'.png')
+                                      cpipe.obs_setup.select_obs(iobs).obsid[0]+'.pdf')
             
             skymap_quicklook(cpipe.output_dir+'/Ana_Skymap'+cpipe.obs_setup.select_obs(iobs).obsid[0],
                              cpipe.output_dir+'/Ana_SelectedEvents'+
