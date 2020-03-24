@@ -518,7 +518,7 @@ def show_profile(proffile, outfile,
         prof_exp = exp.data
         
     #---------- Plot
-    w_pos = prof['profile'] > 0
+    w_pos = prof['profile'] >= 0
     w_neg = prof['profile'] < 0
     
     fig = plt.figure(1, figsize=(12, 8))
@@ -1022,8 +1022,8 @@ def show_spectrum(specfile, outfile, butfile=None, expected_file=None):
     else :
         rngym = 1e-14*u.erg/u.cm**2/u.s # CTA sensitivity         
 
-    rngxm = np.nanmin(energy.to_value('GeV'))*u.GeV
-    rngxp = np.nanmax(energy.to_value('GeV'))*u.GeV
+    rngxm = np.nanmin(energy.to_value('GeV')-ed_Energy.to_value('GeV'))*u.GeV*0.5
+    rngxp = np.nanmax(energy.to_value('GeV')+eu_Energy.to_value('GeV'))*u.GeV*1.5
     if expected_file is not None:
         rngxm = np.nanmin([np.nanmin(E_exp.to_value('GeV')), rngxm.to_value('GeV')])*u.GeV
         rngxp = np.nanmax([np.nanmax(E_exp.to_value('GeV')), rngxp.to_value('GeV')])*u.GeV

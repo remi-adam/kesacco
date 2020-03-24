@@ -429,7 +429,7 @@ class CTAana(object):
                                           emax=self.spec_emax.to_value('TeV'),
                                           caldb=None, irf=None,
                                           bkgsubtract=bkgsubtract,
-                                          roiradius=0.1, inradius=1.0, outradius=2.0,
+                                          roiradius=0.1, inradius=0.6, outradius=0.8,
                                           iterations=3, threshold=3,
                                           logfile=self.output_dir+'/Ana_SkymapTot_log.txt',
                                           silent=self.silent)
