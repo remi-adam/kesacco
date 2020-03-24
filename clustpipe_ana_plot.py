@@ -9,6 +9,7 @@ This file contains plotting tools for the CTA analysis.
 
 import os
 import astropy.units as u
+import numpy as np
 import gammalib
 
 from ClusterPipe.Tools import plotting
@@ -130,6 +131,15 @@ def combined_maps(cpipe,
             ptg_ra.append(cpipe.obs_setup.coord[i].icrs.ra.to_value('deg'))
             ptg_dec.append(cpipe.obs_setup.coord[i].icrs.dec.to_value('deg'))
 
+    #----- Collect the psf
+    CTA_PSF = []
+    for i in range(len(cpipe.obs_setup.name)):
+        if cpipe.obs_setup.obsid[i] in obsID:
+            CTA_PSF.append(plotting.get_cta_psf(cpipe.obs_setup.caldb[i], cpipe.obs_setup.irf[i],
+                                                cpipe.obs_setup.emin[i].to_value('TeV'),
+                                                cpipe.obs_setup.emax[i].to_value('TeV')))
+    PSF_tot = np.sqrt(np.mean(CTA_PSF)**2 + smoothing_FWHM.to_value('deg')**2)
+    
     #========== Show the combined skymap
     file_exist = os.path.isfile(cpipe.output_dir+'/Ana_SkymapTot.fits')
     if file_exist:
@@ -145,7 +155,7 @@ def combined_maps(cpipe,
                           ps_dec=ps_dec,
                           ptg_ra=ptg_ra,
                           ptg_dec=ptg_dec,
-                          #PSF=PSF_tot,
+                          PSF=PSF_tot,
                           bartitle='Counts',
                           rangevalue=[None, None],
                           logscale=True,
@@ -159,7 +169,7 @@ def combined_maps(cpipe,
         if alg == 'SIGNIFICANCE':
             is_significance = True
             btitle = 'Significance'
-            mrange = [-3, None]
+            mrange = [-5, None]
         elif alg == 'SUB':
             is_significance = False
             btitle = 'Data-Model'
@@ -183,7 +193,7 @@ def combined_maps(cpipe,
                               ps_dec=ps_dec,
                               ptg_ra=ptg_ra,
                               ptg_dec=ptg_dec,
-                              #PSF=PSF_tot,
+                              PSF=PSF_tot,
                               bartitle=btitle,
                               rangevalue=mrange,
                               logscale=False,
@@ -206,7 +216,7 @@ def combined_maps(cpipe,
                               ps_dec=ps_dec,
                               ptg_ra=ptg_ra,
                               ptg_dec=ptg_dec,
-                              #PSF=PSF_tot,
+                              PSF=PSF_tot,
                               bartitle=btitle,
                               rangevalue=mrange,
                               logscale=False,
