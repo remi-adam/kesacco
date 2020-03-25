@@ -516,6 +516,8 @@ def show_profile(proffile, outfile,
     if expected_file is not None:
         exp = fits.open(expected_file)[1]
         prof_exp = exp.data
+        wnan_exp = np.isnan(prof_exp['profile']) * (prof_exp['radius'] > 0.5) # NaN at r>0.5 deg should be model=0
+        prof_exp['profile'][wnan_exp] = 0.0 
         
     #---------- Plot
     w_pos = prof['profile'] >= 0

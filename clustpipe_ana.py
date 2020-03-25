@@ -112,8 +112,7 @@ class CTAana(object):
         #self.run_ana_timing()
 
         #----- Expected output computation
-        self.run_ana_expected_output(obsID,
-                                     profile_reso=profile_reso)
+        self.run_ana_expected_output(profile_reso=profile_reso)
         
         #----- Output plots
         self.run_ana_plot(obsID=obsID,
@@ -671,8 +670,7 @@ class CTAana(object):
     # Compute expected model 
     #==================================================
     
-    def run_ana_expected_output(self, obsID,
-                                profile_reso=0.05*u.deg):
+    def run_ana_expected_output(self, profile_reso=0.05*u.deg):
         """
         Run the expected output
         
