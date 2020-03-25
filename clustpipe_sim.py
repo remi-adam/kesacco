@@ -143,15 +143,15 @@ class CTAsim(object):
 
         #----- Show the observing properties
         if ShowObsDef:
-            plotting.show_pointings(self.output_dir+'/Sim_ObsDef.xml', self.output_dir+'/Sim_ObsPointing.png')
+            plotting.show_pointings(self.output_dir+'/Sim_ObsDef.xml', self.output_dir+'/Sim_ObsPointing.pdf')
             plotting.show_obsdef(self.output_dir+'/Sim_ObsDef.xml',
-                                 self.cluster.coord, self.output_dir+'/Sim_ObsDef.png')
+                                 self.cluster.coord, self.output_dir+'/Sim_ObsDef.pdf')
             plotting.show_irf(self.obs_setup.caldb, self.obs_setup.irf, self.output_dir+'/Sim_ObsIRF')
         
         #----- Show the cluster model
         if ShowSkyModel:
             plotting.show_model_spectrum(self.output_dir+'/Sim_Model_Unstack.xml',
-                                         self.output_dir+'/Sim_Model_Spectra.png')
+                                         self.output_dir+'/Sim_Model_Spectra.pdf')
             self._match_cluster_to_pointing()
             self.cluster.output_dir = self.output_dir+'/Sim_Model_Plots'
             if not os.path.exists(self.cluster.output_dir): os.mkdir(self.cluster.output_dir)
