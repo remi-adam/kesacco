@@ -10,7 +10,6 @@ is available. The class provides an analysis pipeline to reduce the events.
 # Requested imports
 #==================================================
 
-import numpy as np
 import astropy.units as u
 from astropy.coordinates.sky_coordinate import SkyCoord
 
