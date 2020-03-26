@@ -1,4 +1,4 @@
-# KESACCO: a Keen Event Simulation and Analysis for CTA Cluster Observations
+# KESACCO: Keen Event Simulation and Analysis for CTA Cluster Observations
 
 This repository contains a software dedicated to the simulation of CTA event files 
 corresponding to the observation of galaxy clusters. The event files can then be analyzed 
