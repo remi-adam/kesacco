@@ -47,6 +47,6 @@ The software depends on standard python package (non-exhaustive list yet):
 - pickle
 
 But also:
-- gammalib
-- ctools
+- gammalib (http://cta.irap.omp.eu/gammalib/)
+- ctools (http://cta.irap.omp.eu/ctools/)
 - ClusterModel (see https://github.com/remi-adam/ClusterModel)
