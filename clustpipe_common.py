@@ -350,7 +350,7 @@ class Common():
         #----- Create the model
         model_tot = gammalib.GModels()
 
-        if self.cluster.X_cr_E['X'] > 0: # No need to include the cluster if it is 0
+        if self.cluster.X_crp_E['X'] > 0: # No need to include the cluster if it is 0
             build_ctools_model.cluster(model_tot,
                                        self.output_dir+'/'+prefix+'_Map.fits',
                                        self.output_dir+'/'+prefix+'_Spectrum.txt',
