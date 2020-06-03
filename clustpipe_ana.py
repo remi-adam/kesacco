@@ -502,12 +502,12 @@ class CTAana(object):
             hdul.close()
             model = res_all/subdiv_all
             
-            radius, prof, err = radial_profile(res_counts,
-                                               [self.cluster.coord.icrs.ra.to_value('deg'),
-                                                self.cluster.coord.icrs.dec.to_value('deg')],
-                                               stddev=np.sqrt(model), header=header,
-                                               binsize=profile_reso.to_value('deg'), stat='POISSON',
-                                               counts2brightness=True)
+            radius, prof, err = radial_profile_cts(res_counts,
+                                                   [self.cluster.coord.icrs.ra.to_value('deg'),
+                                                    self.cluster.coord.icrs.dec.to_value('deg')],
+                                                   stddev=np.sqrt(model), header=header,
+                                                   binsize=profile_reso.to_value('deg'), stat='POISSON',
+                                                   counts2brightness=True)
             tab  = Table()
             tab['radius']  = Column(radius, unit='deg',
                                     description='Cluster offset (bin='+str(profile_reso.to_value('deg'))+'deg')
@@ -710,13 +710,13 @@ class CTAana(object):
         header.remove('NAXIS3')
         header['NAXIS'] = 2
         
-        r_mod, p_mod, err_mod = radial_profile(model_cnt_map,
-                                               [self.cluster.coord.icrs.ra.to_value('deg'),
-                                                self.cluster.coord.icrs.dec.to_value('deg')],
-                                               stddev=np.sqrt(model_cnt_map), header=header,
-                                               binsize=profile_reso.to_value('deg'),
-                                               stat='POISSON',
-                                               counts2brightness=True)
+        r_mod, p_mod, err_mod = radial_profile_cts(model_cnt_map,
+                                                   [self.cluster.coord.icrs.ra.to_value('deg'),
+                                                    self.cluster.coord.icrs.dec.to_value('deg')],
+                                                   stddev=np.sqrt(model_cnt_map), header=header,
+                                                   binsize=profile_reso.to_value('deg'),
+                                                   stat='POISSON',
+                                                   counts2brightness=True)
         tab  = Table()
         tab['radius']  = Column(r_mod, unit='deg',
                                 description='Cluster offset (bin='+str(profile_reso.to_value('deg'))+'deg')
