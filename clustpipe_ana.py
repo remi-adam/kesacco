@@ -27,7 +27,7 @@ from ClusterPipe.Tools import utilities
 from ClusterPipe.Tools import build_ctools_model
 from ClusterPipe       import clustpipe_ana_plot
 
-from ClusterModel.ClusterTools.map_tools import radial_profile
+from ClusterModel.ClusterTools.map_tools import radial_profile_cts
 
 
 #==================================================
