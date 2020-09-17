@@ -15,9 +15,9 @@ import gammalib
 import astropy.units as u
 from astropy.coordinates.sky_coordinate import SkyCoord
 
-from ClusterPipe.Tools import make_cluster_template
-from ClusterPipe.Tools import build_ctools_model
-from ClusterPipe.Tools import utilities
+from kesacco.Tools import make_cluster_template
+from kesacco.Tools import build_ctools_model
+from kesacco.Tools import utilities
 
 #==================================================
 # Cluster class

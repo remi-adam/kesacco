@@ -84,7 +84,7 @@ def compact_sources(model_tot, source_dict, tscalc=True):
             prefact = source_dict.spectral[ips]['param']['Prefactor']['value'].to_value('cm-2 s-1 MeV-1')
             index   = source_dict.spectral[ips]['param']['Index']['value']
             pivot   = gammalib.GEnergy(source_dict.spectral[ips]['param']['PivotEnergy']['value'].to_value('TeV'), 'TeV')
-	    spectral = gammalib.GModelSpectralPlaw(prefact, index, pivot)
+            spectral = gammalib.GModelSpectralPlaw(prefact, index, pivot)
 
         # PowerLawExpCutoff
         elif source_dict.spectral[ips]['type'] == 'PowerLawExpCutoff':
@@ -92,16 +92,16 @@ def compact_sources(model_tot, source_dict, tscalc=True):
             index   = source_dict.spectral[ips]['param']['Index']['value']
             pivot   = gammalib.GEnergy(source_dict.spectral[ips]['param']['PivotEnergy']['value'].to_value('TeV'), 'TeV')
             cutoff  = gammalib.GEnergy(source_dict.spectral[ips]['param']['Cutoff']['value'].to_value('TeV'), 'TeV')
-	    spectral = gammalib.GModelSpectralExpPlaw(prefact, index, pivot, cutoff)
+            spectral = gammalib.GModelSpectralExpPlaw(prefact, index, pivot, cutoff)
 
         # Error
         else:
             raise ValueError('Spectral model not available')
 
-	#----- Temporal model
+        #----- Temporal model
         # Constant
         if source_dict.temporal[ips]['type'] == 'Constant':
-	    temporal = gammalib.GModelTemporalConst(source_dict.temporal[ips]['param']['Normalization']['value'])
+            temporal = gammalib.GModelTemporalConst(source_dict.temporal[ips]['param']['Normalization']['value'])
 
         # Error
         else:
@@ -112,13 +112,13 @@ def compact_sources(model_tot, source_dict, tscalc=True):
         spectral = manage_parameters(source_dict.spectral[ips]['param'], spectral)
         temporal = manage_parameters(source_dict.temporal[ips]['param'], temporal)
 
-	#----- Overal model for each source
-	model = gammalib.GModelSky(spatial, spectral, temporal)
-	model.name(source_dict.name[ips])
+        #----- Overal model for each source
+        model = gammalib.GModelSky(spatial, spectral, temporal)
+        model.name(source_dict.name[ips])
         model.tscalc(tscalc)
 	
-	#----- Append model for each source
-	model_tot.append(model)
+        #----- Append model for each source
+        model_tot.append(model)
     
     
 #==================================================
@@ -163,7 +163,7 @@ def background(model_tot, bkg_dict_in, setID=True):
             prefact = bkg_dict.spectral['param']['Prefactor']['value']
             index   = bkg_dict.spectral['param']['Index']['value']
             pivot   = gammalib.GEnergy(bkg_dict.spectral['param']['PivotEnergy']['value'].to_value('TeV'), 'TeV')
-	    spectral = gammalib.GModelSpectralPlaw(prefact, index, pivot)
+            spectral = gammalib.GModelSpectralPlaw(prefact, index, pivot)
         
         # PowerLawExpCutoff
         elif bkg_dict.spectral['type'] == 'PowerLawExpCutoff':
@@ -171,7 +171,7 @@ def background(model_tot, bkg_dict_in, setID=True):
             index   = bkg_dict.spectral['param']['Index']['value']
             pivot   = gammalib.GEnergy(bkg_dict.spectral['param']['PivotEnergy']['value'].to_value('TeV'), 'TeV')
             cutoff   = gammalib.GEnergy(bkg_dict.spectral['param']['Cutoff']['value'].to_value('TeV'), 'TeV')
-	    spectral = gammalib.GModelSpectralExpPlaw(prefact, index, pivot, cutoff)
+            spectral = gammalib.GModelSpectralExpPlaw(prefact, index, pivot, cutoff)
         
         # Error
         else:

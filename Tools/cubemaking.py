@@ -9,7 +9,7 @@ binning the data.
 
 import ctools
 import numpy as np
-import utilities
+from kesacco.Tools import utilities
 
 #==================================================
 # Counts bin

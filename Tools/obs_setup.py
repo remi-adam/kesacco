@@ -16,7 +16,7 @@ import astropy.units as u
 from astropy.time import Time
 import copy
 
-from ClusterPipe.Tools import background as model_bkg
+from kesacco.Tools import background as model_bkg
 
 import cscripts
 import gammalib
@@ -388,7 +388,7 @@ class ObsSetup(object):
         """
 
         #----- Open the file and define columns
-        f = open(filename, 'wb')
+        f = open(filename, 'w')
         f.write('name, id, ra, dec, tmin, duration, emin, emax, rad, deadc, caldb, irf \n')
 
         #----- Get the index

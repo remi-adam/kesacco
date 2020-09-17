@@ -22,8 +22,8 @@ from scipy import interpolate
 import scipy.ndimage as ndimage
 import random
 
-from ClusterPipe.Tools import plotting_irf
-from ClusterPipe.Tools import plotting_obsfile
+from kesacco.Tools import plotting_irf
+from kesacco.Tools import plotting_obsfile
 
 import gammalib
 
@@ -952,54 +952,46 @@ def show_spectrum(specfile, outfile, butfile=None, expected_file=None):
     hdu = fits.open(specfile)
     spectrum = hdu[1].data
     hdu.close()
-    
-    energy     = spectrum['Energy']*u.TeV
-    flux       = spectrum['Flux']*u.erg/u.cm**2/u.s
-    e_flux     = spectrum['e_Flux']*u.erg/u.cm**2/u.s
-    ed_Energy  = spectrum['ed_Energy']*u.TeV
-    eu_Energy  = spectrum['eu_Energy']*u.TeV
-    UpperLimit = spectrum['UpperLimit']*u.erg/u.cm**2/u.s
-    Npred      = spectrum['Npred']
-    TS         = spectrum['TS']
+
+    energy     = spectrum['e_ref']*u.TeV
+    ed_Energy  = spectrum['e_min']*u.TeV
+    eu_Energy  = spectrum['e_min']*u.TeV
+    npred      = spectrum['norm']*spectrum['ref_npred']
+    flux       = spectrum['norm']*spectrum['ref_e2dnde']*u.erg/u.cm**2/u.s
+    e_flux     = spectrum['norm_err']*spectrum['ref_e2dnde']*u.erg/u.cm**2/u.s
+    UpperLimit = spectrum['norm_ul']*spectrum['ref_e2dnde']*u.erg/u.cm**2/u.s
+    TS         = spectrum['ts']
 
     # Buterfly plot can be added
     if butfile is not None:
-        with open(butfile) as f:            
-            col = zip(*[line.split() for line in f])[0]
-            b_energy = np.array(col[0:])
-            b_energy = b_energy.astype(np.float)
-            b_energy = b_energy*u.MeV
-            
-        with open(butfile) as f:
-            col = zip(*[line.split() for line in f])[1]
-            b_bf = np.array(col[0:])
-            b_bf = b_bf.astype(np.float)
-            b_bf = b_bf / u.cm**2 / u.MeV / u.s
-
-        with open(butfile) as f:
-            col = zip(*[line.split() for line in f])[2]
-            b_ll = np.array(col[0:])
-            b_ll = b_ll.astype(np.float)
-            b_ll = b_ll / u.cm**2 / u.MeV / u.s
-
-        with open(butfile) as f:
-            col = zip(*[line.split() for line in f])[3]
-            b_ul = np.array(col[0:])
-            b_ul = b_ul.astype(np.float)
-            b_ul = b_ul / u.cm**2 / u.MeV / u.s
-
+        f = open(butfile, "r")
+        lines = f.readlines()
+        b_energy = []
+        for x in lines: b_energy.append(x.split(' ')[0])
+        b_energy = np.array(b_energy).astype(np.float)*u.MeV
+        b_bf= []
+        for x in lines: b_bf.append(x.split(' ')[1])
+        b_bf = np.array(b_bf).astype(np.float) / u.cm**2 / u.MeV / u.s
+        b_ll= []
+        for x in lines: b_ll.append(x.split(' ')[2])
+        b_ll = np.array(b_ll).astype(np.float) / u.cm**2 / u.MeV / u.s
+        b_ul = []
+        for x in lines: b_ul.append(x.split(' ')[3])
+        b_ul = np.array(b_ul).astype(np.float) / u.cm**2 / u.MeV / u.s
+        f.close()
+ 
     # Expected data plot can be added
     if expected_file is not None:
-        with open(expected_file) as f:
-            col = zip(*[line.split() for line in f])[0]
-            E_exp = np.array(col[1:])
-            E_exp = E_exp.astype(np.float)
-            E_exp = E_exp*u.MeV
-        with open(expected_file) as f:
-            col = zip(*[line.split() for line in f])[1]
-            dNdEdSdt_exp = np.array(col[1:])
-            dNdEdSdt_exp = dNdEdSdt_exp.astype(np.float)
-            dNdEdSdt_exp = dNdEdSdt_exp*u.MeV**-1*u.s**-1*u.cm**-2
+        f = open(expected_file, "r")
+        lines = f.readlines()
+        E_exp = []
+        for x in lines: E_exp.append(x.split('                          ')[0])
+        E_exp = np.array(E_exp[1:]).astype(np.float)*u.MeV
+        dNdEdSdt_exp = []
+        for x in lines: dNdEdSdt_exp.append(x.split('                          ')[1])
+        dNdEdSdt_exp = np.array(dNdEdSdt_exp[1:]).astype(np.float)*u.MeV**-1*u.s**-1*u.cm**-2
+        f.close()
+
         max_expected = np.nanmax((E_exp**2 * dNdEdSdt_exp).to_value('GeV cm-2 s-1'))*u.GeV/u.cm**2/u.s
 
         itpl = interpolate.interp1d(E_exp.to_value('GeV'), (E_exp**2*dNdEdSdt_exp).to_value('GeV cm-2 s-1'))

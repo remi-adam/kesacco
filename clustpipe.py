@@ -16,13 +16,13 @@ Hi this is Hazal
 import astropy.units as u
 from astropy.coordinates.sky_coordinate import SkyCoord
 
-from ClusterModel      import model          as model_cluster
-from ClusterPipe.Tools import compact_source as model_compsource
-from ClusterPipe.Tools import obs_setup      as setup_observations
-from ClusterPipe.clustpipe_common import Common
-from ClusterPipe.clustpipe_sim    import CTAsim
-from ClusterPipe.clustpipe_ana    import CTAana
-from ClusterPipe import clustpipe_title
+import minot as model_cluster
+from kesacco.Tools import compact_source as model_compsource
+from kesacco.Tools import obs_setup      as setup_observations
+from kesacco.clustpipe_common import Common
+from kesacco.clustpipe_sim    import CTAsim
+from kesacco.clustpipe_ana    import CTAana
+from kesacco import clustpipe_title
 
 
 #==================================================

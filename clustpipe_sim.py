@@ -16,8 +16,8 @@ from random import randint
 import gammalib
 import ctools
 
-from ClusterPipe.Tools import plotting
-from ClusterPipe       import clustpipe_sim_plot
+from kesacco.Tools import plotting
+from kesacco       import clustpipe_sim_plot
 
 
 #==================================================

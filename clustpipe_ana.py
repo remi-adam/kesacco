@@ -18,16 +18,16 @@ import copy
 import ctools
 import gammalib
 
-from ClusterPipe.Tools import tools_spectral
-from ClusterPipe.Tools import tools_imaging
-from ClusterPipe.Tools import tools_timing
-from ClusterPipe.Tools import plotting
-from ClusterPipe.Tools import cubemaking
-from ClusterPipe.Tools import utilities
-from ClusterPipe.Tools import build_ctools_model
-from ClusterPipe       import clustpipe_ana_plot
+from kesacco.Tools import tools_spectral
+from kesacco.Tools import tools_imaging
+from kesacco.Tools import tools_timing
+from kesacco.Tools import plotting
+from kesacco.Tools import cubemaking
+from kesacco.Tools import utilities
+from kesacco.Tools import build_ctools_model
+from kesacco       import clustpipe_ana_plot
 
-from ClusterModel.ClusterTools.map_tools import radial_profile_cts
+from minot.ClusterTools.map_tools import radial_profile_cts
 
 
 #==================================================

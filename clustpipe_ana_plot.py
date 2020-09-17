@@ -12,8 +12,8 @@ import astropy.units as u
 import numpy as np
 import gammalib
 
-from ClusterPipe.Tools import plotting
-from clustpipe_sim_plot import skymap_quicklook
+from kesacco.Tools import plotting
+from kesacco.clustpipe_sim_plot import skymap_quicklook
 
 
 #==================================================

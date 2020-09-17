@@ -13,9 +13,9 @@ import numpy as np
 from astropy.io import fits
 import os
 
-from ClusterPipe.Tools import tools_imaging
-from ClusterPipe.Tools import plotting
-from ClusterPipe.Tools import utilities
+from kesacco.Tools import tools_imaging
+from kesacco.Tools import plotting
+from kesacco.Tools import utilities
 
 
 #==================================================
