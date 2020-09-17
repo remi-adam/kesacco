@@ -49,4 +49,4 @@ The software depends on standard python package (non-exhaustive list yet):
 But also:
 - gammalib (http://cta.irap.omp.eu/gammalib/)
 - ctools (http://cta.irap.omp.eu/ctools/)
-- ClusterModel (see https://github.com/remi-adam/ClusterModel)
+- minot (see https://github.com/remi-adam/minot)
