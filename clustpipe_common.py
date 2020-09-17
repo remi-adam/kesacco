@@ -39,7 +39,7 @@ class Common():
     - _rm_source_xml(self, xmlin, xmlout, source)
     - _match_cluster_to_pointing(self, extra=1.1)
     - _match_anamap_to_pointing(self, extra=1.1)
-    - _make_model(self, prefix='Model', includeIC=True)
+    - _make_model(self, prefix='Model', includeIC=False)
 
     """
         
@@ -319,7 +319,7 @@ class Common():
     # Make a model
     #==================================================
     
-    def _make_model(self, prefix='Model', includeIC=True, obsID=None):
+    def _make_model(self, prefix='Model', includeIC=False, obsID=None):
         """
         This function is used to construct the model.
         

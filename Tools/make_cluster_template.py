@@ -22,7 +22,7 @@ def make_map(cluster,
              filename,
              Egmin=5e-2*u.TeV,
              Egmax=1e+2*u.TeV,
-             includeIC=True):
+             includeIC=False):
     """
     Compute the map of a cluster for ctools.
         
@@ -55,6 +55,7 @@ def make_map(cluster,
                                     Rmin_los=None, NR500_los=5.0,
                                     Rmin=None, Rmax=None,
                                     Normalize=True)
+        print('!!!!! WARNING: including the IC contribution will lead to non normalized map right now !!!!!')
     
     #---------- Write the fits
     hdu = fits.PrimaryHDU(header=header)
@@ -71,7 +72,7 @@ def make_map(cluster,
 def make_spectrum(cluster,
                   filename,
                   energy=np.logspace(-2,6,1000)*u.GeV,
-                  includeIC=True):
+                  includeIC=False):
     """
     Compute the spectrum of a cluster for ctools.
     
@@ -99,6 +100,7 @@ def make_spectrum(cluster,
                                                   Rmin=None, Rmax=cluster.R_truncation,
                                                   Rmin_los=None, NR500_los=5.0,
                                                   type_integral='spherical')
+        print('!!!!! WARNING: including the IC contribution will lead to non normalized map right now !!!!!')
         spec += spec_ic
 
     #---------- Remove zero from the spectrum
