@@ -739,8 +739,10 @@ class CTAana(object):
         
         """
 
+        #----- Spectrum
         spectrum_file = self.output_dir+'/Ana_Spectrum_'+self.cluster.name+'.fits'
         cluster_test = copy.deepcopy(self.cluster)
+        cluster_test.output_dir = self.output_dir
         
         tools_mcmc.run_spectrum_constraint(cluster_test,
                                            spectrum_file,
@@ -748,7 +750,11 @@ class CTAana(object):
                                            nsteps=self.mcmc_nsteps,
                                            burnin=self.mcmc_burnin,
                                            conf=self.mcmc_conf,
-                                           reset_mcmc=reset_mcmc)
+                                           reset_mcmc=reset_mcmc,
+                                           restart_mcmc=restart_mcmc)
+        
+        #----- Profile
+
         
             
     #==================================================

@@ -159,7 +159,8 @@ def get_mc_model(eng_mc, param_chains, cluster_test, Nmc=100):
 
     """
 
-    par_flat = param_chains.reshape(param_chains.shape[0]*param_chains.shape[1], param_chains.shape[2])
+    par_flat = param_chains.reshape(param_chains.shape[0]*param_chains.shape[1],
+                                    param_chains.shape[2])
 
     #----- Remove negative values (should never happen but does)
     wneg = par_flat[:,0]>0
@@ -356,12 +357,14 @@ def get_global_prop(MC_eng, MC_model, Best_model, Dlum, rout_file,
     
     for i in range(Nmc):
         # Interpolate the model over the requiered range
-        itpl = interp1d(np.log10(MC_eng), np.log10(MC_model[i,:]), kind='cubic')
-        model_i = 10**itpl(np.log10(eng_flux))
+        itpval = np.log10(MC_model[i,:]/(MC_eng*1e3)**2)
+        itpval[MC_model[i,:] <= 0] = -100
+        itpl = interp1d(np.log10(MC_eng), itpval, kind='cubic')
+        model_i = 10**itpl(np.log10(eng_flux)) # MeV-1 s-1 cm-2
         
         # compute the integral
-        F1_i = trapz_loglog(model_i, eng_flux)          # ph/s/cm2
-        F2_i = trapz_loglog(eng_flux*model_i, eng_flux) # MeV/s/cm2
+        F1_i = trapz_loglog(model_i, eng_flux*1e3)          # ph/s/cm2
+        F2_i = trapz_loglog((eng_flux*1e3)*model_i, eng_flux*1e3) # MeV/s/cm2
         
         # store the Luminosity and flux
         F1_mc[i] = F1_i
@@ -378,15 +381,17 @@ def get_global_prop(MC_eng, MC_model, Best_model, Dlum, rout_file,
     L3_perc = np.percentile(L2_mc*MeV2erg, [(100-conf)/2.0, 50, 100 - (100-conf)/2.0])   # erg/s
 
     # Get also the best model
-    itpl = interp1d(np.log10(MC_eng), np.log10(Best_model), kind='cubic')
-    model_b = 10**itpl(np.log10(eng_flux))
-    F1_B = trapz_loglog(model_b, eng_flux)
-    F2_B = trapz_loglog(eng_flux*model_b, eng_flux)
+    itpval = np.log10(Best_model/(MC_eng*1e3)**2)
+    itpval[Best_model <= 0] = -100
+    itpl = interp1d(np.log10(MC_eng), itpval, kind='cubic')
+    model_b = 10**itpl(np.log10(eng_flux)) # MeV-1 cm-2 s-1
+    F1_B = trapz_loglog(model_b, eng_flux*1e3)
+    F2_B = trapz_loglog((eng_flux*1e3)*model_b, eng_flux*1e3)
     F3_B = F2_B*MeV2erg
     L1_B = F1_B * (4*np.pi*Dlum**2) # ph/s
     L2_B = F2_B * (4*np.pi*Dlum**2) # MeV/s
     L3_B = L2_B*MeV2erg
-    
+
     # Provide information
     if outfile is not None:
         file = open(outfile,'w')
@@ -395,10 +400,10 @@ def get_global_prop(MC_eng, MC_model, Best_model, Dlum, rout_file,
 
     print('')
     print('----- Flux and luminosity information (with Nmc = '+str(Nmc)+'):')
-    print('Energy range: '+str(Emin)+' - '+str(Emax)+' MeV')
+    print('Energy range: '+str(Emin)+' - '+str(Emax)+' GeV')
     if outfile is not None:
         file.write('----- Flux and luminosity information (with Nmc = '+str(Nmc)+'):\n')
-        file.write('Energy range: '+str(Emin)+' - '+str(Emax)+' MeV\n')
+        file.write('Energy range: '+str(Emin)+' - '+str(Emax)+' GeV\n')
 
     t1 = txt.format(F1_perc[1], F1_perc[1]-F1_perc[0], F1_perc[2]-F1_perc[1])
     t2 = txt.format(F1_B, F1_B-F1_perc[0], F1_perc[2]-F1_B)
@@ -456,7 +461,7 @@ def get_global_prop(MC_eng, MC_model, Best_model, Dlum, rout_file,
 
     if outfile is not None:
         file.close()
-        
+
     # Plot of histogram
     fig = plt.figure(figsize=(8, 6))
     ax = sns.distplot(F1_mc, bins=40, kde=True, color='blue')
@@ -500,7 +505,7 @@ def modelplot(data, cluster_test, par_best, param_chains, MC_eng, MC_model, conf
     """
 
     #========== Extract relevant info    
-    bf_model1 = model_dNdEdSdt(cluster_test, data['Energy'], par_best)
+    bf_model1 = model_dNdEdSdt(cluster_test, data['energy'], par_best)
     bf_model2 = model_dNdEdSdt(cluster_test, MC_eng, par_best)
     MC_perc   = np.percentile(MC_model, [(100-conf)/2.0, 50, 100 - (100-conf)/2.0], axis=0)
     
@@ -510,9 +515,11 @@ def modelplot(data, cluster_test, par_best, param_chains, MC_eng, MC_model, conf
     ax1 = plt.subplot(gs[0])
     ax3 = plt.subplot(gs[1])
 
-    xlim = [np.amin(data['Energy'])/2.0, np.amax(data['Energy'])*2.0]
-    ylim = [1e-9, 1e-6]
-    
+    xlim = [1e-1, 1e6]#[np.amin(data['energy'])/2.0, np.amax(data['energy'])*2.0]
+    rngyp = 1.2*np.nanmax(data['flux']+data['e_flux'])
+    rngym = 0.5*np.nanmin(data['flux'])
+    ylim = [rngym, rngyp]#[1e-19, 1e6]
+
     ax1.plot(MC_eng, bf_model2,    ls='-', linewidth=2, color='k', label='Maximum likelihood model')
     ax1.plot(MC_eng, MC_perc[1,:], ls='--', linewidth=2, color='b', label='Median')
     ax1.plot(MC_eng, MC_perc[0,:], ls=':', linewidth=1, color='b')
@@ -521,8 +528,7 @@ def modelplot(data, cluster_test, par_best, param_chains, MC_eng, MC_model, conf
     for i in range(Nmc):
         ax1.plot(MC_eng, MC_model[i,:], ls='-', linewidth=0.5, alpha=0.1, color='blue')
 
-    ax1.errorbar(data['Energy'], (data['flux']*u.Unit('erg cm-2 s-1')).to_value('MeV cm-2 s-1'),
-                 yerr=(data['e_flux']*u.Unit('erg cm-2 s-1')).to_value('MeV cm-2 s-1'),
+    ax1.errorbar(data['energy'], data['flux'], yerr=data['e_flux'],
                  marker='o', elinewidth=2, color='red',
                  markeredgecolor="black", markerfacecolor="red",
                  ls ='', label='Data')
@@ -543,14 +549,14 @@ def modelplot(data, cluster_test, par_best, param_chains, MC_eng, MC_model, conf
                  (ylim[1]*u.Unit('MeV cm-2 s-1')).to_value('erg cm-2 s-1'))
     
     # Residual plot
-    ax3.plot(data['Energy'], (data['flux']-bf_model1)/data['e_flux'],
+    ax3.plot(data['energy'], (data['flux']-bf_model1)/data['e_flux'],
              linestyle='', marker='o', color='k')
     ax3.plot(MC_eng,  MC_eng*0, linestyle='-', color='k')
     ax3.plot(MC_eng,  MC_eng*0+2, linestyle='--', color='k')
     ax3.plot(MC_eng,  MC_eng*0-2, linestyle='--', color='k')
     ax3.set_xlim(xlim[0], xlim[1])
     ax3.set_ylim(-3, 3)
-    ax3.set_xlabel('Energy (TeV)')
+    ax3.set_xlabel('Energy (GeV)')
     ax3.set_ylabel('$\\chi$')
     ax3.set_xscale('log')
     
@@ -577,9 +583,35 @@ def read_data(specfile):
     """
 
     hdu = fits.open(specfile)
-    data = hdu[1].data
+    spectrum = hdu[1].data
     hdu.close()
 
+    # the data content depends on the version
+    try:
+        energy     = spectrum['e_ref']*u.TeV
+        ed_Energy  = spectrum['e_min']*u.TeV
+        eu_Energy  = spectrum['e_min']*u.TeV
+        npred      = spectrum['norm']*spectrum['ref_npred']
+        flux       = spectrum['norm']*spectrum['ref_e2dnde']*u.erg/u.cm**2/u.s
+        e_flux     = spectrum['norm_err']*spectrum['ref_e2dnde']*u.erg/u.cm**2/u.s
+        UpperLimit = spectrum['norm_ul']*spectrum['ref_e2dnde']*u.erg/u.cm**2/u.s
+        TS         = spectrum['ts']
+    except:
+        energy     = spectrum['Energy']*u.TeV
+        ed_Energy  = spectrum['ed_Energy']*u.TeV
+        eu_Energy  = spectrum['eu_Energy']*u.TeV
+        npred      = spectrum['Npred']
+        flux       = spectrum['Flux']*u.erg/u.cm**2/u.s
+        e_flux     = spectrum['e_Flux']*u.erg/u.cm**2/u.s
+        UpperLimit = spectrum['UpperLimit']*u.erg/u.cm**2/u.s
+        TS         = spectrum['TS']
+
+    # Fill my data
+    data = Table()
+    data['energy'] = energy.to_value('GeV')
+    data['flux']   = flux.to_value('MeV cm-2 s-1')
+    data['e_flux'] = e_flux.to_value('MeV cm-2 s-1')
+    
     return data
 
     
@@ -647,21 +679,11 @@ def lnlike(params, cluster, data, par_min, par_max):
     if params[0] <= 0: # should never happen, but it does, so debug when so
         import pdb
         pdb.set_trace()
-
-    #---------- Get the needed data
-    try:
-        energy     = data['e_ref']*u.TeV
-        flux       = data['norm']*data['ref_e2dnde']*u.erg/u.cm**2/u.s
-        e_flux     = data['norm_err']*data['ref_e2dnde']*u.erg/u.cm**2/u.s
-    except:
-        energy     = data['Energy']*u.TeV
-        flux       = data['Flux']*u.erg/u.cm**2/u.s
-        e_flux     = data['e_Flux']*u.erg/u.cm**2/u.s
         
-    test_model = model_dNdEdSdt(cluster, energy.to_value('MeV'), params)
+    test_model = model_dNdEdSdt(cluster, data['energy'], params)
     
     #---------- Compute the Gaussian likelihood
-    chi2 = (flux.to_value('MeV cm-2 s-1') - test_model)**2 / e_flux.to_value('MeV cm-2 s-1')**2
+    chi2 = (data['flux'] - test_model)**2 / data['e_flux']**2
     lnL = -0.5*np.sum(chi2)
     
     if np.isnan(lnL):
@@ -681,7 +703,7 @@ def model_dNdEdSdt(cluster, energy, params):
     Parameters
     ----------
     - cluster (ClusterModel object): cluster modeling object
-    - energy (array, MeV): energy at which to compute the model
+    - energy (array, GeV): energy at which to compute the model
     - param (list): the parameter to sample in the model
 
     Output
@@ -694,7 +716,7 @@ def model_dNdEdSdt(cluster, energy, params):
     cluster.spectrum_crp_model = {'name':'PowerLaw', 'Index':params[1]}
     
     #---------- Run the test model computation
-    eng, model_dNdEdSdt = cluster.get_gamma_spectrum(energy*u.MeV,
+    eng, model_dNdEdSdt = cluster.get_gamma_spectrum(energy*u.GeV,
                                                      Rmin=None, Rmax=cluster.R_truncation,
                                                      Rmin_los=None, NR500_los=5.0,
                                                      type_integral='spherical')
@@ -777,8 +799,9 @@ def run_spectrum_constraint(cluster_test,
                                         args=[cluster_test, data, par_min, par_max])
 
     #---------- Run the MCMC
-    print('--- Runing '+str(nsteps)+' MCMC steps')
-    sampler.run_mcmc(pos, nsteps)
+    if restart_mcmc:
+        print('--- Runing '+str(nsteps)+' MCMC steps')
+        sampler.run_mcmc(pos, nsteps)
 
     #---------- Save the MCMC after the run
     save_object(sampler, cluster_test.output_dir+'/Ana_spectrum_'+cluster_test.name+'_MCMC_sampler.pkl')
@@ -793,18 +816,20 @@ def run_spectrum_constraint(cluster_test,
                                                  outfile=cluster_test.output_dir+'/Ana_spectrum_'+cluster_test.name+'_MCMC_chainstat.txt')
     
     #---------- Get the well-sampled models
-    MC_eng     = np.logspace(np.log10(np.amin(data['Energy'])/2),
-                             np.log10(np.amax(data['Energy'])*2.0), 20)
+    #MC_eng     = np.logspace(np.log10(np.amin(data['energy'])/2),
+    #                         np.log10(np.amax(data['energy'])*2.0), 20)
+    MC_eng     = np.logspace(-1, 6, 50) # GeV
     MC_model   = get_mc_model(MC_eng, param_chains, cluster_test, Nmc=Nmc)
     Best_model = model_dNdEdSdt(cluster_test, MC_eng, par_best)
 
     #---------- Plots and results
-    chainplots(param_chains, parname, cluster_test.output_dir,
+    chainplots(param_chains, parname, cluster_test.output_dir+'/Ana_spectrum_'+cluster_test.name,
                par_best=par_best, par_percentile=par_percentile, conf=conf,
                par_min=par_min, par_max=par_max)
-
-    get_global_prop(MC_eng, MC_model, Best_model, cluster_test.D_lum.to_value('cm'), cluster_test.output_dir,
-                    Emin=np.amin(data['ed_Energy']), Emax=np.amax(data['eu_Energy']),
+    
+    get_global_prop(MC_eng, MC_model, Best_model, cluster_test.D_lum.to_value('cm'),
+                    cluster_test.output_dir+'/Ana_spectrum_'+cluster_test.name,
+                    Emin=50, Emax=10e3, # GeV
                     outfile=cluster_test.output_dir+'/Ana_spectrum_'+cluster_test.name+'_MCMC_globalprop.txt')
-                    
+
     modelplot(data, cluster_test, par_best, param_chains, MC_eng, MC_model, conf=conf)
