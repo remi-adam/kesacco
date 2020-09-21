@@ -953,15 +953,26 @@ def show_spectrum(specfile, outfile, butfile=None, expected_file=None):
     spectrum = hdu[1].data
     hdu.close()
 
-    energy     = spectrum['e_ref']*u.TeV
-    ed_Energy  = spectrum['e_min']*u.TeV
-    eu_Energy  = spectrum['e_min']*u.TeV
-    npred      = spectrum['norm']*spectrum['ref_npred']
-    flux       = spectrum['norm']*spectrum['ref_e2dnde']*u.erg/u.cm**2/u.s
-    e_flux     = spectrum['norm_err']*spectrum['ref_e2dnde']*u.erg/u.cm**2/u.s
-    UpperLimit = spectrum['norm_ul']*spectrum['ref_e2dnde']*u.erg/u.cm**2/u.s
-    TS         = spectrum['ts']
-
+    # the data content depends on the version
+    try:
+        energy     = spectrum['e_ref']*u.TeV
+        ed_Energy  = spectrum['e_min']*u.TeV
+        eu_Energy  = spectrum['e_min']*u.TeV
+        npred      = spectrum['norm']*spectrum['ref_npred']
+        flux       = spectrum['norm']*spectrum['ref_e2dnde']*u.erg/u.cm**2/u.s
+        e_flux     = spectrum['norm_err']*spectrum['ref_e2dnde']*u.erg/u.cm**2/u.s
+        UpperLimit = spectrum['norm_ul']*spectrum['ref_e2dnde']*u.erg/u.cm**2/u.s
+        TS         = spectrum['ts']
+    except:
+        energy     = spectrum['Energy']*u.TeV
+        ed_Energy  = spectrum['ed_Energy']*u.TeV
+        eu_Energy  = spectrum['eu_Energy']*u.TeV
+        npred      = spectrum['Npred']
+        flux       = spectrum['Flux']*u.erg/u.cm**2/u.s
+        e_flux     = spectrum['e_Flux']*u.erg/u.cm**2/u.s
+        UpperLimit = spectrum['UpperLimit']*u.erg/u.cm**2/u.s
+        TS         = spectrum['TS']
+        
     # Buterfly plot can be added
     if butfile is not None:
         f = open(butfile, "r")

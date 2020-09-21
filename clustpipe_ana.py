@@ -25,6 +25,7 @@ from kesacco.Tools import plotting
 from kesacco.Tools import cubemaking
 from kesacco.Tools import utilities
 from kesacco.Tools import build_ctools_model
+from kesacco.Tools import tools_mcmc
 from kesacco       import clustpipe_ana_plot
 
 from minot.ClusterTools.map_tools import radial_profile_cts
@@ -723,6 +724,31 @@ class CTAana(object):
         tab['profile'] = Column(p_mod, unit='deg-2', description='Counts per deg-2')
         tab['error']   = Column(err_mod, unit='deg-2', description='Counts per deg-2 uncertainty')
         tab.write(self.output_dir+'/Ana_Expected_Cluster_profile.fits', overwrite=True)
+
+
+    #==================================================
+    # Compute MCMC a posteriori constraints
+    #==================================================
+    
+    def run_ana_mcmc(self, reset_mcmc=True, restart_mcmc=True):
+        """
+        Fit the spectrum and profile a posteriori
+        
+        Parameters
+        ----------
+        
+        """
+
+        spectrum_file = self.output_dir+'/Ana_Spectrum_'+self.cluster.name+'.fits'
+        cluster_test = copy.deepcopy(self.cluster)
+        
+        tools_mcmc.run_spectrum_constraint(cluster_test,
+                                           spectrum_file,
+                                           nwalkers=self.mcmc_nwalkers,
+                                           nsteps=self.mcmc_nsteps,
+                                           burnin=self.mcmc_burnin,
+                                           conf=self.mcmc_conf,
+                                           reset_mcmc=reset_mcmc)
         
             
     #==================================================

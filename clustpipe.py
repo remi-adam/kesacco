@@ -116,4 +116,11 @@ class ClusterPipe(Common, CTAsim, CTAana):
         self.time_tmin     = None
         self.time_tmax     = None
         self.time_phase    = None
+
+        # MCMC related
+        self.mcmc_nwalkers = 10
+        self.mcmc_nsteps   = 1000
+        self.mcmc_burnin   = 100
+        self.mcmc_conf     = 68.0
+        
         
