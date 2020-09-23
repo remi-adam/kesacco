@@ -578,9 +578,9 @@ def run_profile_constraint(cluster_test,
     #========== Guess parameter definition
     par0 = np.array([1.0, 1.0])
     
-    parname = ['X_{CRp}/X_{CRp, input}', '\\eta_{CRp}'] # Normalization and scaling n_CR \propto n_CR_input^eta
+    parname = ['X_{CRp}/X_{CRp, input}', '\\eta'] # Normalization and scaling profile \propto profile_input^eta
     par_min = [0.0, -2.0]
-    par_max = [5.0, +2.0]
+    par_max = [100.0, +2.0]
     
     #========== Start running MCMC definition and sampling
     #---------- Check if a MCMC sampler was already recorded
