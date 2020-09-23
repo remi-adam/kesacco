@@ -32,8 +32,8 @@ to produce CTA analysis results.
 	Repository where to find Jupyter notebook used for development/example. 
 
 ## Environment
-To be compliant with other softwares developed in parallel, the code was made for python 2. Please make sure that you are in the correct environment when you run the code.
-In addition, the ClusterPipe directory should be in your python path so it can be found.
+To be compliant with other softwares developed in parallel, the code was made for python 2. Nevertheless, it should work with python 3. Please make sure that you are in the correct environment when you run the code.
+In addition, the kesacco directory should be in your python path so it can be found.
 
 ## Installation
 To install these tools, just fork the repository to your favorite location in your machine.
