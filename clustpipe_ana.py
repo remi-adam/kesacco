@@ -25,7 +25,8 @@ from kesacco.Tools import plotting
 from kesacco.Tools import cubemaking
 from kesacco.Tools import utilities
 from kesacco.Tools import build_ctools_model
-from kesacco.Tools import tools_mcmc
+from kesacco.Tools import mcmc_spectrum
+from kesacco.Tools import mcmc_profile
 from kesacco       import clustpipe_ana_plot
 
 from minot.ClusterTools.map_tools import radial_profile_cts
@@ -114,6 +115,10 @@ class CTAana(object):
 
         #----- Expected output computation
         self.run_ana_expected_output(profile_reso=profile_reso)
+
+        #----- A posteriori MCMC fit for the spectrum and profile
+        #self.run_ana_mcmc(do_spectrum=True, do_profile=True,
+        #                  reset_mcmc=True, run_mcmc=True)
         
         #----- Output plots
         self.run_ana_plot(obsID=obsID,
@@ -730,32 +735,56 @@ class CTAana(object):
     # Compute MCMC a posteriori constraints
     #==================================================
     
-    def run_ana_mcmc(self, reset_mcmc=True, restart_mcmc=True):
+    def run_ana_mcmc(self,
+                     do_spectrum=True, do_profile=True,
+                     reset_mcmc=True, run_mcmc=True):
         """
         Fit the spectrum and profile a posteriori
         
         Parameters
         ----------
-        
+        do_spectrum (bool): run the MCMC analysis on the spectrum?
+        do_profile (bool): run the MCMC analysis on the profile?
+        reset_mcmc (bool): reset the existing MCMC chains?
+        run_mcmc (bool): run the MCMC sampling?
+
         """
 
         #----- Spectrum
-        spectrum_file = self.output_dir+'/Ana_Spectrum_'+self.cluster.name+'.fits'
-        cluster_test = copy.deepcopy(self.cluster)
-        cluster_test.output_dir = self.output_dir
-        
-        tools_mcmc.run_spectrum_constraint(cluster_test,
-                                           spectrum_file,
-                                           nwalkers=self.mcmc_nwalkers,
-                                           nsteps=self.mcmc_nsteps,
-                                           burnin=self.mcmc_burnin,
-                                           conf=self.mcmc_conf,
-                                           reset_mcmc=reset_mcmc,
-                                           restart_mcmc=restart_mcmc)
+        if do_spectrum:
+            spectrum_file = self.output_dir+'/Ana_Spectrum_'+self.cluster.name+'.fits'
+            cluster_test = copy.deepcopy(self.cluster)
+            cluster_test.output_dir = self.output_dir
+            
+            mcmc_spectrum.run_spectrum_constraint(cluster_test,
+                                                  spectrum_file,
+                                                  nwalkers=self.mcmc_nwalkers,
+                                                  nsteps=self.mcmc_nsteps,
+                                                  burnin=self.mcmc_burnin,
+                                                  conf=self.mcmc_conf,
+                                                  Nmc=self.mcmc_Nmc,
+                                                  reset_mcmc=reset_mcmc,
+                                                  run_mcmc=run_mcmc,
+                                                  Emin=self.spec_emin.to_value('GeV'),
+                                                  Emax=self.spec_emax.to_value('GeV'))
         
         #----- Profile
-
-        
+        if do_profile:
+            profile_files = [self.output_dir+'/Ana_ResmapCluster_profile.fits',
+                             self.output_dir+'/Ana_Expected_Cluster_profile.fits']
+            cluster_test  = copy.deepcopy(self.cluster)
+            cluster_test.output_dir = self.output_dir
+            
+            mcmc_profile.run_profile_constraint(cluster_test,
+                                                profile_files,
+                                                nwalkers=self.mcmc_nwalkers,
+                                                nsteps=self.mcmc_nsteps,
+                                                burnin=self.mcmc_burnin,
+                                                conf=self.mcmc_conf,
+                                                Nmc=self.mcmc_Nmc,
+                                                reset_mcmc=reset_mcmc,
+                                                run_mcmc=run_mcmc)
+            
             
     #==================================================
     # Run the plotting tools

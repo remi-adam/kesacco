@@ -122,5 +122,6 @@ class ClusterPipe(Common, CTAsim, CTAana):
         self.mcmc_nsteps   = 1000
         self.mcmc_burnin   = 100
         self.mcmc_conf     = 68.0
+        self.mcmc_Nmc      = 100
         
         
