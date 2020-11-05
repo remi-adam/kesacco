@@ -125,7 +125,7 @@ def chains_statistics(param_chains, lnL_chains, parname=None, conf=68.0, show=Tr
             
             print('param '+str(ipar)+' ('+parnamei+'): ')
             print('   median   = '+str(perc[1])+' -'+str(perc[1]-perc[0])+' +'+str(perc[2]-perc[1]))
-            print('   best-fit = '+str(par_best[ipar]))+' -'+str(par_best[ipar]-perc[0])+' +'+str(perc[2]-par_best[ipar])
+            print('   best-fit = '+str(par_best[ipar])+' -'+str(par_best[ipar]-perc[0])+' +'+str(perc[2]-par_best[ipar]))
             print('   '+parnamei+' = '+txt)
 
             if outfile is not None:
@@ -260,6 +260,12 @@ def chainplots(param_chains, parname, rout_file,
         _has_statsmodels = True
     except ImportError:
         _has_statsmodels = False
+    try:
+        from seaborn.distributions import _statsmodels_bivariate_kde # Seaborn has changed...
+        _has_kde = True
+    except ImportError:
+        _has_kde = False
+        
     bw = 'scott'
     gridsize = 100
     cut = 3
@@ -271,37 +277,38 @@ def chainplots(param_chains, parname, rout_file,
             par_flat = param_chains.reshape(param_chains.shape[0]*param_chains.shape[1], param_chains.shape[2])
             df = pd.DataFrame(np.array([par_flat[:,i], par_flat[:,j]]).T,
                               columns=[parname_corner[i], parname_corner[j]])
-            
-            if _has_statsmodels:
-                xx, yy, z = sns.distributions._statsmodels_bivariate_kde(par_flat[:,i], par_flat[:,j],
-                                                                         bw, gridsize, cut, clip)
-            else:
-                xx, yy, z = sns.distributions._scipy_bivariate_kde(par_flat[:,i], par_flat[:,j],
-                                                                   bw, gridsize, cut, clip)
-            perc = np.percentile(z.flatten(), cl)
-            
-            g = sns.jointplot(x=parname_corner[i], y=parname_corner[j], data=df,
-                              kind="kde", bw=bw, n_levels=80, gridsize=gridsize, cut=cut, clip=clip)
-            g.plot_joint(sns.kdeplot, n_levels=3, gridsize=gridsize, levels=perc, cmap=mycm)
 
-            if par_min is not None and par_max is not None:
-                xlim = [g.ax_joint.get_xlim()[0], g.ax_joint.get_xlim()[1]]
-                ylim = [g.ax_joint.get_ylim()[0], g.ax_joint.get_ylim()[1]]
-                
-                if g.ax_joint.get_xlim()[0] < par_min[i]:
-                    xlim[0] = par_min[i]
-                if g.ax_joint.get_xlim()[1] > par_max[i]:
-                    xlim[1] = par_max[i]
-                g.ax_joint.set_xlim(xlim)
+            if _has_kde:
+                if _has_statsmodels:
+                    xx, yy, z = sns.distributions._statsmodels_bivariate_kde(par_flat[:,i], par_flat[:,j],
+                                                                             bw, gridsize, cut, clip)
+                else:
+                    xx, yy, z = sns.distributions._scipy_bivariate_kde(par_flat[:,i], par_flat[:,j],
+                                                                       bw, gridsize, cut, clip)
+                perc = np.percentile(z.flatten(), cl)
             
-                if g.ax_joint.get_ylim()[0] < par_min[j]:
-                    ylim[0] = par_min[j]
-                if g.ax_joint.get_ylim()[1] > par_max[j]:
-                    ylim[1] = par_max[j]
-                g.ax_joint.set_ylim(ylim)
+                g = sns.jointplot(x=parname_corner[i], y=parname_corner[j], data=df,
+                                  kind="kde", bw=bw, n_levels=80, gridsize=gridsize, cut=cut, clip=clip)
+                g.plot_joint(sns.kdeplot, n_levels=3, gridsize=gridsize, levels=perc, cmap=mycm)
+
+                if par_min is not None and par_max is not None:
+                    xlim = [g.ax_joint.get_xlim()[0], g.ax_joint.get_xlim()[1]]
+                    ylim = [g.ax_joint.get_ylim()[0], g.ax_joint.get_ylim()[1]]
+                    
+                    if g.ax_joint.get_xlim()[0] < par_min[i]:
+                        xlim[0] = par_min[i]
+                    if g.ax_joint.get_xlim()[1] > par_max[i]:
+                        xlim[1] = par_max[i]
+                    g.ax_joint.set_xlim(xlim)
             
-            g.savefig(rout_file+'_MCMC_triangle_seaborn_pars_'+str(i)+'_'+str(j)+'.pdf')
-    plt.close("all")
+                    if g.ax_joint.get_ylim()[0] < par_min[j]:
+                        ylim[0] = par_min[j]
+                    if g.ax_joint.get_ylim()[1] > par_max[j]:
+                        ylim[1] = par_max[j]
+                    g.ax_joint.set_ylim(ylim)
+            
+                g.savefig(rout_file+'_MCMC_triangle_seaborn_pars_'+str(i)+'_'+str(j)+'.pdf')
+                plt.close("all")
     
     # Corner plot using corner
     figure = corner.corner(par_flat,

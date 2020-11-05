@@ -577,26 +577,29 @@ class CTAana(object):
 
                 #----- Compute spectra
                 if do_Spec:
-                    tools_spectral.spectrum(inobs,  self.output_dir+'/Ana_Model_Output.xml',
-                                            srcname, self.output_dir+'/Ana_Spectrum_'+srcname+'.fits',
-                                            emin=self.spec_emin.to_value('TeV'),
-                                            emax=self.spec_emax.to_value('TeV'),
-                                            enumbins=self.spec_enumbins, ebinalg=self.spec_ebinalg,
-                                            expcube=expcube,
-                                            psfcube=psfcube,
-                                            bkgcube=bkgcube,
-                                            edispcube=edispcube,
-                                            caldb=None,
-                                            irf=None,
-                                            edisp=self.spec_edisp,
-                                            method='SLICE',
-                                            statistic=self.method_stat,
-                                            calc_ts=True,
-                                            calc_ulim=True,
-                                            fix_srcs=True,
-                                            fix_bkg=False,
-                                            logfile=self.output_dir+'/Ana_Spectrum_'+srcname+'_log.txt',
-                                            silent=self.silent)
+                    try:
+                        tools_spectral.spectrum(inobs,  self.output_dir+'/Ana_Model_Output.xml',
+                                                srcname, self.output_dir+'/Ana_Spectrum_'+srcname+'.fits',
+                                                emin=self.spec_emin.to_value('TeV'),
+                                                emax=self.spec_emax.to_value('TeV'),
+                                                enumbins=self.spec_enumbins, ebinalg=self.spec_ebinalg,
+                                                expcube=expcube,
+                                                psfcube=psfcube,
+                                                bkgcube=bkgcube,
+                                                edispcube=edispcube,
+                                                caldb=None,
+                                                irf=None,
+                                                edisp=self.spec_edisp,
+                                                method='SLICE',
+                                                statistic=self.method_stat,
+                                                calc_ts=True,
+                                                calc_ulim=True,
+                                                fix_srcs=True,
+                                                fix_bkg=False,
+                                                logfile=self.output_dir+'/Ana_Spectrum_'+srcname+'_log.txt',
+                                                silent=self.silent)
+                    except ZeroDivisionError:
+                        print(srcname+' spectrum not computed due to ZeroDivisionError')
 
                 #----- Compute butterfly
                 if do_Butterfly:
