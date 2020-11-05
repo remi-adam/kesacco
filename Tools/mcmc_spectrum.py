@@ -308,7 +308,7 @@ def chainplots(param_chains, parname, rout_file,
                     g.ax_joint.set_ylim(ylim)
             
                 g.savefig(rout_file+'_MCMC_triangle_seaborn_pars_'+str(i)+'_'+str(j)+'.pdf')
-                plt.close("all")
+        plt.close("all")
     
     # Corner plot using corner
     figure = corner.corner(par_flat,
