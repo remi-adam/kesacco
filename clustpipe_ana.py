@@ -758,36 +758,42 @@ class CTAana(object):
             spectrum_file = self.output_dir+'/Ana_Spectrum_'+self.cluster.name+'.fits'
             cluster_test = copy.deepcopy(self.cluster)
             cluster_test.output_dir = self.output_dir
-            
-            mcmc_spectrum.run_spectrum_constraint(cluster_test,
-                                                  spectrum_file,
-                                                  nwalkers=self.mcmc_nwalkers,
-                                                  nsteps=self.mcmc_nsteps,
-                                                  burnin=self.mcmc_burnin,
-                                                  conf=self.mcmc_conf,
-                                                  Nmc=self.mcmc_Nmc,
-                                                  reset_mcmc=reset_mcmc,
-                                                  run_mcmc=run_mcmc,
-                                                  Emin=self.spec_emin.to_value('GeV'),
-                                                  Emax=self.spec_emax.to_value('GeV'))
-        
+
+            try:
+                mcmc_spectrum.run_spectrum_constraint(cluster_test,
+                                                      spectrum_file,
+                                                      nwalkers=self.mcmc_nwalkers,
+                                                      nsteps=self.mcmc_nsteps,
+                                                      burnin=self.mcmc_burnin,
+                                                      conf=self.mcmc_conf,
+                                                      Nmc=self.mcmc_Nmc,
+                                                      reset_mcmc=reset_mcmc,
+                                                      run_mcmc=run_mcmc,
+                                                      Emin=self.spec_emin.to_value('GeV'),
+                                                      Emax=self.spec_emax.to_value('GeV'))
+            except FileNotFoundError:
+                print(self.output_dir+'/Ana_Spectrum_'+self.cluster.name+'.fits not found, no MCMC')
+                
         #----- Profile
         if do_profile:
             profile_files = [self.output_dir+'/Ana_ResmapCluster_profile.fits',
                              self.output_dir+'/Ana_Expected_Cluster_profile.fits']
             cluster_test  = copy.deepcopy(self.cluster)
             cluster_test.output_dir = self.output_dir
-            
-            mcmc_profile.run_profile_constraint(cluster_test,
-                                                profile_files,
-                                                nwalkers=self.mcmc_nwalkers,
-                                                nsteps=self.mcmc_nsteps,
-                                                burnin=self.mcmc_burnin,
-                                                conf=self.mcmc_conf,
-                                                Nmc=self.mcmc_Nmc,
-                                                reset_mcmc=reset_mcmc,
-                                                run_mcmc=run_mcmc)
-            
+
+            try:
+                mcmc_profile.run_profile_constraint(cluster_test,
+                                                    profile_files,
+                                                    nwalkers=self.mcmc_nwalkers,
+                                                    nsteps=self.mcmc_nsteps,
+                                                    burnin=self.mcmc_burnin,
+                                                    conf=self.mcmc_conf,
+                                                    Nmc=self.mcmc_Nmc,
+                                                    reset_mcmc=reset_mcmc,
+                                                    run_mcmc=run_mcmc)
+            except FileNotFoundError:
+                print(self.output_dir+'/Ana_ResmapCluster_profile.fits not found, no MCMC')
+                
             
     #==================================================
     # Run the plotting tools

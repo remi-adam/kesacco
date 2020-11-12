@@ -24,6 +24,7 @@ import emcee
 import corner
 
 from minot.model_tools import trapz_loglog
+from kesacco.Tools import plotting
 
 
 #==================================================
@@ -245,66 +246,13 @@ def chainplots(param_chains, parname, rout_file,
     # Corner plot using seaborn
     parname_corner = []
     for i in range(Npar): parname_corner.append('$'+parname[i]+'$')
-    
-    mycm = cm.get_cmap('viridis', 12)
-    mycm.colors[:,0] = 0.5
-    mycm.colors[:,1] = 0.5
-    mycm.colors[:,2] = 0.5
-
-    try:
-        import statsmodels.nonparametric.api as smnp
-        _has_statsmodels = True
-    except ImportError:
-        _has_statsmodels = False
-    try:
-        from seaborn.distributions import _statsmodels_bivariate_kde # Seaborn has changed...
-        _has_kde = True
-    except ImportError:
-        _has_kde = False
-        
-    bw = 'scott'
-    gridsize = 100
-    cut = 3
-    clip = [(-np.inf, np.inf), (-np.inf, np.inf)]
-    cl = [68, 95, 99]
-
-    for i in np.linspace(0, Npar-1, Npar, dtype=int):
-        for j in np.linspace(i+1, Npar-1, Npar-i-1, dtype=int):
-            par_flat = param_chains.reshape(param_chains.shape[0]*param_chains.shape[1], param_chains.shape[2])
-            df = pd.DataFrame(np.array([par_flat[:,i], par_flat[:,j]]).T,
-                              columns=[parname_corner[i], parname_corner[j]])
-
-            if _has_kde:
-                if _has_statsmodels:
-                    xx, yy, z = sns.distributions._statsmodels_bivariate_kde(par_flat[:,i], par_flat[:,j],
-                                                                             bw, gridsize, cut, clip)
-                else:
-                    xx, yy, z = sns.distributions._scipy_bivariate_kde(par_flat[:,i], par_flat[:,j],
-                                                                       bw, gridsize, cut, clip)
-                perc = np.percentile(z.flatten(), cl)
-                
-                g = sns.jointplot(x=parname_corner[i], y=parname_corner[j], data=df,
-                                  kind="kde", bw=bw, n_levels=80, gridsize=gridsize, cut=cut, clip=clip)
-                g.plot_joint(sns.kdeplot, n_levels=3, gridsize=gridsize, levels=perc, cmap=mycm)
-                
-                if par_min is not None and par_max is not None:
-                    xlim = [g.ax_joint.get_xlim()[0], g.ax_joint.get_xlim()[1]]
-                    ylim = [g.ax_joint.get_ylim()[0], g.ax_joint.get_ylim()[1]]
-                    
-                    if g.ax_joint.get_xlim()[0] < par_min[i]:
-                        xlim[0] = par_min[i]
-                    if g.ax_joint.get_xlim()[1] > par_max[i]:
-                        xlim[1] = par_max[i]
-                    g.ax_joint.set_xlim(xlim)
-                    
-                    if g.ax_joint.get_ylim()[0] < par_min[j]:
-                        ylim[0] = par_min[j]
-                    if g.ax_joint.get_ylim()[1] > par_max[j]:
-                        ylim[1] = par_max[j]
-                    g.ax_joint.set_ylim(ylim)
-                    
-                g.savefig(rout_file+'_MCMC_triangle_seaborn_pars_'+str(i)+'_'+str(j)+'.pdf')
-        plt.close("all")
+    par_flat = param_chains.reshape(param_chains.shape[0]*param_chains.shape[1], param_chains.shape[2])
+    df = pd.DataFrame(par_flat, columns=parname_corner)
+    plotting.seaborn_corner(df, output_fig=rout_file+'_MCMC_triangle_seaborn.pdf',
+                            n_levels=30, cols=[('green', 'k', 'grey', 'YlGn')], 
+                            perc=[0.68, 0.95], gridsize=100,
+                            linewidth=2.0, alpha=(0.3, 1.0), figsize=((Npar+1)*3,(Npar+1)*3))
+    plt.close("all")
     
     # Corner plot using corner
     figure = corner.corner(par_flat,

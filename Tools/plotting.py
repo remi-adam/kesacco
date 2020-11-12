@@ -21,6 +21,8 @@ import numpy as np
 from scipy import interpolate
 import scipy.ndimage as ndimage
 import random
+import copy
+import seaborn as sns
 
 from kesacco.Tools import plotting_irf
 from kesacco.Tools import plotting_obsfile
@@ -1245,3 +1247,149 @@ def show_param_cormat(covfile, outfile):
     fig.savefig(outfile)
     plt.close()
 
+
+#==================================================
+# Corner plot function using seaborn
+#==================================================
+def seaborn_corner(dfs, output_fig=None, perc=[0.95, 0.68], perchist=0.68, truth=None, labels=None,
+                   gridsize=100, linewidth=0.75, alpha=(0.3, 1.0), n_levels=None,
+                   figsize=(10,10), fontsize=12,
+                   cols = [('orange',None,'orange','Oranges'), ('green',None,'green','Greens'), 
+                           ('magenta',None,'magenta','RdPu'), ('purple',None,'purple','Purples'), 
+                           ('blue',None,'blue','Blues'), ('k',None,'k','Greys')]):
+    '''
+    This function plots corner plot of MC chains
+    
+    Parameters:
+    - dfs (list): list of pandas dataframe used for the plot
+    - output_fig (str): full path to the figure to save
+    - perc (list): percentiles to be considered
+    - perchist (list): percentiles to be considered for the histogram
+    - truth (list): list of expected value for the parameters
+    - labels (list): list of label for the datasets
+    - gridsize (int): the number of cells in the grid (higher=nicer=slower)
+    - linewidth (float): linewidth of the contours
+    - alpha (tuple): alpha parameters for the histogram, and contours plot
+    - n_levels (int): if set, will draw a 'diffuse' filled contour plot with n_levels
+    - cols (list of 4-tupples): deal with the colors for the dataframes. Each tupple
+    is for histogram, histogram edges, filled contours, contour edges
+    
+    Output:
+    - Plots
+    '''
+    
+    # Check type
+    if type(dfs) is not list:
+        dfs = [dfs]
+    
+    # Plot length
+    Npar = len(dfs[0].columns) # Number of parameters
+    Ndat = len(dfs)            # Number of datasets
+
+    # Percentiles
+    levels = 1.0-np.array(perc)
+    levels = np.append(levels, 1.0)
+    levels.sort()
+
+    if n_levels is None:
+        n_levels = copy.copy(levels)
+    
+    # Make sure there are enough colors
+    icol = 0
+    while len(cols) < Ndat:
+        cols.append(cols[icol])
+        icol = icol+1
+    
+    # Figure
+    extra = 1.0/10.0
+    plt.figure(figsize=figsize)
+    for ip in range(Npar):
+        for jp in range(Npar):
+            #----- Diagonal histogram
+            if ip == jp:
+                plt.subplot(Npar,Npar,ip*Npar+jp+1)
+                xlims1, xlims2 = [], []
+                ylims = []
+                # Get the range
+                for idx, df in enumerate(dfs, start=0):
+                    xlims1.append(np.nanmin(df[df.columns[ip]]))
+                    xlims2.append(np.nanmax(df[df.columns[ip]]))
+                xmin = np.nanmin(np.array(xlims1))
+                xmax = np.nanmax(np.array(xlims2))
+                Dx = (xmax - xmin)*extra
+                for idx, df in enumerate(dfs, start=0):
+                    if labels is not None:
+                        sns.histplot(x=df.columns[ip], data=df, kde=True, kde_kws={'cut':3},
+                                     color=cols[idx][0], binrange=[xmin-Dx,xmax+Dx],
+                                     alpha=alpha[0], edgecolor=cols[idx][1], stat='density', label=labels[idx])
+                    else:
+                        sns.histplot(x=df.columns[ip], data=df, kde=True, kde_kws={'cut':3},
+                                     color=cols[idx][0], binrange=[xmin-Dx,xmax+Dx],
+                                     alpha=alpha[0], edgecolor=cols[idx][1], stat='density')
+                ax = plt.gca()
+                ylims.append(ax.get_ylim()[1])
+                ax.set_xlim(xmin-Dx, xmax+Dx)
+                ax.set_ylim(0, np.nanmax(np.array(ylims)))
+
+                if perchist is not None:
+                    for idx, df in enumerate(dfs, start=0):
+                        perc_chain1 = np.percentile(df[df.columns[ip]], 100-(100-100*perchist)/2)
+                        perc_chain2 = np.percentile(df[df.columns[ip]],     (100-100*perchist)/2)
+                        ax.vlines(perc_chain1, ax.get_ylim()[0], ax.get_ylim()[1], linestyle='--', color=cols[idx][0])
+                        ax.vlines(perc_chain2, ax.get_ylim()[0], ax.get_ylim()[1], linestyle='--', color=cols[idx][0])
+                        ax.fill_between([perc_chain1,perc_chain2], [ax.get_ylim()[0],ax.get_ylim()[0]], 
+                                        [ax.get_ylim()[1],ax.get_ylim()[1]], color=cols[idx][0], alpha=alpha[0]/2.0)
+                if truth is not None:
+                    ax.vlines(truth[ip], ax.get_ylim()[0], ax.get_ylim()[1], linestyle='-.', color='k')
+                plt.yticks([])
+                plt.ylabel(None)
+                if jp<Npar-1:
+                    plt.xticks([])
+                    plt.xlabel(None)
+                if ip == 0 and labels is not None:
+                    plt.legend(loc='upper left')
+                for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
+                    item.set_fontsize(fontsize)
+                    
+            #----- Off diagonal 2d plots
+            if ip>jp:
+                plt.subplot(Npar,Npar,ip*Npar+jp+1)
+                xlims1, xlims2 = [], []
+                ylims1, ylims2 = [], []
+                for idx, df in enumerate(dfs, start=0):
+                    xlims1.append(np.nanmin(df[df.columns[jp]]))
+                    xlims2.append(np.nanmax(df[df.columns[jp]]))
+                    ylims1.append(np.nanmin(df[df.columns[ip]]))
+                    ylims2.append(np.nanmax(df[df.columns[ip]]))
+                    sns.kdeplot(x=df.columns[jp], y=df.columns[ip], data=df, gridsize=gridsize, 
+                                n_levels=n_levels, levels=levels, thresh=levels[0], fill=True, 
+                                cmap=cols[idx][3], alpha=alpha[1])
+                    sns.kdeplot(x=df.columns[jp], y=df.columns[ip], data=df, gridsize=gridsize, 
+                                levels=levels[0:-1], color=cols[idx][2], linewidths=linewidth)
+                ax = plt.gca()
+                if truth is not None:
+                    ax.vlines(truth[jp], ax.get_ylim()[0], ax.get_ylim()[1], linestyle='-.', color='k')
+                    ax.hlines(truth[ip], ax.get_xlim()[0], ax.get_xlim()[1], linestyle='-.', color='k')
+
+                xmin = np.nanmin(np.array(xlims1))
+                xmax = np.nanmax(np.array(xlims2))
+                Dx = (xmax - xmin)*extra
+                ymin = np.nanmin(np.array(ylims1))
+                ymax = np.nanmax(np.array(ylims2))
+                Dy = (ymax - ymin)*extra
+
+                ax.set_xlim(xmin-Dx, xmax+Dx)
+                ax.set_ylim(ymin-Dy, ymax+Dy)
+                if jp > 0:
+                    plt.yticks([])
+                    plt.ylabel(None)
+                if ip<Npar-1:
+                    ax.set_xticks([])
+                    ax.set_xlabel(None)
+                for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
+                    item.set_fontsize(fontsize)
+    
+    plt.tight_layout(h_pad=0.0,w_pad=0.0)
+    if output_fig is not None:
+        plt.savefig(output_fig)
+    
