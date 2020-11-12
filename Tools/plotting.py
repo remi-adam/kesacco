@@ -1393,3 +1393,6 @@ def seaborn_corner(dfs, output_fig=None, perc=[0.95, 0.68], perchist=0.68, truth
     if output_fig is not None:
         plt.savefig(output_fig)
     
+#==================================================
+# 1D distribution plot function using seaborn
+#==================================================

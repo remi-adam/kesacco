@@ -253,7 +253,7 @@ def chainplots(param_chains, parname, rout_file,
     par_flat = param_chains.reshape(param_chains.shape[0]*param_chains.shape[1], param_chains.shape[2])
     df = pd.DataFrame(par_flat, columns=parname_corner)
     plotting.seaborn_corner(df, output_fig=rout_file+'_MCMC_triangle_seaborn.pdf',
-                            n_levels=30, cols=[('green', 'k', 'grey', 'YlGn')], 
+                            n_levels=30, cols=[('royalblue', 'k', 'grey', 'Blues')], 
                             perc=[0.68, 0.95], gridsize=100,
                             linewidth=2.0, alpha=(0.3, 1.0), figsize=((Npar+1)*3,(Npar+1)*3))
     plt.close("all")
