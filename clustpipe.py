@@ -4,8 +4,6 @@ ClusterPipe object, which defines how CTA observations of a cluster would procee
 These simulations of observations are then performed with a quicklook analysis 
 is available. The class provides an analysis pipeline to reduce the events.
 
-Hi this is Hazal
-
 """
 
 
