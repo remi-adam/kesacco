@@ -205,31 +205,16 @@ def chainplots(param_chains, parname, rout_file,
 
     # Chain histogram
     for ipar in range(Npar):
-        fig = plt.figure(ipar, figsize=(8, 6))
-        ax = sns.distplot(param_chains[:,:,ipar].flatten(), bins=40, kde=True, color='blue')
-        ymax = ax.get_ylim()[1]
         if par_best is not None:
-            ax.vlines(par_best[ipar], 0, ymax, linestyle='-', label='Maximum likelihood')
-        if par_percentile is not None:
-            ax.vlines(par_percentile[1,ipar], 0.0, ymax, linestyle='--', label='Median')
-            ax.vlines(par_percentile[0,ipar], 0.0, ymax, linestyle=':', color='orange')
-            ax.vlines(par_percentile[2,ipar], 0.0, ymax, linestyle=':', color='orange')
-            ax.fill_between(par_percentile[:,ipar], [0,0,0], y2=[ymax,ymax,ymax],
-                       alpha=0.2, color='orange', label=str(conf)+'% CL')
-        ax.set_xlabel('$'+parname[ipar]+'$')
-        ax.set_ylabel('$P('+parname[ipar]+')$')
-        ax.set_yticks([])
-        if par_min is not None and par_max is not None:
-            xlim = [ax.get_xlim()[0], ax.get_xlim()[1]]
-            if ax.get_xlim()[0] < par_min[ipar]:
-                xlim[0] = par_min[ipar]
-            if ax.get_xlim()[1] > par_max[ipar]:
-                xlim[1] = par_max[ipar]
-            ax.set_xlim(xlim)
-        ax.set_ylim(0,ymax)
-        ax.legend()
-        fig.savefig(rout_file+'_MCMC_chain_histo'+str(ipar)+'.pdf')
-        plt.close()
+            par_besti = par_best[ipar]
+        plotting.seaborn_1d(param_chains[:,:,ipar].flatten(),
+                            output_fig=rout_file+'_MCMC_chain_histo'+str(ipar)+'.pdf',
+                            ci=0.68, truth=None, best=par_besti,
+                            label='$'+parname[ipar]+'$',
+                            gridsize=100, alpha=(0.2, 0.4), 
+                            figsize=(10,10), fontsize=12,
+                            cols=[('blue','grey', 'orange')])
+        plt.close("all")
 
     # Chains
     fig, axes = plt.subplots(Npar, figsize=(8, 2*Npar), sharex=True)
@@ -250,8 +235,8 @@ def chainplots(param_chains, parname, rout_file,
     df = pd.DataFrame(par_flat, columns=parname_corner)
     plotting.seaborn_corner(df, output_fig=rout_file+'_MCMC_triangle_seaborn.pdf',
                             n_levels=30, cols=[('royalblue', 'k', 'grey', 'Blues')], 
-                            perc=[0.68, 0.95], gridsize=100,
-                            linewidth=2.0, alpha=(0.3, 1.0), figsize=((Npar+1)*3,(Npar+1)*3))
+                            ci2d=[0.68, 0.95], gridsize=100,
+                            linewidth=2.0, alpha=(0.1, 0.3, 1.0), figsize=((Npar+1)*3,(Npar+1)*3))
     plt.close("all")
     
     # Corner plot using corner

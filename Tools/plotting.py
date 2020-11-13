@@ -23,6 +23,7 @@ import scipy.ndimage as ndimage
 import random
 import copy
 import seaborn as sns
+from scipy.interpolate import interp1d
 
 from kesacco.Tools import plotting_irf
 from kesacco.Tools import plotting_obsfile
@@ -1251,26 +1252,38 @@ def show_param_cormat(covfile, outfile):
 #==================================================
 # Corner plot function using seaborn
 #==================================================
-def seaborn_corner(dfs, output_fig=None, perc=[0.95, 0.68], perchist=0.68, truth=None, labels=None,
-                   gridsize=100, linewidth=0.75, alpha=(0.3, 1.0), n_levels=None,
+
+def seaborn_corner(dfs, output_fig=None, ci2d=[0.95, 0.68], ci1d=0.68,
+                   truth=None, truth_style='star', labels=None,
+                   gridsize=100, linewidth=0.75, alpha=(0.3, 0.3, 1.0), n_levels=None,
+                   zoom=1.0/10,
                    figsize=(10,10), fontsize=12,
-                   cols = [('orange',None,'orange','Oranges'), ('green',None,'green','Greens'), 
-                           ('magenta',None,'magenta','RdPu'), ('purple',None,'purple','Purples'), 
-                           ('blue',None,'blue','Blues'), ('k',None,'k','Greys')]):
+                   cols = [('orange',None,'orange','Oranges'),
+                           ('green',None,'green','Greens'), 
+                           ('magenta',None,'magenta','RdPu'),
+                           ('purple',None,'purple','Purples'), 
+                           ('blue',None,'blue','Blues'),
+                           ('k',None,'k','Greys')]):
     '''
     This function plots corner plot of MC chains
     
     Parameters:
     - dfs (list): list of pandas dataframe used for the plot
     - output_fig (str): full path to the figure to save
-    - perc (list): percentiles to be considered
-    - perchist (list): percentiles to be considered for the histogram
+    - ci2d (list): confidence intervals to be considered in 2d
+    - ci1d (list): confidence interval to be considered for the histogram
     - truth (list): list of expected value for the parameters
+    - truth_style (str): either 'line' or 'star'
     - labels (list): list of label for the datasets
     - gridsize (int): the number of cells in the grid (higher=nicer=slower)
     - linewidth (float): linewidth of the contours
-    - alpha (tuple): alpha parameters for the histogram, and contours plot
+    - alpha (tuple): alpha parameters for the histogram, histogram CI, and contours plot
     - n_levels (int): if set, will draw a 'diffuse' filled contour plot with n_levels
+    - zoom (float): controle the axis limits wrt the plotted distribution.
+    The give nnumber corresponds to the fractional size of the 2D distribution 
+    to add on each side. If negative, will zoom in the plot.
+    - figsize (tuple): the size of the figure
+    - fontsize (int): the font size
     - cols (list of 4-tupples): deal with the colors for the dataframes. Each tupple
     is for histogram, histogram edges, filled contours, contour edges
     
@@ -1287,7 +1300,7 @@ def seaborn_corner(dfs, output_fig=None, perc=[0.95, 0.68], perchist=0.68, truth
     Ndat = len(dfs)            # Number of datasets
 
     # Percentiles
-    levels = 1.0-np.array(perc)
+    levels = 1.0-np.array(ci2d)
     levels = np.append(levels, 1.0)
     levels.sort()
 
@@ -1301,7 +1314,6 @@ def seaborn_corner(dfs, output_fig=None, perc=[0.95, 0.68], perchist=0.68, truth
         icol = icol+1
     
     # Figure
-    extra = 1.0/10.0
     plt.figure(figsize=figsize)
     for ip in range(Npar):
         for jp in range(Npar):
@@ -1316,7 +1328,7 @@ def seaborn_corner(dfs, output_fig=None, perc=[0.95, 0.68], perchist=0.68, truth
                     xlims2.append(np.nanmax(df[df.columns[ip]]))
                 xmin = np.nanmin(np.array(xlims1))
                 xmax = np.nanmax(np.array(xlims2))
-                Dx = (xmax - xmin)*extra
+                Dx = (xmax - xmin)*zoom
                 for idx, df in enumerate(dfs, start=0):
                     if labels is not None:
                         sns.histplot(x=df.columns[ip], data=df, kde=True, kde_kws={'cut':3},
@@ -1331,16 +1343,25 @@ def seaborn_corner(dfs, output_fig=None, perc=[0.95, 0.68], perchist=0.68, truth
                 ax.set_xlim(xmin-Dx, xmax+Dx)
                 ax.set_ylim(0, np.nanmax(np.array(ylims)))
 
-                if perchist is not None:
+                if ci1d is not None:
                     for idx, df in enumerate(dfs, start=0):
-                        perc_chain1 = np.percentile(df[df.columns[ip]], 100-(100-100*perchist)/2)
-                        perc_chain2 = np.percentile(df[df.columns[ip]],     (100-100*perchist)/2)
-                        ax.vlines(perc_chain1, ax.get_ylim()[0], ax.get_ylim()[1], linestyle='--', color=cols[idx][0])
-                        ax.vlines(perc_chain2, ax.get_ylim()[0], ax.get_ylim()[1], linestyle='--', color=cols[idx][0])
-                        ax.fill_between([perc_chain1,perc_chain2], [ax.get_ylim()[0],ax.get_ylim()[0]], 
-                                        [ax.get_ylim()[1],ax.get_ylim()[1]], color=cols[idx][0], alpha=alpha[0]/2.0)
+                        perc = np.percentile(df[df.columns[ip]], [100 - (100-ci1d*100)/2.0, (100-ci1d*100)/2.0])
+                        # Get the KDE line for filling below
+                        xkde = ax.lines[idx].get_xdata()
+                        ykde = ax.lines[idx].get_ydata()
+                        wkeep = (xkde < perc[0]) * (xkde > perc[1])
+                        xkde_itpl = np.append(np.append(perc[1], xkde[wkeep]), perc[0])
+                        itpl = interp1d(xkde, ykde)
+                        ykde_itpl = itpl(xkde_itpl)
+                        perc_max = itpl(perc)
+            
+                        ax.vlines(perc[0], 0.0, perc_max[0], linestyle='--', color=cols[idx][0])
+                        ax.vlines(perc[1], 0.0, perc_max[1], linestyle='--', color=cols[idx][0])
+                        ax.fill_between(xkde_itpl, 0*ykde_itpl, y2=ykde_itpl, alpha=alpha[1], color=cols[idx][0])
+
                 if truth is not None:
-                    ax.vlines(truth[ip], ax.get_ylim()[0], ax.get_ylim()[1], linestyle='-.', color='k')
+                    ax.vlines(truth[ip], ax.get_ylim()[0], ax.get_ylim()[1], linestyle=':', color='k')
+                    
                 plt.yticks([])
                 plt.ylabel(None)
                 if jp<Npar-1:
@@ -1348,7 +1369,8 @@ def seaborn_corner(dfs, output_fig=None, perc=[0.95, 0.68], perchist=0.68, truth
                     plt.xlabel(None)
                 if ip == 0 and labels is not None:
                     plt.legend(loc='upper left')
-                for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
+                for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
+                             ax.get_xticklabels() + ax.get_yticklabels()):
                     item.set_fontsize(fontsize)
                     
             #----- Off diagonal 2d plots
@@ -1363,36 +1385,144 @@ def seaborn_corner(dfs, output_fig=None, perc=[0.95, 0.68], perchist=0.68, truth
                     ylims2.append(np.nanmax(df[df.columns[ip]]))
                     sns.kdeplot(x=df.columns[jp], y=df.columns[ip], data=df, gridsize=gridsize, 
                                 n_levels=n_levels, levels=levels, thresh=levels[0], fill=True, 
-                                cmap=cols[idx][3], alpha=alpha[1])
+                                cmap=cols[idx][3], alpha=alpha[2])
                     sns.kdeplot(x=df.columns[jp], y=df.columns[ip], data=df, gridsize=gridsize, 
                                 levels=levels[0:-1], color=cols[idx][2], linewidths=linewidth)
                 ax = plt.gca()
-                if truth is not None:
-                    ax.vlines(truth[jp], ax.get_ylim()[0], ax.get_ylim()[1], linestyle='-.', color='k')
-                    ax.hlines(truth[ip], ax.get_xlim()[0], ax.get_xlim()[1], linestyle='-.', color='k')
 
                 xmin = np.nanmin(np.array(xlims1))
                 xmax = np.nanmax(np.array(xlims2))
-                Dx = (xmax - xmin)*extra
+                Dx = (xmax - xmin)*zoom
                 ymin = np.nanmin(np.array(ylims1))
                 ymax = np.nanmax(np.array(ylims2))
-                Dy = (ymax - ymin)*extra
+                Dy = (ymax - ymin)*zoom
 
                 ax.set_xlim(xmin-Dx, xmax+Dx)
                 ax.set_ylim(ymin-Dy, ymax+Dy)
+
+                if truth is not None:
+                    if truth_style is 'line':
+                        ax.vlines(truth[jp], ax.get_ylim()[0], ax.get_ylim()[1], linestyle=':', color='k')
+                        ax.hlines(truth[ip], ax.get_xlim()[0], ax.get_xlim()[1], linestyle=':', color='k')
+                    if truth_style is 'star':
+                        ax.plot(truth[jp], truth[ip], linestyle='', marker="*", color='k', markersize=10)
+                    
                 if jp > 0:
                     plt.yticks([])
                     plt.ylabel(None)
                 if ip<Npar-1:
                     ax.set_xticks([])
                     ax.set_xlabel(None)
-                for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
+                for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
+                             ax.get_xticklabels() + ax.get_yticklabels()):
                     item.set_fontsize(fontsize)
     
     plt.tight_layout(h_pad=0.0,w_pad=0.0)
     if output_fig is not None:
         plt.savefig(output_fig)
-    
+
+        
 #==================================================
 # 1D distribution plot function using seaborn
 #==================================================
+
+def seaborn_1d(chains, output_fig=None, ci=0.68, truth=None,
+               best=None, label=None,
+               gridsize=100, alpha=(0.2, 0.4), 
+               figsize=(10,10), fontsize=12,
+               cols=[('blue','grey', 'orange')]):
+    '''
+    This function plots 1D distributions of MC chains
+    
+    Parameters:
+    - chain (array): the chains sampling the considered parameter
+    - output_fig (str): full path to output plot
+    - ci (float): confidence interval considered
+    - truth (float): the expected truth for overplot
+    - best (float list): list of float that contain best fit models to overplot
+    - label (str): the label of the parameter
+    - gridsize (int): the size of the kde grid
+    - alpha (tupple): alpha values for the histogram and the 
+    overplotted confidence interval
+    - figsize (tupple): the size of the figure
+    - fontsize (int): the font size
+    - cols (tupple): the colors of the histogram, confidence interval 
+    values, and confidence interval filled region
+    Output:
+    - Plots
+    '''
+
+    # Check type
+    if type(chains) is not list:
+        chains = [chains]
+
+    # Plot dat
+    Ndat = len(chains)            # Number of datasets
+
+    # Make sure there are enough colors
+    icol = 0
+    while len(cols) < Ndat:
+        cols.append(cols[icol])
+        icol = icol+1
+
+    fig = plt.figure(0, figsize=(8, 6))
+    #----- initial plots of histograms + kde
+    for idx, ch in enumerate(chains, start=0):
+        sns.histplot(ch, kde=True, kde_kws={'cut':3}, color=cols[idx][0], edgecolor=cols[idx][1], 
+                     alpha=alpha[0], stat='density')
+    ax = plt.gca()
+    ymax = ax.get_ylim()[1]
+    
+    #----- show limits
+    for idx, ch in enumerate(chains, start=0):
+        if ci is not None:
+            perc = np.percentile(ch, [100 - (100-ci*100)/2.0, 50.0, (100-ci*100)/2.0])
+            # Get the KDE line for filling below
+            if len(ax.lines) > 0:
+                xkde = ax.lines[idx].get_xdata()
+                ykde = ax.lines[idx].get_ydata()
+                wkeep = (xkde < perc[0]) * (xkde > perc[2])
+                xkde_itpl = np.append(np.append(perc[2], xkde[wkeep]), perc[0])
+                itpl = interp1d(xkde, ykde)
+                ykde_itpl = itpl(xkde_itpl)
+                perc_max = itpl(perc)
+            else:
+                perc_max = perc*0+ymax
+                xkde_itpl = perc*1+0
+                ykde_itpl = ymax*1+0
+            
+            ax.vlines(perc[0], 0.0, perc_max[0], linestyle='--', color=cols[idx][1])
+            ax.vlines(perc[2], 0.0, perc_max[2], linestyle='--', color=cols[idx][1])
+            
+            if idx == 0:
+                ax.vlines(perc[1], 0.0, perc_max[1], linestyle='-.', label='Median', color=cols[idx][1])
+                ax.fill_between(xkde_itpl, 0*ykde_itpl, y2=ykde_itpl, alpha=alpha[1], 
+                                color=cols[idx][2], label=str(ci*100)+'% CL')
+            else:
+                ax.vlines(perc[1], 0.0, perc_max[1], linestyle='-.', color=cols[idx][1])
+                ax.fill_between(xkde_itpl, 0*ykde_itpl, y2=ykde_itpl, alpha=alpha[1], color=cols[idx][2])
+    
+        # Show best fit value                   
+        if best is not None:
+            if type(best) is not list:
+                best = [best]
+            ax.vlines(best[idx], 0, ymax, linestyle='-', label='Best-fit', linewidth=2, color=cols[idx][1])
+        
+    # Show expected value                        
+    if truth is not None:
+        ax.vlines(truth, 0, ymax, linestyle=':', label='Truth', color='k')
+    
+    # label and ticks
+    if label is not None:
+        ax.set_xlabel(label)
+        ax.set_ylabel('Probability density')
+    ax.set_yticks([])
+    ax.set_ylim(0, ymax)
+               
+    for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
+        item.set_fontsize(fontsize)
+               
+    ax.legend(fontsize=fontsize)
+    
+    if output_fig is not None:
+        plt.savefig(output_fig)
