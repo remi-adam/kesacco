@@ -581,9 +581,9 @@ def show_profile(proffile, outfile,
         
         plt.plot(prof['radius'], (prof['profile']-prof_exp_itpl)/prof['error'],
                  color='k', marker='o', linestyle='')
-        plt.hlines(0,  xlim[0], xlim[1], linestyle='-')
-        plt.hlines(-3, xlim[0], xlim[1], linestyle='--')
-        plt.hlines(+3, xlim[0], xlim[1], linestyle='--')
+        plt.hlines(0,  xlim[0], xlim[1], linestyle='-', color='grey')
+        plt.hlines(-3, xlim[0], xlim[1], linestyle='--', color='grey')
+        plt.hlines(+3, xlim[0], xlim[1], linestyle='--', color='grey')
 
         if theta500 is not None:
             plt.vlines(theta500.to_value(r_unit), ymin=-5, ymax=5,
@@ -674,7 +674,8 @@ def events_quicklook(evfile, outfile):
         i1 = 'ObsID: '+events_hdr1['OBS_ID']
         i2 = 'Date obs: '+events_hdr1['DATE-OBS']+'-'+events_hdr1['TIME-OBS']
         i3 = 'Date end: '+events_hdr1['DATE-END']+'-'+events_hdr1['TIME-END']
-        i4 = 'Live time: '+str(events_hdr1['LIVETIME'])+' '+events_hdr1['TIMEUNIT']
+        i4bis = str((events_hdr1['LIVETIME']*u.Unit(events_hdr1['TIMEUNIT'])).to_value('h'))
+        i4 = 'Live time: '+str(events_hdr1['LIVETIME'])+' '+events_hdr1['TIMEUNIT']+', or '+i4bis+' h'
         t1 = 'Number of events: \n..... '+str(len(events_data1))
         t2 = 'Median energy: \n..... '+str(np.median(events_data1['ENERGY']))+events_hdr1['EUNIT']
         t3 = 'Median R.A.,Dec.: \n..... '+str(np.median(events_data1_reduce['RA']))+' deg \n..... '+str(np.median(events_data1_reduce['DEC']))+' deg'
