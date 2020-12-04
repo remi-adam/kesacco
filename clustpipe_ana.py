@@ -661,7 +661,7 @@ class CTAana(object):
     # Timing analysis
     #==================================================
     
-    def run_ana_timing(self, rad=0.2, bkgregmin=2, maxoffset=4.0):
+    def run_ana_timing(self, tbinalg='LIN', rad=0.2, bkgregmin=2, maxoffset=4.0):
         """
         Run the timing analysis. This computes the lightcurve
         of the sources in the model, in particular to check that the cluster 
@@ -670,6 +670,7 @@ class CTAana(object):
         
         Parameters
         ----------
+        - tbinalg (str): binning algorithm, either LIN (linear) or GTI (good time interval)
         - rad (float): ON/OFF param - size of the source aperture in deg
         - bkgregmin (int): ON/OFF param - minimum number of off regions
         - maxoffset (float): ON/OFF param - maximum offset from camera center 
@@ -724,7 +725,7 @@ class CTAana(object):
                                             irf=None,
                                             inexclusion=None,
                                             edisp=self.spec_edisp,
-                                            tbinalg='LIN',
+                                            tbinalg=tbinalg,
                                             tmin=tmin,
                                             tmax=tmax,
                                             mjdref=51544.5,
@@ -895,7 +896,7 @@ class CTAana(object):
         if not self.silent:
             print('----- ObsID to be looked at: '+str(obsID))
             print('')
-     
+            '''
         #========== Plot the observing properties
         clustpipe_ana_plot.observing_setup(self)
      
@@ -910,7 +911,7 @@ class CTAana(object):
     
         #========== Spectrum
         clustpipe_ana_plot.spectrum(self)
-        
+        '''
         #========== Lightcurve
         clustpipe_ana_plot.lightcurve(self)
 

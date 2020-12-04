@@ -1230,8 +1230,12 @@ def show_lightcurve(lcfile, outfile):
 
     mjd      = lc['mjd']
     e_mjd    = lc['e_MJD']
-    norm     = lc['Normalization']
-    e_norm   = lc['e_Normalization']
+    try:
+        norm     = lc['Normalization']
+        e_norm   = lc['e_Normalization']
+    except:
+        norm     = lc['Prefactor']
+        e_norm   = lc['e_Prefactor']
     TS       = lc['TS']
     Diff_UL  = lc['DiffUpperLimit']#*u.cm**-2 * u.s**-1 * u.MeV**-1
     Flux_UL  = lc['FluxUpperLimit']#*u.cm**-2 * u.s**-1
