@@ -314,6 +314,42 @@ def spectrum(cpipe):
     else:
         if not cpipe.silent: print(cpipe.output_dir+'/Ana_Spectrum_Residual.fits does not exist, no Spectrum_Residual plot')
 
+
+
+#==================================================
+# Lightcurve
+#==================================================
+
+def lightcurve(cpipe):
+    """
+    Function running the lightcurve plots
+    
+    Parameters
+    ----------
+    - cpipe (ClusterPipe object): a cluster pipe object 
+    associated to the analysis
+
+    Outputs
+    --------
+    - plots
+    """
+
+    #========== Flux for each source
+    models = gammalib.GModels(cpipe.output_dir+'/Ana_Model_Output.xml')
+
+    for isource in range(len(models)):
+        if models[isource].type() not in ['CTACubeBackground', 'CTAIrfBackground']:
+
+            srcname = models[isource].name()
+            specfile = cpipe.output_dir+'/Ana_Lightcurve_'+srcname+'.fits'
+            outfile  = cpipe.output_dir+'/Ana_Lightcurve_'+srcname+'.pdf'
+            
+            file_exist = os.path.isfile(specfile)
+            if file_exist:            
+                plotting.show_lightcurve(specfile, outfile)
+            else:
+                if not cpipe.silent: print(specfile+' does not exist, no Lightcurve_'+srcname+' plot')
+                
         
 #==================================================
 # Covariance matrix
