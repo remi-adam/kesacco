@@ -14,6 +14,7 @@ import astropy.units as u
 from astropy.io import fits
 from astropy.wcs import WCS
 from astropy.table import Table, Column
+from astropy.time import Time
 import copy
 import ctools
 import gammalib
@@ -74,7 +75,10 @@ class CTAana(object):
                      do_Butterfly=True,
                      do_Resspec=True,
                      smoothing_FWHM=0.1*u.deg,
-                     profile_log=True):
+                     profile_log=True,
+                     do_timing=False,
+                     do_MCMC_spectrum=False,
+                     do_MCMC_profile=False):
         """
         Run the standard cluster analysis.
         
@@ -111,14 +115,16 @@ class CTAana(object):
                               do_Res=do_Resspec)
 
         #----- Timing analysis
-        #self.run_ana_timing()
+        if do_timing:
+            self.run_ana_timing()
 
         #----- Expected output computation
         self.run_ana_expected_output(profile_reso=profile_reso)
 
         #----- A posteriori MCMC fit for the spectrum and profile
-        #self.run_ana_mcmc(do_spectrum=True, do_profile=True,
-        #                  reset_mcmc=True, run_mcmc=True)
+        self.run_ana_mcmc(do_spectrum=do_MCMC_spectrum,
+                          do_profile=do_MCMC_profile,
+                          reset_mcmc=True, run_mcmc=True)
         
         #----- Output plots
         self.run_ana_plot(obsID=obsID,
@@ -650,31 +656,102 @@ class CTAana(object):
                                     logfile=self.output_dir+'/Ana_Spectrum_Residual_log.txt',
                                     silent=self.silent)
                 
-                
+
     #==================================================
     # Timing analysis
     #==================================================
     
-    def run_ana_timing(self):
+    def run_ana_timing(self, rad=0.2, bkgregmin=2, maxoffset=4.0):
         """
-        Run the timing analysis
+        Run the timing analysis. This computes the lightcurve
+        of the sources in the model, in particular to check that the cluster 
+        emission is steady. In case of mismodeling, and due to degeneracies 
+        especially with central galaxies, a non steady emission could arrise.
         
         Parameters
         ----------
-        
+        - rad (float): ON/OFF param - size of the source aperture in deg
+        - bkgregmin (int): ON/OFF param - minimum number of off regions
+        - maxoffset (float): ON/OFF param - maximum offset from camera center 
+        to source allowed
+        - 
+
         """
-        
-        Nsource = xxx
 
+        print('===== WARNING: only the ON/OFF lightcurve is available for the moment due to a strange bug =====')
+
+        models = gammalib.GModels(self.output_dir+'/Ana_Model_Output.xml')
+        Nsource = len(models)
+
+        #========== Get the time start and stop from the observations
+        if self.time_tmin is None:
+            tmins = Time(self.obs_setup.tmin, format='isot', scale='utc')
+            tmin = Time(np.amin(tmins.mjd), format='mjd', scale='utc').fits
+        else:
+            tmin = self.time_tmin
+            
+        if self.time_tmax is None:
+            tmaxs = Time(self.obs_setup.tmax, format='isot', scale='utc')
+            tmax = Time(np.amax(tmaxs.mjd), format='mjd', scale='utc').fits
+        else:
+            tmax = self.time_tmax
+            
+        #========== Loop over the sources
         for isource in range(Nsource):
+
+            srcname = models[isource].name()
+
+            if models[isource].type() not in ['CTACubeBackground', 'CTAIrfBackground']:
+                if not self.silent:
+                    print('--- Computing lightcurve: '+srcname)
+
+                    #----- Define ref coordinates (for on/off)
+                    if srcname == self.cluster.name:
+                        xref = self.cluster.coord.ra.to_value('deg')
+                        yref = self.cluster.coord.dec.to_value('deg')
+                    else:
+                        xref = models[isource].spatial().ra()
+                        yref = models[isource].spatial().dec()
+
+                    #----- Compute lightcurve
+                    tools_timing.lightcurve(self.output_dir+'/Ana_EventsSelected.xml', #
+                                            self.output_dir+'/Ana_Model_Output.xml',   #
+                                            srcname, self.output_dir+'/Ana_Lightcurve_'+srcname+'.fits', #
+                                            self.map_reso, self.map_coord, self.map_fov, #
+                                            xref=xref,
+                                            yref=yref,
+                                            caldb=None,
+                                            irf=None,
+                                            inexclusion=None,
+                                            edisp=self.spec_edisp,
+                                            tbinalg='LIN',
+                                            tmin=tmin,
+                                            tmax=tmax,
+                                            mjdref=51544.5,
+                                            tbins=self.time_nbin,
+                                            tbinfile=None,
+                                            method='ONOFF',
+                                            emin=self.spec_emin.to_value('TeV'),
+                                            emax=self.spec_emax.to_value('TeV'),
+                                            enumbins=self.spec_enumbins,
+                                            # For ON/OFF
+                                            rad=rad,
+                                            bkgregmin=bkgregmin,
+                                            use_model_bkg=False,
+                                            maxoffset=maxoffset,
+                                            etruemin=self.spec_emin.to_value('TeV'),
+                                            etruemax=self.spec_emax.to_value('TeV'),
+                                            etruebins=self.spec_enumbins,
+                                            #
+                                            statistic=self.method_stat,
+                                            calc_ts=True,
+                                            calc_ulim=True,
+                                            fix_srcs=True,
+                                            fix_bkg=False,
+                                            logfile=self.output_dir+'/Ana_Lightcurve_'+srcname+'_log.txt',
+                                            silent=self.silent)
+
         
-            #----- Compute lightcurve
-            tools_timing.lightcurve()
-
-            #----- Compute lightcurve
-            tools_timing.find_variability()
-
-
     #==================================================
     # Compute expected model 
     #==================================================
@@ -687,52 +764,55 @@ class CTAana(object):
         ----------
         
         """
-
-        #----- Make sure the map definition is ok
-        if self.map_UsePtgRef:
-            self._match_cluster_to_pointing()
-            self._match_anamap_to_pointing()
-        
-        #----- Compute the expected spectrum
-        model_exp = gammalib.GModels()
-        build_ctools_model.cluster(model_exp,
-                                   self.output_dir+'/Sim_Model_Map.fits',
-                                   self.output_dir+'/Sim_Model_Spectrum.txt',
-                                   ClusterName=self.cluster.name)
-        model_exp.save(self.output_dir+'/Ana_Expected_Cluster.xml')
-        
-        #----- Compute the expected count map
-        modcube_Cl = cubemaking.model_cube(self.output_dir,
-                                           self.map_reso, self.map_coord, self.map_fov,
-                                           self.spec_emin, self.spec_emax,
-                                           self.spec_enumbins, self.spec_ebinalg,
-                                           edisp=self.spec_edisp,
-                                           stack=True, silent=self.silent,
-                                           logfile=self.output_dir+'/Ana_Expected_Cluster_Counts_log.txt',
-                                           inmodel_usr=self.output_dir+'/Ana_Expected_Cluster.xml',
-                                           outmap_usr=self.output_dir+'/Ana_Expected_Cluster_Counts.fits')
-
-        #----- Extract the profile
-        mcube = fits.open(self.output_dir+'/Ana_Expected_Cluster_Counts.fits')
-        header = mcube[0].header
-        model_cnt_map = np.sum(mcube[0].data, axis=0)
-        header.remove('NAXIS3')
-        header['NAXIS'] = 2
-        
-        r_mod, p_mod, err_mod = radial_profile_cts(model_cnt_map,
-                                                   [self.cluster.coord.icrs.ra.to_value('deg'),
-                                                    self.cluster.coord.icrs.dec.to_value('deg')],
-                                                   stddev=np.sqrt(model_cnt_map), header=header,
-                                                   binsize=profile_reso.to_value('deg'),
-                                                   stat='POISSON',
-                                                   counts2brightness=True)
-        tab  = Table()
-        tab['radius']  = Column(r_mod, unit='deg',
-                                description='Cluster offset (bin='+str(profile_reso.to_value('deg'))+'deg')
-        tab['profile'] = Column(p_mod, unit='deg-2', description='Counts per deg-2')
-        tab['error']   = Column(err_mod, unit='deg-2', description='Counts per deg-2 uncertainty')
-        tab.write(self.output_dir+'/Ana_Expected_Cluster_profile.fits', overwrite=True)
-
+        try:
+            #----- Make sure the map definition is ok
+            if self.map_UsePtgRef:
+                self._match_cluster_to_pointing()
+                self._match_anamap_to_pointing()
+                
+            #----- Compute the expected spectrum
+            model_exp = gammalib.GModels()
+            build_ctools_model.cluster(model_exp,
+                                       self.output_dir+'/Sim_Model_Map.fits',
+                                       self.output_dir+'/Sim_Model_Spectrum.txt',
+                                       ClusterName=self.cluster.name)
+            model_exp.save(self.output_dir+'/Ana_Expected_Cluster.xml')
+            
+            #----- Compute the expected count map
+            modcube_Cl = cubemaking.model_cube(self.output_dir,
+                                               self.map_reso, self.map_coord, self.map_fov,
+                                               self.spec_emin, self.spec_emax,
+                                               self.spec_enumbins, self.spec_ebinalg,
+                                               edisp=self.spec_edisp,
+                                               stack=True, silent=self.silent,
+                                               logfile=self.output_dir+'/Ana_Expected_Cluster_Counts_log.txt',
+                                               inmodel_usr=self.output_dir+'/Ana_Expected_Cluster.xml',
+                                               outmap_usr=self.output_dir+'/Ana_Expected_Cluster_Counts.fits')
+            
+            #----- Extract the profile
+            mcube = fits.open(self.output_dir+'/Ana_Expected_Cluster_Counts.fits')
+            header = mcube[0].header
+            model_cnt_map = np.sum(mcube[0].data, axis=0)
+            header.remove('NAXIS3')
+            header['NAXIS'] = 2
+            
+            r_mod, p_mod, err_mod = radial_profile_cts(model_cnt_map,
+                                                       [self.cluster.coord.icrs.ra.to_value('deg'),
+                                                        self.cluster.coord.icrs.dec.to_value('deg')],
+                                                       stddev=np.sqrt(model_cnt_map), header=header,
+                                                       binsize=profile_reso.to_value('deg'),
+                                                       stat='POISSON',
+                                                       counts2brightness=True)
+            tab  = Table()
+            tab['radius']  = Column(r_mod, unit='deg',
+                                    description='Cluster offset (bin='+str(profile_reso.to_value('deg'))+'deg')
+            tab['profile'] = Column(p_mod, unit='deg-2', description='Counts per deg-2')
+            tab['error']   = Column(err_mod, unit='deg-2', description='Counts per deg-2 uncertainty')
+            tab.write(self.output_dir+'/Ana_Expected_Cluster_profile.fits', overwrite=True)
+            
+        except:
+            print('----- Cannot build the expected model. Maybe the cluster used in the simulation is null.')
+            
 
     #==================================================
     # Compute MCMC a posteriori constraints
@@ -832,6 +912,21 @@ class CTAana(object):
         clustpipe_ana_plot.spectrum(self)
         
         #========== Lightcurve
-    
+        clustpipe_ana_plot.lightcurve(self)
+
         #========== Parameter fit correlation matrix
         clustpipe_ana_plot.covmat(self)
+
+        
+    #==================================================
+    # Sensitivity
+    #==================================================
+    
+    def run_ana_sensitivity(self):
+        """
+        Get the sensitivity curve
+        
+        Parameters
+        ----------
+        
+        """
