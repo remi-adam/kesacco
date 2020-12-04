@@ -1202,6 +1202,72 @@ def show_spectrum_residual(specfile, outfile):
     fig.savefig(outfile)
     plt.close()
 
+
+#==================================================
+# Plot the lightcurve of analysed sources
+#==================================================
+
+def show_lightcurve(lcfile, outfile):
+    """
+    Plot the spectrum to show.
+
+    Parameters
+    ----------
+    - lcfile (str): the lightcurve fits file to use
+    - outfile (str): the output plot file
+
+    Outputs
+    --------
+    - validation plot lightcurve
+    """
+
+    set_default_plot_param()
+    
+    #----- Read the data
+    hdu = fits.open(lcfile)
+    lc = hdu[1].data
+    hdu.close()
+
+    mjd      = lc['mjd']
+    e_mjd    = lc['e_MJD']
+    norm     = lc['Normalization']
+    e_norm   = lc['e_Normalization']
+    TS       = lc['TS']
+    Diff_UL  = lc['DiffUpperLimit']#*u.cm**-2 * u.s**-1 * u.MeV**-1
+    Flux_UL  = lc['FluxUpperLimit']#*u.cm**-2 * u.s**-1
+    EFlux_UL = lc['EFluxUpperLimit']#*u.erg * u.cm**-2 * u.s**-1
+
+    #----- Start the plot
+    fig = plt.figure(1, figsize=(12, 8))
+    
+    frame1 = fig.add_axes((.1,.6,.8,.25))
+    plt.errorbar(mjd, norm, yerr=e_norm, xerr=e_mjd, fmt='ko', capsize=0, linewidth=2, zorder=2)
+    plt.xscale('linear')
+    plt.yscale('linear')
+    plt.xlim(np.amin(mjd-e_mjd), np.amax(mjd-e_mjd))
+    plt.ylim(0,np.amax(norm+e_norm)*1.2)
+    plt.ylabel('Normalization')
+
+    frame2 = fig.add_axes((.1,.35,.8,.25))
+    plt.errorbar(mjd, 1e10*Flux_UL,xerr=e_mjd, yerr=0.2*1e10*Flux_UL, uplims=True,
+                 marker="", elinewidth=2, color="k", alpha=0.4,
+                 markeredgecolor="k", markerfacecolor="k",linestyle="None")
+    plt.ylabel('U.L. ($10^{10}$/cm$^{2}$/s)')
+    plt.xlim(np.amin(mjd-e_mjd), np.amax(mjd-e_mjd))
+    plt.ylim(0,np.amax(1e10*Flux_UL)*1.2)
+    
+    frame3 = fig.add_axes((.1,.1,.8,.25))        
+    plt.plot(mjd, TS**0.5, 'k', marker='o', linestyle='')
+    plt.xscale('linear')
+    plt.yscale('linear')
+    plt.xlim(np.amin(mjd-e_mjd), np.amax(mjd-e_mjd))
+    plt.ylim(0,np.amax(TS**0.5)*1.2)
+    plt.xlabel('Time (MJD)')
+    plt.ylabel('TS$^{1/2}$')
+
+    fig.savefig(outfile)
+    plt.close()
+    
     
 #==================================================
 # Plot the residual spectrum of analysed sources
