@@ -95,8 +95,9 @@ class ClusterPipe(Common, CTAsim, CTAana):
         # Likelihood method related
         self.method_stack  = True
         self.method_binned = True
+        self.method_ana    = '3D' # ONOFF or 3D
         self.method_stat   = 'DEFAULT' # CSTAT, WSTAT, CHI2
-
+        
         # Map related
         self.map_reso      = 0.02*u.deg
         self.map_coord     = SkyCoord(0.0, 0.0, frame="icrs", unit="deg")
@@ -113,7 +114,7 @@ class ClusterPipe(Common, CTAsim, CTAana):
         # Time related
         self.time_tmin     = None
         self.time_tmax     = None
-        self.time_phase    = None
+        self.time_nbin     = 10
 
         # MCMC related
         self.mcmc_nwalkers = 10
