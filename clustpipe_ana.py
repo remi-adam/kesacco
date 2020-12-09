@@ -17,6 +17,7 @@ from astropy.table import Table, Column
 from astropy.time import Time
 import copy
 import ctools
+import cscripts
 import gammalib
 
 from kesacco.Tools import tools_spectral
@@ -45,13 +46,29 @@ class CTAana(object):
     
     Methods
     ----------  
-    - run_analysis
-    - run_ana_dataprep
-    - run_ana_likelihood
-    - run_ana_imaging
-    - run_ana_timing
-    - run_ana_spectral
-    - run_ana_plot
+    - run_analysis : run the full analysis (i.e. all the submodules one after the other)
+    - run_ana_dataprep : run the data preparation, including writting observation files, 
+    selecting the data, bining and stacking
+    - run_ana_likelihood: likelihood fit of the sky model to the data
+    - run_ana_sensitivity: compute the sensitivity curve for a given source model
+    - run_ana_upperlimit: compute the upper limit for a given parameter
+    - run_ana_imaging: perform the analysis related to the image (skymaps, residuals, source 
+    detection ,TS map)
+    - run_ana_spectral: perform the spectral analysis (spectrum and residuals of sources 
+    in the ROI)
+    - run_ana_timing: perform the time analysis (lightcurve of sources in the ROI)
+    - run_ana_expected_output: compute the IRF convolved expected cluster based 
+    on the input simulation
+    - run_ana_mcmc: run the MCMC to constrain the spectrum and profile
+    - run_ana_plot: run the plotting tools to show the results
+
+    To do list
+    ----------
+    - Include on/off analysis
+    - Move the MCMC plots into the plot section
+    - Implement:
+       - run_ana_sensitivity
+       - run_ana_upperlimit
 
     """
     
@@ -80,7 +97,9 @@ class CTAana(object):
                      do_MCMC_spectrum=False,
                      do_MCMC_profile=False):
         """
-        Run the standard cluster analysis.
+        Run the standard cluster analysis. This pipeline runs
+        all the sub-modules one by one according to the analysis definition
+        parameters.
         
         Parameters
         ----------
@@ -147,6 +166,23 @@ class CTAana(object):
         - obsID (str): list of obsID to be used in data preparation. 
         By default, all of the are used.
         
+        Outputs files
+        -------------
+        - Ana_Events.xml: observation list to be analysed
+        - Ana_Pnt.def: observation definition file
+        - Ana_ObsDef.xml: observation definition file as xml file
+        - Ana_EventsSelected.xml: observation list to be analysed after selection
+        - Ana_EventsSelected_log.txt: log file of the event selection
+        - Ana_SelectedEvents{obsid}.fits: events file after data selection
+        - Ana_{Psf,Exp,Counts,Bkg}cube.fits: data cube fits files
+        - Ana_{Psf,Exp,Counts,Bkg}cube_log.txt: data cube log files
+        - Ana_Countscube.xml: xml file gathering the counts cube for each obsid
+        - Ana_Countscubecta_{obsid}.fits: counts cube for each obsid
+        - Ana_Model_Input_Spectrum.txt: input model spectrum for the cluster
+        - Ana_Model_Input_Map.fits: input map model for the cluster
+        - Ana_Model_Input_Stack.xml: input sky model xml file for stacked analysis
+        - Ana_Model_Input_Unstack.xml: input sky model xml file for unstacked analysis
+
         """
 
         #----- Check binned/stacked
@@ -257,8 +293,8 @@ class CTAana(object):
                                            self.spec_enumbins, self.spec_ebinalg,
                                            logfile=self.output_dir+'/Ana_Edispcube_log.txt',
                                            silent=self.silent)
-                    
-                    
+        
+        
     #==================================================
     # Run the likelihood analysis
     #==================================================
@@ -277,6 +313,17 @@ class CTAana(object):
         - like_accuracy (float): Absolute accuracy of maximum likelihood value
         - max_iter (int): Maximum number of fit iterations.
         - fix_spat_for_ts (bool): Fix spatial parameters for TS computation.
+        
+        Outputs files
+        -------------
+        - Ana_Model_Output.xml: constrained sky model
+        - Ana_Model_Output_log.txt: log file of the likelihood fit
+        - Ana_Model_Output_Covmat.fits: covariance matrix for the output fit
+        - Ana_Model_Output_Cluster.xml: constrained sky model excluding the cluster
+        - Ana_Model_Cube.fits: Best fit model cube for the all data
+        - Ana_Model_Cube_log.txt: log file of the best fit model cube for the all data
+        - Ana_Model_Cube_Cluster.fits: Best fit model cube for the all data without the cluster
+        - Ana_Model_Cube_cluster_log.txt: log file of the best fit model cube for the all data without the cluster
         
         """
 
@@ -393,7 +440,101 @@ class CTAana(object):
                                            logfile=self.output_dir+'/Ana_Model_Cube_Cluster_log.txt',
                                            inmodel_usr=self.output_dir+'/Ana_Model_Output_Cluster.xml',
                                            outmap_usr=self.output_dir+'/Ana_Model_Cube_Cluster.fits')
+
         
+    #==================================================
+    # Sensitivity
+    #==================================================
+    
+    def run_ana_sensitivity(self,
+                            tobs,
+                            caldb='prod3b-v2', irf='North_z20_S_5h', deadc=0.95,
+                            offset=0.0*u.deg, roi_rad=5*u.deg,
+                            Nsigma=5,
+                            NengPt=20,
+                            max_iter=50,
+                            source_name=None):
+        """
+        Get the sensitivity curve
+        
+        Parameters
+        ----------
+        - tobs (quantity): time of observation
+        - caldb (str): calibration database
+        - irf (str): instrument response function
+        - deadc (float): deadtime fraction
+        - offset (quantity): source offset from the center
+        - roi_rad (quantity): radius of the ROI
+        - Nsigma (float): number of sigma for the detection
+        - NengPt (int): number of energy points to compute
+        - max_iter (int): Maximum number of fit iterations
+        - source_name (str): the name of the source
+
+        Outputs files
+        -------------
+        - Ana_Sensitivity'+srcname+'.dat': the sensitivity curve
+        
+        """
+
+        #----- Select the source name
+        if source_name is None:
+            srcname = self.cluster.name
+        else:
+            srcname = source_name
+
+        #----- number of pixels for bining
+        npix = utilities.npix_from_fov_def(self.map_fov, self.map_reso)
+
+        #----- Fill the parameters and run
+        sens = cscripts.cssens()
+
+        sens['inobs']     = 'NONE' # Input event list, counts cube or observation definition XML file.
+        sens['inmodel']   = self.output_dir+'/Ana_Model_Input_Unstack.xml'
+        sens['srcname']   = srcname
+        sens['caldb']     = caldb
+        sens['irf']       = irf
+        sens['edisp']     = self.spec_edisp
+        sens['deadc']     = deadc
+        sens['outfile']   = self.output_dir+'/Ana_Sensitivity'+srcname+'.dat'
+        sens['offset']    = offset.to_value('deg') # Offset angle of source in field of view (in degrees).
+        sens['duration']  = tobs.to_value('s')
+        sens['rad']       = roi_rad.to_value('deg') # radius of ROI
+        sens['emin']      = self.spec_emin.to_value('TeV')
+        sens['emax']      = self.spec_emax.to_value('TeV')
+        sens['bins']      = NengPt # number of bins for sensitivity computation
+        sens['enumbins']  = self.spec_enumbins # number of bins for binned analysis
+        sens['npix']      = npix
+        sens['binsz']     = self.map_reso.to_value('deg')
+        sens['type']      = 'Differential'
+        sens['sigma']     = Nsigma
+        sens['max_iter']  = max_iter
+        sens['statistic'] = self.method_stat
+        sens['logfile']   = self.output_dir+'/Ana_Sensitivity'+srcname+'_log.txt'
+
+        sens.logFileOpen()
+        sens.execute()
+        sens.logFileClose()
+        
+        if not self.silent:
+            print(sens)
+            print('')
+        
+            
+    #==================================================
+    # Upper limit
+    #==================================================
+    
+    def run_ana_upperlimit(self):
+        """
+        Get the upper limit on the fit parameters
+        
+        Parameters
+        ----------
+        
+        """
+
+        
+
         
     #==================================================
     # Run the imaging analysis
@@ -416,6 +557,18 @@ class CTAana(object):
         - do_Res (bool): compute residual
         - do_TS (bool): compute TS map
         - profile_reso (quantity): bin size for profile
+                
+        Outputs files
+        -------------
+        - Ana_SkymapTot.fits: total sky map 
+        - Ana_SkymapTot_log.txt: total sky map log
+        - Ana_Sourcedetect.xml: source detection xml file
+        - Ana_Sourcedetect.reg: source detection DS9 regions
+        - Ana_Sourcedetect_log.txt: source detection log file
+        - Ana_ResmapTot_{*}.fits: residual skymap
+        - Ana_TSmap_{*}_log.txt: TS map log file
+        - Ana_TSmap_{*}_log.fits: TS map fits file
+        - Ana_ResmapCluster_profile.fits: profile of the residual skymap
         
         """
 
@@ -556,6 +709,18 @@ class CTAana(object):
         
         Parameters
         ----------
+        - do_Spec (bool): compute spectra
+        - do_Butterfly (bool): compute butterfly
+        - do_Res (bool): compute residual spectra
+        
+        Outputs files
+        -------------
+        - Ana_Spectrum_{*}.fits: spectrum file for the sources listed in the ROI
+        - Ana_Spectrum_{*}_log.txt: spectrum logfile for the sources listed in the ROI
+        - Ana_Spectrum_Buterfly_{*}.txt: butterfly file for the sources listed in the ROI
+        - Ana_Spectrum_Buterfly_{*}_log.txt: butterfly log file for the sources listed in the ROI
+        - Ana_Spectrum_Residual.fits: residual spectrum
+        - Ana_Spectrum_Residual_log.txt: residual spectrum logfile
         
         """
 
@@ -661,7 +826,7 @@ class CTAana(object):
     # Timing analysis
     #==================================================
     
-    def run_ana_timing(self, tbinalg='LIN', rad=0.2, bkgregmin=2, maxoffset=4.0):
+    def run_ana_timing(self, tbinalg='LIN', rad=0.2*u.deg, bkgregmin=2, maxoffset=4.0*u.deg):
         """
         Run the timing analysis. This computes the lightcurve
         of the sources in the model, in particular to check that the cluster 
@@ -671,11 +836,15 @@ class CTAana(object):
         Parameters
         ----------
         - tbinalg (str): binning algorithm, either LIN (linear) or GTI (good time interval)
-        - rad (float): ON/OFF param - size of the source aperture in deg
+        - rad (quantity): ON/OFF param - size of the source aperture in deg
         - bkgregmin (int): ON/OFF param - minimum number of off regions
-        - maxoffset (float): ON/OFF param - maximum offset from camera center 
+        - maxoffset (quantity): ON/OFF param - maximum offset from camera center 
         to source allowed
-        - 
+
+        Outputs files
+        -------------
+        - Ana_Lightcurve_{*}.fits: lightcurve fits file for the sources in the ROI
+        - Ana_Lightcurve_{*}_log.fits: lightcurve log file for the sources in the ROI
 
         """
 
@@ -736,10 +905,10 @@ class CTAana(object):
                                             emax=self.spec_emax.to_value('TeV'),
                                             enumbins=self.spec_enumbins,
                                             # For ON/OFF
-                                            rad=rad,
+                                            rad=rad.to_value('deg'),
                                             bkgregmin=bkgregmin,
                                             use_model_bkg=False,
-                                            maxoffset=maxoffset,
+                                            maxoffset=maxoffset.to_value('deg'),
                                             etruemin=self.spec_emin.to_value('TeV'),
                                             etruemax=self.spec_emax.to_value('TeV'),
                                             etruebins=self.spec_enumbins,
@@ -759,12 +928,29 @@ class CTAana(object):
     
     def run_ana_expected_output(self, profile_reso=0.05*u.deg):
         """
-        Run the expected output
+        Run the expected output, i.e. compute the model given the input cluster 
+        in the simulation, if any.
         
         Parameters
         ----------
+        - profile_reso (quantity): the resolutioin of the profile
+
+        Outputs files
+        -------------
+        - Ana_Expected_Cluster.xml: xml model file of the excpected signal
+        - Ana_Expected_Cluster_Counts_log.txt: log file for counts cube
+        - Ana_Expected_Cluster_Counts.fits: the count cube expected model
+        - Ana_Expected_Cluster_profile.fits: the profile centered on the cluster coordinates
         
+        Outputs files
+        -------------
+        - Ana_Expected_Cluster.xml: expected cluster signal model xml file
+        - Ana_Expected_Cluster_Counts.fits: expected cluster model counts
+        - Ana_Expected_Cluster_Counts_log.txt: expected cluster model counts logfile
+        - Ana_Expected_Cluster_profile.fits: counts profile for the expected model
+
         """
+        
         try:
             #----- Make sure the map definition is ok
             if self.map_UsePtgRef:
@@ -812,7 +998,9 @@ class CTAana(object):
             tab.write(self.output_dir+'/Ana_Expected_Cluster_profile.fits', overwrite=True)
             
         except:
-            print('----- Cannot build the expected model. Maybe the cluster used in the simulation is null.')
+            print('----- Cannot build the expected model.')
+            print('      Maybe the cluster used in the simulation is null.')
+            print('      Maybe the cluster used in the simulation is null.')
             
 
     #==================================================
@@ -832,6 +1020,13 @@ class CTAana(object):
         reset_mcmc (bool): reset the existing MCMC chains?
         run_mcmc (bool): run the MCMC sampling?
 
+        Outputs files
+        -------------
+        - Ana_ResmapCluster_profile_MCMC_sampler.pkl: MCMC profile emcee sampler
+        - Ana_ResmapCluster_profile_MCMC_chainstat.txt: chain statistics for the profile
+        - Ana_spectrum_Perseus_MCMC_sampler.pkl: MCMC spectrum emcee sampler
+        - Ana_spectrum_Perseus_MCMC_chainstat.txt: chain statistics for the spectrum
+        
         """
 
         #----- Spectrum
@@ -884,11 +1079,19 @@ class CTAana(object):
                      smoothing_FWHM=0.1*u.deg,
                      profile_log=True):
         """
-        Run the plots
+        Run the plot analysis
         
         Parameters
         ----------
+        - obsID (str): list of obsID to be used in data preparation. 
+        By default, all of the are used.
+        - smoothing_FWHM (quantity): the smoothing used for skymaps
+        - profile_log (bool): show the profile in log scale
         
+        Outputs files
+        -------------
+        - Many plots are obtained from the available file products
+
         """
         
         #========== Get the obs ID to run (defaults is all of them)
@@ -896,7 +1099,7 @@ class CTAana(object):
         if not self.silent:
             print('----- ObsID to be looked at: '+str(obsID))
             print('')
-            '''
+
         #========== Plot the observing properties
         clustpipe_ana_plot.observing_setup(self)
      
@@ -911,23 +1114,10 @@ class CTAana(object):
     
         #========== Spectrum
         clustpipe_ana_plot.spectrum(self)
-        '''
+        
         #========== Lightcurve
         clustpipe_ana_plot.lightcurve(self)
 
         #========== Parameter fit correlation matrix
         clustpipe_ana_plot.covmat(self)
-
         
-    #==================================================
-    # Sensitivity
-    #==================================================
-    
-    def run_ana_sensitivity(self):
-        """
-        Get the sensitivity curve
-        
-        Parameters
-        ----------
-        
-        """
