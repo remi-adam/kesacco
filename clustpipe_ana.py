@@ -66,6 +66,7 @@ class CTAana(object):
     To do list
     ----------
     - Include on/off analysis
+    - Include a joint spectral+spatial MCMC fit
     
     """
     
@@ -209,13 +210,20 @@ class CTAana(object):
             print('======================================================')
             print('')
         
-        #----- Init the outputs
+        #----- Init the output list
         outs = []
         
         #----- Check binned/stacked
         if self.method_binned == False:
             self.method_stack = False
-        
+
+        #----- Check onoff/Edisp
+        if self.method_ana == 'ONOFF':
+            if self.spec_edisp == False:
+                print('WARNING: the ONOFF method always uses energy dispersion. This should be used when simulating the data')
+                print('spec_edisp set to true')
+                self.spec_edisp = True
+                
         #----- Create the output directory if needed
         if not os.path.exists(self.output_dir):
             os.mkdir(self.output_dir)
@@ -329,6 +337,11 @@ class CTAana(object):
                                            silent=self.silent)
             outs.append(edcube)
 
+        #----- ON/OFF files
+
+
+
+            
         return tuple(outs) # model_tot, ctscube_stack, ctscube_unstack, expcube, psfcube, bkgcube, edcube
         
         

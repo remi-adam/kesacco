@@ -75,52 +75,73 @@ class ClusterPipe(Common, CTAsim, CTAana):
         
         """
         
-        #---------- Print the code header at launch
+        #========== Print the code header at launch
         if not silent:
             clustpipe_title.show()
         
-        #---------- Admin
+        #========== Admin
         self.silent     = silent
         self.output_dir = output_dir
         cluster.output_dir = output_dir
         
-        #---------- Sky model
+        #========== Sky model
         self.cluster        = cluster
         self.compact_source = compact_source
 
-        #---------- Observations (including background)
+        #========== Observations (including background)
         self.obs_setup = obs_setup
         
-        #---------- Analysis parameters
-        # Likelihood method related
+        #========== Analysis parameters
+        #----- Likelihood method related
+        # To stack the different run into a single data file or fit all together
         self.method_stack  = True
+        # Bined or unbinned analysis
         self.method_binned = True
-        self.method_ana    = '3D' # ONOFF or 3D
-        self.method_stat   = 'DEFAULT' # CSTAT, WSTAT, CHI2
+        # ONOFF or 3D
+        self.method_ana    = '3D'
+        # CSTAT, WSTAT, CHI2: the statistics to use
+        self.method_stat   = 'DEFAULT' 
         
-        # Map related
+        #----- Map related
+        # The pixel size of the grid
         self.map_reso      = 0.02*u.deg
+        # The map center coordinates
         self.map_coord     = SkyCoord(0.0, 0.0, frame="icrs", unit="deg")
+        # The size of the map
         self.map_fov       = 10*u.deg
-        self.map_UsePtgRef = True # Re-defines coordinates/FoV using pointings
+        # Re-defines coordinates/FoV using obs pointings
+        self.map_UsePtgRef = True                                        
         
-        # Spectrum related
+        #----- Spectrum related
+        # Apply energy dispersion
         self.spec_edisp    = False
+        # Energy binning algorithm: LOG or LIN
         self.spec_ebinalg  = 'LOG'
+        # Number of bins
         self.spec_enumbins = 10
+        # Minimum energy
         self.spec_emin     = 50*u.GeV
+        # Maximum energy
         self.spec_emax     = 100*u.TeV
 
-        # Time related
-        self.time_tmin     = None
-        self.time_tmax     = None
-        self.time_nbin     = 10
+        #----- Time related
+        # Minimum time
+        self.time_tmin = None
+        # Maximum time
+        self.time_tmax = None
+        # Number of time bins
+        self.time_nbin = 10
 
-        # MCMC related
+        #----- MCMC related
+        # Number of MCMC walkers
         self.mcmc_nwalkers = 10
+        # Number of MCMC steps
         self.mcmc_nsteps   = 1000
+        # Number of sample in the burnin
         self.mcmc_burnin   = 100
+        # MCMC confidence limit for extracted distributions
         self.mcmc_conf     = 68.0
+        # Number of points for Monte Carlo resampling
         self.mcmc_Nmc      = 100
         
         
