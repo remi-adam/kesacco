@@ -27,6 +27,7 @@ from kesacco.Tools import plotting
 from kesacco.Tools import cubemaking
 from kesacco.Tools import utilities
 from kesacco.Tools import build_ctools_model
+from kesacco.Tools import make_cluster_template
 from kesacco.Tools import mcmc_spectrum
 from kesacco.Tools import mcmc_profile
 from kesacco       import clustpipe_ana_plot
@@ -65,11 +66,7 @@ class CTAana(object):
     To do list
     ----------
     - Include on/off analysis
-    - Move the MCMC plots into the plot section
-    - Implement:
-       - run_ana_sensitivity
-       - run_ana_upperlimit
-
+    
     """
     
     #==================================================
@@ -78,24 +75,14 @@ class CTAana(object):
     
     def run_analysis(self,
                      obsID=None,
-                     refit=False,
-                     like_accuracy=0.005,
-                     max_iter=50,
-                     fix_spat_for_ts=False,
-                     imaging_bkgsubtract='NONE',
-                     do_Skymap=False,
-                     do_SourceDet=False,
-                     do_ResMap=False,
-                     do_TSmap=False,
-                     profile_reso=0.05*u.deg,
-                     do_Spec=True,
-                     do_Butterfly=True,
-                     do_Resspec=True,
-                     smoothing_FWHM=0.1*u.deg,
-                     profile_log=True,
+                     do_like=True,
+                     do_upperlimit=False,
+                     do_img=True,
+                     do_spec=True,
                      do_timing=False,
-                     do_MCMC_spectrum=False,
-                     do_MCMC_profile=False):
+                     do_expected_output=True,
+                     do_MCMC=True,
+                     do_plot=True):
         """
         Run the standard cluster analysis. This pipeline runs
         all the sub-modules one by one according to the analysis definition
@@ -103,52 +90,76 @@ class CTAana(object):
         
         Parameters
         ----------
-        - Only parsing parameters, see individual sub-modules
+        - obsID (str or str list): list of runs to be observed
+        - do_like (bool): do the likelihood fit
+        - do_upperlimit (bool): do the Cluster upper limit calculation
+        - do_img (bool): do the imaging analysis
+        - do_spec (bool): do the spectral analysis
+        - do_timing (bool): do the timing analysis
+        - do_expected_output (bool): compute the input simulation expected output
+        - do_MCMC (bool): run the MCMC
+        - do_plot (bool): make the plots
         
         """
 
         #----- Check binned/stacked
         if self.method_binned == False:
             self.method_stack = False
+
+        #----- Make sure the map definition is ok
+        if self.map_UsePtgRef:
+            self._match_cluster_to_pointing()      # Cluster map defined using pointings
+            self._match_anamap_to_pointing()       # Analysis map defined using pointings
         
         #----- Data preparation
-        self.run_ana_dataprep(obsID=obsID)
+        dataprep = self.run_ana_dataprep(obsID=obsID)
         
         #----- Likelihood fit
-        self.run_ana_likelihood(refit=refit,
-                                like_accuracy=like_accuracy,
-                                max_iter=max_iter,
-                                fix_spat_for_ts=fix_spat_for_ts)
+        if do_like:
+            like = self.run_ana_likelihood(refit=False,
+                                           like_accuracy=0.005,
+                                           max_iter=50,
+                                           fix_spat_for_ts=False)
+        
+        #----- Upper limit
+        if do_upperlimit:
+            UpLim = self.run_ana_upperlimit(CL=0.95,
+                                            sigma_min=0.0, sigma_max=10.0,
+                                            like_accuracy=0.005,
+                                            max_iter=50,
+                                            eref=1*u.TeV)
         
         #----- Imaging analysis
-        self.run_ana_imaging(bkgsubtract=imaging_bkgsubtract,
-                             do_Skymap=do_Skymap,
-                             do_SourceDet=do_SourceDet,
-                             do_Res=do_ResMap,
-                             do_TS=do_TSmap,
-                             profile_reso=profile_reso)
+        if do_img:
+            self.run_ana_imaging(bkgsubtract='NONE',
+                                 do_Skymap=True,
+                                 do_SourceDet=False,
+                                 do_Res=True,
+                                 do_TS=False,
+                                 profile_reso=0.05*u.deg)
         
         #----- Spectral analysis
-        self.run_ana_spectral(do_Spec=do_Spec,
-                              do_Butterfly=do_Butterfly,
-                              do_Res=do_Resspec)
+        if do_spec:
+            self.run_ana_spectral(do_Spec=True, do_Butterfly=True, do_Res=True)
 
         #----- Timing analysis
         if do_timing:
             self.run_ana_timing()
 
         #----- Expected output computation
-        self.run_ana_expected_output(profile_reso=profile_reso)
-
+        if do_expected_output:
+            self.run_ana_expected_output(profile_reso=0.05*u.deg)
+            
         #----- A posteriori MCMC fit for the spectrum and profile
-        self.run_ana_mcmc(do_spectrum=do_MCMC_spectrum,
-                          do_profile=do_MCMC_profile,
-                          reset_mcmc=True, run_mcmc=True)
+        if do_MCMC:
+            self.run_ana_mcmc(do_spectrum=True, do_profile=True,
+                              reset_mcmc=True, run_mcmc=True)
         
         #----- Output plots
-        self.run_ana_plot(obsID=obsID,
-                          smoothing_FWHM=smoothing_FWHM,
-                          profile_log=profile_log)
+        if do_plot:
+            self.run_ana_plot(obsID=obsID,
+                              smoothing_FWHM=0.1*u.deg,
+                              profile_log=True)
         
         
     #==================================================
@@ -183,8 +194,24 @@ class CTAana(object):
         - Ana_Model_Input_Stack.xml: input sky model xml file for stacked analysis
         - Ana_Model_Input_Unstack.xml: input sky model xml file for unstacked analysis
 
+        Outputs
+        -------
+        - tuple containing: model_tot, ctscube_stack, ctscube_unstack, expcube, 
+        psfcube, bkgcube, and edcube, depending on the requested analysis
+
         """
 
+        #----- Information
+        if not self.silent:
+            print('')
+            print('======================================================')
+            print(' Starting the data preparation')
+            print('======================================================')
+            print('')
+        
+        #----- Init the outputs
+        outs = []
+        
         #----- Check binned/stacked
         if self.method_binned == False:
             self.method_stack = False
@@ -257,11 +284,12 @@ class CTAana(object):
             print('         The recovered normalization will thus be biased low.')
             print('')
             
-        self._make_model(prefix='Ana_Model_Input',
-                         obsID=obsID) # Compute the model files
-
+        model_tot = self._make_model(prefix='Ana_Model_Input',
+                                     obsID=obsID) # Compute the model files
+        outs.append(model_tot)
+        
         #----- Binning (needed even if unbinned likelihood)
-        for stacklist in [True, False]:
+        for stacklist in [True, False]: # 1 single fits for stacked, else xml +N fits
             ctscube = cubemaking.counts_cube(self.output_dir,
                                              self.map_reso, self.map_coord, self.map_fov,
                                              self.spec_emin, self.spec_emax,
@@ -269,22 +297,28 @@ class CTAana(object):
                                              stack=stacklist,
                                              logfile=self.output_dir+'/Ana_Countscube_log.txt',
                                              silent=self.silent)
-        
+            outs.append(ctscube)
+            
         expcube = cubemaking.exp_cube(self.output_dir,
                                       self.map_reso, self.map_coord, self.map_fov,
                                       self.spec_emin, self.spec_emax,
                                       self.spec_enumbins, self.spec_ebinalg,
                                       logfile=self.output_dir+'/Ana_Expcube_log.txt',
                                       silent=self.silent)
+        outs.append(expcube)
+        
         psfcube = cubemaking.psf_cube(self.output_dir,
                                       self.map_reso, self.map_coord, self.map_fov,
                                       self.spec_emin, self.spec_emax,
                                       self.spec_enumbins, self.spec_ebinalg,
                                       logfile=self.output_dir+'/Ana_Psfcube_log.txt',
                                       silent=self.silent)
+        outs.append(psfcube)
+        
         bkgcube = cubemaking.bkg_cube(self.output_dir,
                                       logfile=self.output_dir+'/Ana_Bkgcube_log.txt',
                                       silent=self.silent)
+        outs.append(bkgcube)
         
         if self.spec_edisp:
             edcube = cubemaking.edisp_cube(self.output_dir,
@@ -293,6 +327,9 @@ class CTAana(object):
                                            self.spec_enumbins, self.spec_ebinalg,
                                            logfile=self.output_dir+'/Ana_Edispcube_log.txt',
                                            silent=self.silent)
+            outs.append(edcube)
+
+        return tuple(outs) # model_tot, ctscube_stack, ctscube_unstack, expcube, psfcube, bkgcube, edcube
         
         
     #==================================================
@@ -327,6 +364,14 @@ class CTAana(object):
         
         """
 
+        #----- Starting the likelihood fit
+        if not self.silent:
+            print('')
+            print('======================================================')
+            print(' Starting the likelihood fit')
+            print('======================================================')
+            print('')
+            
         #----- Check binned/stacked
         if self.method_binned == False:
             self.method_stack = False
@@ -431,7 +476,7 @@ class CTAana(object):
                                         stack=self.method_stack,
                                         logfile=self.output_dir+'/Ana_Model_Cube_log.txt',
                                         silent=self.silent)
-            
+        
         modcube_Cl = cubemaking.model_cube(self.output_dir,
                                            self.map_reso, self.map_coord, self.map_fov,
                                            self.spec_emin, self.spec_emax, self.spec_enumbins, self.spec_ebinalg,
@@ -441,6 +486,7 @@ class CTAana(object):
                                            inmodel_usr=self.output_dir+'/Ana_Model_Output_Cluster.xml',
                                            outmap_usr=self.output_dir+'/Ana_Model_Cube_Cluster.fits')
 
+        return (like, modcube, modcube_Cl)
         
     #==================================================
     # Sensitivity
@@ -475,6 +521,14 @@ class CTAana(object):
         - Ana_Sensitivity'+srcname+'.dat': the sensitivity curve
         
         """
+
+        #----- Information
+        if not self.silent:
+            print('')
+            print('======================================================')
+            print(' Starting the sensitivity calculation')
+            print('======================================================')
+            print('')
 
         #----- Select the source name
         if source_name is None:
@@ -519,22 +573,143 @@ class CTAana(object):
             print(sens)
             print('')
         
+        return sens
             
     #==================================================
     # Upper limit
     #==================================================
     
-    def run_ana_upperlimit(self):
+    def run_ana_upperlimit(self,
+                           CL=0.95,
+                           sigma_min=0.0, sigma_max=10.0,
+                           like_accuracy=0.005,
+                           max_iter=50,
+                           eref=1*u.TeV):
+        
         """
         Get the upper limit on the fit parameters
         
         Parameters
         ----------
+        - CL (float): confidence interval
+        - sigma_min/max (flaot): Minimum/Maximum boundary to start searching 
+        for upper limit value. Number of standard deviations above best fit value
+        - like_accuracy (float): Absolute accuracy of maximum likelihood value
+        - max_iter (int): Maximum number of fit iterations.
+        - eref (quantity): reference energy for differential flux limit
+
+        Outputs files
+        -------------
         
         """
 
-        
+        #----- Information
+        if not self.silent:
+            print('')
+            print('======================================================')
+            print(' Starting the upper limit calculation')
+            print('======================================================')
+            print('')
 
+        #----- Check binned/stacked
+        if self.method_binned == False:
+            self.method_stack = False
+        
+        #----- Make sure the map definition is ok
+        if self.map_UsePtgRef:
+            self._match_cluster_to_pointing()
+            self._match_anamap_to_pointing()
+        
+        #========== Run the upper limit
+        if not self.silent:
+            if (not self.method_binned) and self.method_stack:
+                print('WARNING: unbinned likelihood are not stacked')
+                print('')
+
+        UL = ctools.ctulimit()
+
+        # Input event list, counts cube or observation definition XML file.
+        if self.method_binned:
+            if self.method_stack:
+                UL['inobs'] = self.output_dir+'/Ana_Countscube.fits'
+            else:
+                UL['inobs'] = self.output_dir+'/Ana_Countscube.xml'
+        else:
+            UL['inobs']     = self.output_dir+'/Ana_EventsSelected.xml'
+
+        # Input model XML file.
+        if self.method_binned and self.method_stack:
+            UL['inmodel']  = self.output_dir+'/Ana_Model_Input_Stack.xml'
+        else:
+            UL['inmodel']  = self.output_dir+'/Ana_Model_Input_Unstack.xml'
+        
+        # Name of source model for which the upper flux limit should be computed.
+        UL['srcname'] = self.cluster.name
+
+        # Input exposure cube file.
+        if self.method_binned and self.method_stack :
+            UL['expcube']  = self.output_dir+'/Ana_Expcube.fits'
+            
+        # Input PSF cube file
+        if self.method_binned and self.method_stack :
+            UL['psfcube']  = self.output_dir+'/Ana_Psfcube.fits'
+            
+        # Input background cube file.
+        if self.method_binned and self.method_stack :
+            UL['bkgcube']  = self.output_dir+'/Ana_Bkgcube.fits'
+            
+        # Input energy dispersion cube file.
+        if self.method_binned and self.method_stack and self.spec_edisp:
+            UL['edispcube']  = self.output_dir+'/Ana_Edispcube.fits'
+
+        # Calibration database
+        #UL['caldb']  =
+        
+        # Instrument response function
+        #UL['irf']  = 
+
+        # Applies energy dispersion to response computation.
+        UL['edisp']  = self.spec_edisp
+
+        # Confidence level of upper limit.
+        UL['confidence'] = CL
+
+        # Minimum boundary to start searching for upper limit value. Number of standard deviations above best fit
+        UL['sigma_min'] = sigma_min
+
+        # Maximum boundary to start searching for upper limit value. Number of standard deviations above best fit
+        UL['sigma_max'] = sigma_max
+
+        # Reference energy for differential limit (in TeV).
+        UL['eref'] = eref.to_value('TeV')
+        
+        # Minimum energy for integral flux limit (in TeV).
+        UL['emin'] = self.spec_emin.to_value('TeV')
+
+        # Maximum energy for integral flux limit (in TeV).
+        UL['emax'] = self.spec_emax.to_value('TeV')
+
+        # Optimization statistic. 
+        UL['statistic']  = self.method_stat
+
+        # Absolute accuracy of maximum likelihood value.
+        UL['like_accuracy']  = like_accuracy
+
+        # Maximum number of fit iterations.
+        UL['max_iter']  = max_iter
+
+        # Log file
+        UL['logfile'] = self.output_dir+'/Ana_Cluster_UpLim_log.txt'
+
+        UL.logFileOpen()
+        UL.execute()
+        UL.logFileClose()
+    
+        if not self.silent:
+            print(UL)
+            print('')
+
+        return UL
         
     #==================================================
     # Run the imaging analysis
@@ -572,6 +747,14 @@ class CTAana(object):
         
         """
 
+        #----- Information
+        if not self.silent:
+            print('')
+            print('======================================================')
+            print(' Starting the imaging analysis')
+            print('======================================================')
+            print('')
+        
         #========== Make sure the map definition is ok
         if self.map_UsePtgRef:
             self._match_cluster_to_pointing()      # Cluster map defined using pointings
@@ -633,25 +816,25 @@ class CTAana(object):
                                               algo=alg,
                                               logfile=self.output_dir+'/Ana_ResmapTot_'+alg+'_log.txt',
                                               silent=self.silent)
-
-                resmap = tools_imaging.resmap(self.output_dir+'/Ana_Countscube.fits',
-                                              self.output_dir+'/Ana_Model_Output_Cluster.xml',
-                                              self.output_dir+'/Ana_ResmapCluster_'+alg+'.fits',
-                                              npix, self.map_reso.to_value('deg'),
-                                              self.map_coord.icrs.ra.to_value('deg'),
-                                              self.map_coord.icrs.dec.to_value('deg'),
-                                              emin=self.spec_emin.to_value('TeV'),
-                                              emax=self.spec_emax.to_value('TeV'),
-                                              enumbins=self.spec_enumbins, ebinalg=self.spec_ebinalg,
-                                              modcube=modcubeCl,
-                                              expcube=expcube, psfcube=psfcube,
-                                              bkgcube=bkgcube, edispcube=edispcube,
-                                              caldb=None, irf=None,
-                                              edisp=self.spec_edisp,
-                                              algo=alg,
-                                              logfile=self.output_dir+'/Ana_ResmapCluster_'+alg+'_log.txt',
-                                              silent=self.silent)
-
+                
+                resmap_cl = tools_imaging.resmap(self.output_dir+'/Ana_Countscube.fits',
+                                                 self.output_dir+'/Ana_Model_Output_Cluster.xml',
+                                                 self.output_dir+'/Ana_ResmapCluster_'+alg+'.fits',
+                                                 npix, self.map_reso.to_value('deg'),
+                                                 self.map_coord.icrs.ra.to_value('deg'),
+                                                 self.map_coord.icrs.dec.to_value('deg'),
+                                                 emin=self.spec_emin.to_value('TeV'),
+                                                 emax=self.spec_emax.to_value('TeV'),
+                                                 enumbins=self.spec_enumbins, ebinalg=self.spec_ebinalg,
+                                                 modcube=modcubeCl,
+                                                 expcube=expcube, psfcube=psfcube,
+                                                 bkgcube=bkgcube, edispcube=edispcube,
+                                                 caldb=None, irf=None,
+                                                 edisp=self.spec_edisp,
+                                                 algo=alg,
+                                                 logfile=self.output_dir+'/Ana_ResmapCluster_'+alg+'_log.txt',
+                                                 silent=self.silent)
+                
             #----- Cluster profile
             hdul       = fits.open(self.output_dir+'/Ana_ResmapCluster_SUB.fits')
             res_counts = hdul[0].data
@@ -685,7 +868,7 @@ class CTAana(object):
             fov_ts = 0.5*u.deg
             reso_ts = 0.05*u.deg
             npix_ts = utilities.npix_from_fov_def(fov_ts, reso_ts)
-
+            
             for src in self.compact_source.name:
                 wsrc = np.where(np.array(self.compact_source.name) == src)[0][0]
                 ctr_ra  = self.compact_source.spatial[wsrc]['param']['RA']['value'].to_value('deg')
@@ -723,6 +906,14 @@ class CTAana(object):
         - Ana_Spectrum_Residual_log.txt: residual spectrum logfile
         
         """
+
+        #----- Information
+        if not self.silent:
+            print('')
+            print('======================================================')
+            print(' Starting the imaging analysis')
+            print('======================================================')
+            print('')
 
         #========== Make sure the map definition is ok
         if self.map_UsePtgRef:
@@ -767,6 +958,8 @@ class CTAana(object):
                                                 calc_ulim=True,
                                                 fix_srcs=True,
                                                 fix_bkg=False,
+                                                dll_sigstep=1,
+                                                dll_sigmax=7,
                                                 logfile=self.output_dir+'/Ana_Spectrum_'+srcname+'_log.txt',
                                                 silent=self.silent)
                     except ZeroDivisionError:
@@ -848,8 +1041,21 @@ class CTAana(object):
 
         """
 
-        print('===== WARNING: only the ON/OFF lightcurve is available for the moment due to a strange bug =====')
+        #----- Information
+        if not self.silent:
+            print('')
+            print('======================================================')
+            print(' Starting the timing analysis')
+            print('======================================================')
+            print('')
+            
+            print('===== WARNING: only the ON/OFF lightcurve available for the moment due to strange bug =====')
 
+        #----- Make sure the map definition is ok
+        if self.map_UsePtgRef:
+            self._match_cluster_to_pointing()
+            self._match_anamap_to_pointing()
+        
         models = gammalib.GModels(self.output_dir+'/Ana_Model_Output.xml')
         Nsource = len(models)
 
@@ -926,14 +1132,20 @@ class CTAana(object):
     # Compute expected model 
     #==================================================
     
-    def run_ana_expected_output(self, profile_reso=0.05*u.deg):
+    def run_ana_expected_output(self, profile_reso=0.05*u.deg,
+                                profile_sampling=True,
+                                scaling_npt=11,
+                                scaling_range=[0.0,3.0],
+                                includeIC=False,
+                                rm_tmp=False):
         """
-        Run the expected output, i.e. compute the model given the input cluster 
-        in the simulation, if any.
+        Compute the expected profile (i.e. irf convolved) according to different
+        scaling of the guess CRp profile (n_CRp(r) propto n_CRp_ref^scaling).
+        If the input simulation model is found, it also compute the true expected model.
         
         Parameters
         ----------
-        - profile_reso (quantity): the resolutioin of the profile
+        - profile_reso (quantity): the resolution of the profile
 
         Outputs files
         -------------
@@ -950,13 +1162,22 @@ class CTAana(object):
         - Ana_Expected_Cluster_profile.fits: counts profile for the expected model
 
         """
-        
-        try:
-            #----- Make sure the map definition is ok
-            if self.map_UsePtgRef:
-                self._match_cluster_to_pointing()
-                self._match_anamap_to_pointing()
-                
+
+        #===== Information
+        if not self.silent:
+            print('')
+            print('======================================================')
+            print(' Starting the calculation of the expected output model')
+            print('======================================================')
+            print('')
+
+        #===== Make sure the map definition is ok
+        if self.map_UsePtgRef:
+            self._match_cluster_to_pointing()
+            self._match_anamap_to_pointing()
+            
+        #===== Compute the expected profile from the simulation
+        try:                
             #----- Compute the expected spectrum
             model_exp = gammalib.GModels()
             build_ctools_model.cluster(model_exp,
@@ -1001,25 +1222,120 @@ class CTAana(object):
             print('----- Cannot build the expected model.')
             print('      Maybe the cluster used in the simulation is null.')
             print('      Maybe the cluster used in the simulation is null.')
-            
+        
+        #===== Compute the expected profile sampling the parameter scaling
+        #----- Save the current cluster to restore it later
+        cluster_ini = copy.deepcopy(self.cluster)
+        
+        #----- Get the initial CRp profile
+        rad      = np.logspace(-1,5,10000)*u.kpc
+        prof_ini = self.cluster._get_generic_profile(rad, self.cluster.density_crp_model)
 
+        #----- Loop changing profile        
+        scaling_value = np.linspace(scaling_range[0],scaling_range[1],scaling_npt)
+        for i in range(scaling_npt):
+            #----- Re-scaling
+            scaling_i = scaling_value[i]            
+            self.cluster.density_crp_model = {'name':'User', 'radius':rad, 'profile':prof_ini.value**scaling_i}
+            
+            #----- Model
+            make_cluster_template.make_map(self.cluster,
+                                           self.output_dir+'/Ana_Model_TMP'+str(i)+'_Map.fits',
+                                           Egmin=self.obs_setup.get_emin(),Egmax=self.obs_setup.get_emax(),
+                                           includeIC=includeIC)
+            make_cluster_template.make_spectrum(self.cluster,
+                                                self.output_dir+'/Ana_Model_TMP'+str(i)+'_Spectrum.txt',
+                                                energy=np.logspace(-1,5,1000)*u.GeV,
+                                                includeIC=includeIC)
+
+            #----- IRF convolution
+            model_i = gammalib.GModels()
+            build_ctools_model.cluster(model_i,
+                                       self.output_dir+'/Ana_Model_TMP'+str(i)+'_Map.fits',
+                                       self.output_dir+'/Ana_Model_TMP'+str(i)+'_Spectrum.txt',
+                                       ClusterName=self.cluster.name)
+            model_i.save(self.output_dir+'/Ana_Model_TMP'+str(i)+'_Cluster.xml')
+            
+            modcube_i = cubemaking.model_cube(self.output_dir,
+                                              self.map_reso, self.map_coord, self.map_fov,
+                                              self.spec_emin, self.spec_emax,
+                                              self.spec_enumbins, self.spec_ebinalg,
+                                              edisp=self.spec_edisp,
+                                              stack=True, silent=self.silent,
+                                              logfile=self.output_dir+'/Ana_Model_TMP'+str(i)+'_Cluster_Counts_log.txt',
+                                              inmodel_usr=self.output_dir+'/Ana_Model_TMP'+str(i)+'_Cluster.xml',
+                                              outmap_usr=self.output_dir+'/Ana_Model_TMP'+str(i)+'_Cluster_Counts.fits')
+            
+            #----- Extract the profile
+            mcube = fits.open(self.output_dir+'/Ana_Model_TMP'+str(i)+'_Cluster_Counts.fits')
+            header = mcube[0].header
+            model_cnt_map = np.sum(mcube[0].data, axis=0)
+            header.remove('NAXIS3')
+            header['NAXIS'] = 2
+            
+            r_mod, p_mod, err_mod = radial_profile_cts(model_cnt_map,
+                                                       [self.cluster.coord.icrs.ra.to_value('deg'),
+                                                        self.cluster.coord.icrs.dec.to_value('deg')],
+                                                       stddev=np.sqrt(model_cnt_map), header=header,
+                                                       binsize=profile_reso.to_value('deg'),
+                                                       stat='POISSON',
+                                                       counts2brightness=True)
+            #----- Make the profile table
+            if i == 0:
+                tab  = Table()
+                tab['radius']  = Column(r_mod, unit='deg',
+                                        description='Cluster offset (bin='+str(profile_reso.to_value('deg'))+'deg')
+                
+            tab['profile'+str(i)] = Column(p_mod, unit='deg-2', description='Counts per deg-2',
+                                    meta={'scaling':scaling_value[i]})
+            tab['error'+str(i)]   = Column(err_mod, unit='deg-2', description='Counts per deg-2 uncertainty',
+                                    meta={'scaling':scaling_value[i]})
+        sampling_hdu = fits.BinTableHDU(tab)
+        
+        #----- Make the index table
+        scal = Table()
+        scal['index'] = np.linspace(0, scaling_npt-1, scaling_npt, dtype=np.int)
+        scal['value'] = scaling_value
+        scal_hdu = fits.BinTableHDU(scal)
+
+        #----- Make and save HDUlist
+        hdul = fits.HDUList()
+        hdul.append(scal_hdu)
+        hdul.append(sampling_hdu)
+        hdul.writeto(self.output_dir+'/Ana_Expected_Cluster_profile_sampling.fits', overwrite=True)
+        
+        #----- Reset cluster
+        self.cluster = cluster_ini
+
+        #----- remove TMP files
+        if rm_tmp:
+            for i in range(scaling_npt):
+                os.remove(self.output_dir+'/Ana_Model_TMP'+str(i)+'_Cluster_Counts_log.txt') 
+                os.remove(self.output_dir+'/Ana_Model_TMP'+str(i)+'_Cluster_Counts.fits') 
+                os.remove(self.output_dir+'/Ana_Model_TMP'+str(i)+'_Cluster.xml') 
+                os.remove(self.output_dir+'/Ana_Model_TMP'+str(i)+'_Map.fits') 
+                os.remove(self.output_dir+'/Ana_Model_TMP'+str(i)+'_Spectrum.txt')
+
+        
     #==================================================
     # Compute MCMC a posteriori constraints
     #==================================================
     
     def run_ana_mcmc(self,
                      do_spectrum=True, do_profile=True,
-                     reset_mcmc=True, run_mcmc=True):
+                     reset_mcmc=True, run_mcmc=True,
+                     GaussLike=False):
         """
         Fit the spectrum and profile a posteriori
         
         Parameters
         ----------
-        do_spectrum (bool): run the MCMC analysis on the spectrum?
-        do_profile (bool): run the MCMC analysis on the profile?
-        reset_mcmc (bool): reset the existing MCMC chains?
-        run_mcmc (bool): run the MCMC sampling?
-
+        - do_spectrum (bool): run the MCMC analysis on the spectrum?
+        - do_profile (bool): run the MCMC analysis on the profile?
+        - reset_mcmc (bool): reset the existing MCMC chains?
+        - run_mcmc (bool): run the MCMC sampling?
+        - GaussLike (bool): use guassian likelihood or true L scan
+        
         Outputs files
         -------------
         - Ana_ResmapCluster_profile_MCMC_sampler.pkl: MCMC profile emcee sampler
@@ -1029,6 +1345,14 @@ class CTAana(object):
         
         """
 
+        #----- Information
+        if not self.silent:
+            print('')
+            print('======================================================')
+            print(' Starting the MCMC analysis')
+            print('======================================================')
+            print('')
+            
         #----- Spectrum
         if do_spectrum:
             spectrum_file = self.output_dir+'/Ana_Spectrum_'+self.cluster.name+'.fits'
@@ -1043,6 +1367,7 @@ class CTAana(object):
                                                       burnin=self.mcmc_burnin,
                                                       conf=self.mcmc_conf,
                                                       Nmc=self.mcmc_Nmc,
+                                                      GaussLike=GaussLike,
                                                       reset_mcmc=reset_mcmc,
                                                       run_mcmc=run_mcmc,
                                                       Emin=self.spec_emin.to_value('GeV'),
@@ -1053,11 +1378,11 @@ class CTAana(object):
         #----- Profile
         if do_profile:
             profile_files = [self.output_dir+'/Ana_ResmapCluster_profile.fits',
-                             self.output_dir+'/Ana_Expected_Cluster_profile.fits']
+                             self.output_dir+'/Ana_Expected_Cluster_profile_sampling.fits']
             cluster_test  = copy.deepcopy(self.cluster)
             cluster_test.output_dir = self.output_dir
 
-            try:
+            if os.path.exists(profile_files[0]) and os.path.exists(profile_files[1]):
                 mcmc_profile.run_profile_constraint(cluster_test,
                                                     profile_files,
                                                     nwalkers=self.mcmc_nwalkers,
@@ -1067,8 +1392,8 @@ class CTAana(object):
                                                     Nmc=self.mcmc_Nmc,
                                                     reset_mcmc=reset_mcmc,
                                                     run_mcmc=run_mcmc)
-            except FileNotFoundError:
-                print(self.output_dir+'/Ana_ResmapCluster_profile.fits not found, no MCMC')
+            else:
+                print(profile_files[0]+' and '+profile_files[1]+' are needed but are not availablefound, no MCMC profile')
                 
             
     #==================================================
@@ -1120,4 +1445,4 @@ class CTAana(object):
 
         #========== Parameter fit correlation matrix
         clustpipe_ana_plot.covmat(self)
-        
+
