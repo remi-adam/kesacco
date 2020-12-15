@@ -368,7 +368,9 @@ class Common():
         build_ctools_model.background(model_tot, background)
         
         model_tot.save(self.output_dir+'/'+prefix+'_Unstack.xml')
-        
+
+        return model_tot
+    
 
     #==================================================
     # Define standard file name
