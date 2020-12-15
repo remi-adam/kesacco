@@ -430,7 +430,7 @@ def modelplot(data, cluster_test, par_best, param_chains, MC_eng, MC_model, conf
     """
 
     #========== Extract relevant info    
-    bf_model1 = model_dNdEdSdt(cluster_test, data['energy'], par_best)
+    bf_model1 = model_dNdEdSdt(cluster_test, data['e_ref'], par_best)
     bf_model2 = model_dNdEdSdt(cluster_test, MC_eng, par_best)
     MC_perc   = np.percentile(MC_model, [(100-conf)/2.0, 50, 100 - (100-conf)/2.0], axis=0)
     
@@ -441,10 +441,10 @@ def modelplot(data, cluster_test, par_best, param_chains, MC_eng, MC_model, conf
     ax3 = plt.subplot(gs[1])
 
     xlim = [np.amin(MC_eng), np.amax(MC_eng)]
-    rngyp1 = 1.2*np.nanmax(data['flux']+data['e_flux'])
+    rngyp1 = 1.2*np.nanmax(data['e2dnde']+data['e2dnde_err'])
     rngyp2 = 1.2*np.nanmax(bf_model2)
     rngyp  = np.amax(np.array([rngyp1,rngyp2]))
-    rngym = 0.5*np.nanmin(data['flux'])
+    rngym = 0.5*np.nanmin(data['e2dnde'])
     ylim = [rngym, rngyp]
 
     ax1.plot(MC_eng, bf_model2,    ls='-', linewidth=2, color='k', label='Maximum likelihood model')
@@ -455,7 +455,7 @@ def modelplot(data, cluster_test, par_best, param_chains, MC_eng, MC_model, conf
     for i in range(Nmc):
         ax1.plot(MC_eng, MC_model[i,:], ls='-', linewidth=0.5, alpha=0.1, color='blue')
 
-    ax1.errorbar(data['energy'], data['flux'], yerr=data['e_flux'],
+    ax1.errorbar(data['e_ref'], data['e2dnde'], yerr=data['e2dnde_err'],
                  marker='o', elinewidth=2, color='red',
                  markeredgecolor="black", markerfacecolor="red",
                  ls ='', label='Data')
@@ -476,7 +476,7 @@ def modelplot(data, cluster_test, par_best, param_chains, MC_eng, MC_model, conf
                  (ylim[1]*u.Unit('MeV cm-2 s-1')).to_value('erg cm-2 s-1'))
     
     # Residual plot
-    ax3.plot(data['energy'], (data['flux']-bf_model1)/data['e_flux'],
+    ax3.plot(data['e_ref'], (data['e2dnde']-bf_model1)/data['e2dnde_err'],
              linestyle='', marker='o', color='k')
     ax3.plot(MC_eng,  MC_eng*0, linestyle='-', color='k')
     ax3.plot(MC_eng,  MC_eng*0+2, linestyle='--', color='k')
@@ -513,31 +513,32 @@ def read_data(specfile):
     spectrum = hdu[1].data
     hdu.close()
 
-    # the data content depends on the version
-    try:
-        energy     = spectrum['e_ref']*u.TeV
-        ed_Energy  = spectrum['e_min']*u.TeV
-        eu_Energy  = spectrum['e_min']*u.TeV
-        npred      = spectrum['norm']*spectrum['ref_npred']
-        flux       = spectrum['norm']*spectrum['ref_e2dnde']*u.erg/u.cm**2/u.s
-        e_flux     = spectrum['norm_err']*spectrum['ref_e2dnde']*u.erg/u.cm**2/u.s
-        UpperLimit = spectrum['norm_ul']*spectrum['ref_e2dnde']*u.erg/u.cm**2/u.s
-        TS         = spectrum['ts']
-    except:
-        energy     = spectrum['Energy']*u.TeV
-        ed_Energy  = spectrum['ed_Energy']*u.TeV
-        eu_Energy  = spectrum['eu_Energy']*u.TeV
-        npred      = spectrum['Npred']
-        flux       = spectrum['Flux']*u.erg/u.cm**2/u.s
-        e_flux     = spectrum['e_Flux']*u.erg/u.cm**2/u.s
-        UpperLimit = spectrum['UpperLimit']*u.erg/u.cm**2/u.s
-        TS         = spectrum['TS']
+    e_ref         = spectrum['e_ref']*u.TeV
+    e_min         = spectrum['e_min']*u.TeV
+    e_max         = spectrum['e_min']*u.TeV
+    npred         = spectrum['norm']*spectrum['ref_npred']
+    e2dnde        = spectrum['norm']*spectrum['ref_e2dnde']*u.erg/u.cm**2/u.s
+    dnde          = spectrum['norm']*spectrum['ref_dnde']/u.MeV/u.cm**2/u.s
+    e2dnde_err    = spectrum['norm_err']*spectrum['ref_e2dnde']*u.erg/u.cm**2/u.s
+    dnde_err      = spectrum['norm_err']*spectrum['ref_dnde']/u.MeV/u.cm**2/u.s
+    e2dnde_ul     = spectrum['norm_ul']*spectrum['ref_e2dnde']*u.erg/u.cm**2/u.s
+    dnde_ul       = spectrum['norm_ul']*spectrum['ref_dnde']/u.MeV/u.cm**2/u.s
+    TS            = spectrum['ts']
+    norm_scan     = spectrum['norm_scan']
+    loglike       = spectrum['loglike']
+    dloglike_scan = spectrum['dloglike_scan']
 
     # Fill my data
     data = Table()
-    data['energy'] = energy.to_value('GeV')
-    data['flux']   = flux.to_value('MeV cm-2 s-1')
-    data['e_flux'] = e_flux.to_value('MeV cm-2 s-1')
+    data['e_ref']         = e_ref.to_value('GeV')
+    data['ref_dnde']      = (spectrum['ref_dnde']/u.MeV/u.cm**2/u.s).to_value('MeV-1 cm-2 s-1')
+    data['ref_e2dnde']    = (spectrum['ref_e2dnde']*u.erg/u.cm**2/u.s).to_value('MeV cm-2 s-1')
+    data['dnde']          = dnde.to_value('MeV-1 cm-2 s-1')
+    data['dnde_err']      = dnde_err.to_value('MeV-1 cm-2 s-1')
+    data['e2dnde']        = e2dnde.to_value('MeV cm-2 s-1')
+    data['e2dnde_err']    = e2dnde_err.to_value('MeV cm-2 s-1')
+    data['norm_scan']     = norm_scan
+    data['dloglike_scan'] = dloglike_scan
     
     return data
 
@@ -575,7 +576,8 @@ def lnprior(params, par_min, par_max):
 # MCMC: Defines log likelihood
 #==================================================
 
-def lnlike(params, cluster, data, par_min, par_max):
+def lnlike(params, cluster, data, par_min, par_max,
+           gauss=True):
     '''
     Return the log likelihood for the given parameters
 
@@ -592,7 +594,7 @@ def lnlike(params, cluster, data, par_min, par_max):
     ------
     - lnlike (float): the value of the log likelihood
     '''
-
+    
     #---------- Get the prior
     prior = lnprior(params, par_min, par_max)
     if prior == -np.inf: # Should not go for the model if prior out
@@ -607,12 +609,26 @@ def lnlike(params, cluster, data, par_min, par_max):
         import pdb
         pdb.set_trace()
         
-    test_model = model_dNdEdSdt(cluster, data['energy'], params)
+    test_model = model_dNdEdSdt(cluster, data['e_ref'], params)
     
     #---------- Compute the Gaussian likelihood
-    chi2 = (data['flux'] - test_model)**2 / data['e_flux']**2
-    lnL = -0.5*np.nansum(chi2)
-    
+    # Gaussian likelihood
+    if gauss:
+        chi2 = (data['e2dnde'] - test_model)**2 / data['e2dnde_err']**2
+        lnL = -0.5*np.nansum(chi2)
+        
+    # Likelihood taking into account true bin lnL
+    else:
+        Nbin = len(data['e_ref'])
+        lnL_i = np.zeros(Nbin)
+        for i in range(Nbin):
+            # Interpolate the likelihood scan at the location of the model flux
+            f = interp1d(data['norm_scan'][i,:]*data['ref_e2dnde'][i], data['dloglike_scan'][i,:],
+                         fill_value='extrapolate') # extrapolate tested to work well on few sample
+            lnL_i[i] = f(test_model[i])
+            
+        lnL = np.sum(lnL_i)
+
     if np.isnan(lnL):
         lnL = -np.inf
         
@@ -664,6 +680,7 @@ def run_spectrum_constraint(cluster_test,
                             burnin=100,
                             conf=68.0,
                             Nmc=100,
+                            GaussLike=False,
                             reset_mcmc=False,
                             run_mcmc=True,
                             Emin=50,
@@ -680,6 +697,7 @@ def run_spectrum_constraint(cluster_test,
     - burnin (int): number of point to remove assuming it is burnin
     - conf (float): confidence limit percentage for results
     - Nmc (int): number of monte carlo point when resampling the chains
+    - GaussLike (bool): use gaussian approximation of the likelihood
     - reset_mcmc (bool): reset the existing MCMC chains?
     - run_mcmc (bool): run the MCMC sampling?                            
     - Emin/Emax (flaot, GeV): Energy min and max for flux/luminosity computation
@@ -720,6 +738,7 @@ def run_spectrum_constraint(cluster_test,
     print('    burnin     = '+str(burnin))
     print('    conf       = '+str(conf))
     print('    reset_mcmc = '+str(reset_mcmc))
+    print('    Gaussian L = '+str(GaussLike))
 
     #---------- Defines the start
     if sampler_exist:
@@ -730,7 +749,7 @@ def run_spectrum_constraint(cluster_test,
             #pos = list(np.array(pos).T.reshape((nwalkers,ndim)))
             sampler.reset()
             sampler = emcee.EnsembleSampler(nwalkers, ndim, lnlike,
-                                            args=[cluster_test, data, par_min, par_max])
+                                            args=[cluster_test, data, par_min, par_max, GaussLike])
         else:
             print('--- Start from already existing sampler')
             pos = sampler.chain[:,-1,:]
@@ -740,8 +759,8 @@ def run_spectrum_constraint(cluster_test,
         #pos = [np.random.uniform(par_min[i],par_max[i], nwalkers) for i in range(ndim)]
         #pos = list(np.array(pos).T.reshape((nwalkers,ndim)))
         sampler = emcee.EnsembleSampler(nwalkers, ndim, lnlike,
-                                        args=[cluster_test, data, par_min, par_max])
-
+                                        args=[cluster_test, data, par_min, par_max, GaussLike])
+        
     #---------- Run the MCMC
     if run_mcmc:
         print('--- Runing '+str(nsteps)+' MCMC steps')
@@ -760,8 +779,8 @@ def run_spectrum_constraint(cluster_test,
                                                  outfile=cluster_test.output_dir+'/Ana_spectrum_'+cluster_test.name+'_MCMC_chainstat.txt')
     
     #---------- Get the well-sampled models
-    #MC_eng     = np.logspace(np.log10(np.amin(data['energy'])/2),
-    #                         np.log10(np.amax(data['energy'])*2.0), 20)
+    #MC_eng     = np.logspace(np.log10(np.amin(data['e_ref'])/2),
+    #                         np.log10(np.amax(data['e_ref'])*2.0), 20)
     MC_eng     = np.logspace(-1, 6, 50) # GeV
     MC_model   = get_mc_model(MC_eng, param_chains, cluster_test, Nmc=Nmc)
     Best_model = model_dNdEdSdt(cluster_test, MC_eng, par_best)
