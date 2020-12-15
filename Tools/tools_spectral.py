@@ -27,6 +27,8 @@ def spectrum(inobs, inmodel, srcname, outfile,
              calc_ulim=True,
              fix_srcs=True,
              fix_bkg=False,
+             dll_sigstep=1,
+             dll_sigmax=7,
              logfile=None,
              silent=False):    
     """
@@ -56,6 +58,8 @@ def spectrum(inobs, inmodel, srcname, outfile,
     - calc_ulim (bool): Compute upper limit for each spectral point?
     - fix_srcs (bool): Fix other sky model parameters?
     - fix_bkg (bool): Fix background model parameters?
+    - dll_sigstep (float): sigma steps for the likelihood scan
+    - dll_sigmax (float): sigma max for the likelihood scan
     - silent (bool): print information or not
 
     Outputs
@@ -89,6 +93,9 @@ def spectrum(inobs, inmodel, srcname, outfile,
     spec['calc_ulim'] = calc_ulim
     spec['fix_srcs']  = fix_srcs
     spec['fix_bkg']   = fix_bkg
+    spec['dll_sigstep'] = dll_sigstep
+    spec['dll_sigmax']  = dll_sigmax
+
     if logfile is not None: spec['logfile'] = logfile
 
     if logfile is not None: spec.logFileOpen()
