@@ -63,7 +63,7 @@ class CTAsim(object):
         self._match_cluster_to_pointing()
         
         #----- Make cluster templates
-        self._make_model(prefix='Sim_Model', includeIC=False)
+        model_sim = self._make_model(prefix='Sim_Model', includeIC=False)
         self.cluster.save_param()
         os.rename(self.cluster.output_dir+'/parameters.txt',
                   self.cluster.output_dir+'/Sim_Model_Cluster_param.txt')
