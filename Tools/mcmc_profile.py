@@ -145,13 +145,13 @@ def chains_statistics(param_chains, lnL_chains, parname=None, conf=68.0, show=Tr
 # Get models from the parameter space
 #==================================================
 
-def get_mc_model(expected, param_chains, Nmc=100):
+def get_mc_model(modgrid, param_chains, Nmc=100):
     """
     Get models randomly sampled from the parameter space
         
     Parameters
     ----------
-    - expected (array): expected model
+    - modgrid (array): grid of model
     - param_chains (ndarray): array of chains parametes
     - Nmc (int): number of models
 
@@ -166,11 +166,11 @@ def get_mc_model(expected, param_chains, Nmc=100):
     
     Nsample = len(par_flat[:,0])-1
     
-    MC_model = np.zeros((Nmc, len(expected)))
+    MC_model = np.zeros((Nmc, len(modgrid['models'][0,:])))
     
     for i in range(Nmc):
         param_MC = par_flat[np.random.randint(0, high=Nsample), :] # randomly taken from chains
-        MC_model[i,:] = model_profile(expected, param_MC)
+        MC_model[i,:] = model_profile(modgrid, param_MC)
     
     return MC_model
 
@@ -254,7 +254,7 @@ def chainplots(param_chains, parname, rout_file,
 # Plot the output fit model
 #==================================================
 
-def modelplot(cluster_test, data, par_best, param_chains, MC_model, conf=68.0, Nmc=100):
+def modelplot(cluster_test, data, modgrid, par_best, param_chains, MC_model, conf=68.0, Nmc=100):
     """
     Plot the data versus model and constraints
         
@@ -267,7 +267,7 @@ def modelplot(cluster_test, data, par_best, param_chains, MC_model, conf=68.0, N
     """
     
     #========== Extract relevant info    
-    bf_model = model_profile(data['expected'], par_best)
+    bf_model = model_profile(modgrid, par_best)
     MC_perc  = np.percentile(MC_model, [(100-conf)/2.0, 50, 100 - (100-conf)/2.0], axis=0)
     radius = data['radius']
     
@@ -278,9 +278,7 @@ def modelplot(cluster_test, data, par_best, param_chains, MC_model, conf=68.0, N
     ax3 = plt.subplot(gs[1])
 
     xlim = [np.amin(data['radius'])/2.0, np.amax(data['radius'])*2.0]
-    rngyp1 = 1.2*np.nanmax(data['profile']+data['error'])
-    rngyp2 = 1.2*np.nanmax(data['expected'])
-    rngyp  = np.amax(np.array([rngyp1,rngyp2]))
+    rngyp = 1.2*np.nanmax(data['profile']+data['error'])
     rngym = 0.5*np.nanmin((data['profile'])[data['profile'] > 0])
     ylim = [rngym, rngyp]
 
@@ -346,8 +344,6 @@ def read_data(prof_files):
 
     """
 
-    data = Table()
-
     # Get measured data
     hdu = fits.open(prof_files[0])
     measured = hdu[1].data
@@ -355,28 +351,37 @@ def read_data(prof_files):
 
     # Get expected
     hdu = fits.open(prof_files[1])
-    expected = hdu[1].data
+    sampling = hdu[1].data
+    models   = hdu[2].data
     hdu.close()
-
+    
     # Check that the radius is the same, as expected
-    if np.sum(measured['radius'] - expected['radius']) > 0:
+    if np.sum(measured['radius'] - models['radius']) > 0:
         print('!!!!! WARNING: it is possible that we have a problem with radius !!!!!')
-    if len(expected['radius'])-len(measured['radius']) != 0:
+    if len(models['radius'])-len(measured['radius']) != 0:
         print('!!!!! WARNING: it is possible that we have a problem with radius !!!!!')
-        
-    # Extract quantities
+    
+    # Extract quantities and fill data
+    data = Table()
+    
     radius   = measured['radius']*u.deg
     profile  = measured['profile']*u.deg**-2
     error    = measured['error']*u.deg**-2
-    expected = expected['profile']*u.deg**-2
-
-    # Fill the table
+    
     data['radius']   = radius.to_value('deg')
     data['profile']  = profile.to_value('deg-2')
     data['error']    = error.to_value('deg-2')
-    data['expected'] = expected.to_value('deg-2')
+
+    # Extract and fill model_grid
+    model_list = []
+    for i in range(len(sampling['index'])):
+        model_list.append(models['profile'+str(i)])
     
-    return data
+    modgrid = {'sampling':sampling,            # information about the scaling used for the model
+               'radius':models['radius'],      # radius correspondign for the models
+               'models':np.array(model_list)}  # models grid (vs radius and scaling)
+    
+    return data, modgrid
 
     
 #==================================================
@@ -412,7 +417,7 @@ def lnprior(params, par_min, par_max):
 # MCMC: Defines log likelihood
 #==================================================
 
-def lnlike(params, data, par_min, par_max):
+def lnlike(params, data, modgrid, par_min, par_max):
     '''
     Return the log likelihood for the given parameters
 
@@ -420,6 +425,7 @@ def lnlike(params, data, par_min, par_max):
     ----------
     - params (list): the parameters
     - data (Table): the data flux and errors
+    - modgrid (Table): grid of model for different scaling to be interpolated
     - par_min (list): the minimum value for params
     - par_max (list): the maximum value for params
     - gauss (bool): use a gaussian approximation for errors
@@ -443,7 +449,7 @@ def lnlike(params, data, par_min, par_max):
         import pdb
         pdb.set_trace()
         
-    test_model = model_profile(data['expected'], params)
+    test_model = model_profile(modgrid, params)
     
     #---------- Compute the Gaussian likelihood
     chi2 = (data['profile'] - test_model)**2 / data['error']**2
@@ -459,21 +465,23 @@ def lnlike(params, data, par_min, par_max):
 # MCMC: Defines model
 #==================================================
 
-def model_profile(expected, params):
+def model_profile(modgrid, params):
     '''
     Gamma ray model for the MCMC
 
     Parameters
     ----------
-    - expected (array): expected model
+    - modgrid (array): grid of models
     - param (list): the parameter to sample in the model
 
     Output
     ------
     - output_model (array): the output model in units of the input expected
     '''
+    
+    f = interp1d(modgrid['sampling']['value'], modgrid['models'].T, axis=1)
 
-    output_model = params[0] * expected ** params[1]
+    output_model = params[0] * f(params[1])
     
     return output_model
 
@@ -512,26 +520,25 @@ def run_profile_constraint(cluster_test,
     The final MCMC chains and plots are saved
     """
 
-    #---------- Reset matplotlib
+    #========== Reset matplotlib
     matplotlib.rcParams.update(matplotlib.rcParamsDefault)
+
+    #========== Read the data
+    data, modgrid = read_data(profile_file)
     
     #========== Guess parameter definition
     par0 = np.array([1.0, 1.0])
+    parname = ['X_{CRp}/X_{CRp, input}', '\\eta_{CRp}'] # Normalization and scaling profile \propto profile_input^eta
+    par_min = [0,      np.amin(modgrid['sampling']['value'])]
+    par_max = [np.inf, np.amax(modgrid['sampling']['value'])]
     
-    parname = ['X_{CRp}/X_{CRp, input}', '\\eta'] # Normalization and scaling profile \propto profile_input^eta
-    par_min = [0.0, -2.0]
-    par_max = [100.0, +2.0]
-    
-    #========== Start running MCMC definition and sampling
+    #========== Start running MCMC definition and sampling    
     #---------- Check if a MCMC sampler was already recorded
     sampler_exist = os.path.exists(cluster_test.output_dir+'/Ana_ResmapCluster_profile_MCMC_sampler.pkl')
     if sampler_exist:
         sampler = load_object(cluster_test.output_dir+'/Ana_ResmapCluster_profile_MCMC_sampler.pkl')
         print('    Existing sampler: '+cluster_test.output_dir+'/Ana_ResmapCluster_profile_MCMC_sampler.pkl')
     
-    #---------- Read the data
-    data = read_data(profile_file)
-
     #---------- MCMC parameters
     ndim = len(par0)
     
@@ -552,7 +559,7 @@ def run_profile_constraint(cluster_test,
             #pos = list(np.array(pos).T.reshape((nwalkers,ndim)))
             sampler.reset()
             sampler = emcee.EnsembleSampler(nwalkers, ndim, lnlike,
-                                            args=[data, par_min, par_max])
+                                            args=[data, modgrid, par_min, par_max])
         else:
             print('--- Start from already existing sampler')
             pos = sampler.chain[:,-1,:]
@@ -562,8 +569,8 @@ def run_profile_constraint(cluster_test,
         #pos = [np.random.uniform(par_min[i],par_max[i], nwalkers) for i in range(ndim)]
         #pos = list(np.array(pos).T.reshape((nwalkers,ndim)))
         sampler = emcee.EnsembleSampler(nwalkers, ndim, lnlike,
-                                        args=[data, par_min, par_max])
-
+                                        args=[data, modgrid, par_min, par_max])
+        
     #---------- Run the MCMC
     if run_mcmc:
         print('--- Runing '+str(nsteps)+' MCMC steps')
@@ -580,14 +587,14 @@ def run_profile_constraint(cluster_test,
     par_best, par_percentile = chains_statistics(param_chains, lnL_chains,
                                                  parname=parname, conf=conf, show=True,
                                                  outfile=cluster_test.output_dir+'/Ana_ResmapCluster_profile_MCMC_chainstat.txt')
-    
+
     #---------- Get the well-sampled models
-    MC_model   = get_mc_model(data['expected'], param_chains, Nmc=Nmc)
-    Best_model = model_profile(data['expected'], par_best)
+    MC_model   = get_mc_model(modgrid, param_chains, Nmc=Nmc)
+    Best_model = model_profile(modgrid, par_best)
 
     #---------- Plots and results
     chainplots(param_chains, parname, cluster_test.output_dir+'/Ana_ResmapCluster_profile',
                par_best=par_best, par_percentile=par_percentile, conf=conf,
                par_min=par_min, par_max=par_max)
 
-    modelplot(cluster_test, data, par_best, param_chains, MC_model, conf=conf)
+    modelplot(cluster_test, data, modgrid, par_best, param_chains, MC_model, conf=conf)
