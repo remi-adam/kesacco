@@ -361,8 +361,6 @@ def covmat(cpipe):
     
     Parameters
     ----------
-    - infile (string): the path to the fits file covariance matrix
-    - outfile (string): output plot file
 
     Outputs
     --------
@@ -376,5 +374,5 @@ def covmat(cpipe):
     if file_exist:            
         plotting.show_param_cormat(infile, outfile)
     else:
-        if not cpipe.silent: print(infile+' does not exist, no Model_Output_Covmat plot')
-    
+        if not cpipe.silent: print(infile+' does not exist, no Model_Output_Covmat plot')    
+
