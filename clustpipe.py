@@ -80,12 +80,16 @@ class ClusterPipe(Common, CTAsim, CTAana):
             clustpipe_title.show()
         
         #========== Admin
-        self.silent     = silent
-        self.output_dir = output_dir
+        # Print information or not
+        self.silent        = silent
+        # The working output directory
+        self.output_dir    = output_dir
         cluster.output_dir = output_dir
         
         #========== Sky model
+        # The cluster object as a minot object
         self.cluster        = cluster
+        # The background sky source model
         self.compact_source = compact_source
 
         #========== Observations (including background)
