@@ -54,6 +54,12 @@ class CTAsim(object):
         #----- Create the output directory if needed
         if not os.path.exists(self.output_dir): os.mkdir(self.output_dir)
 
+        #----- Check onoff/Edisp
+        if not not self.silent and self.method_ana == 'ONOFF' and self.spec_edisp == False:
+            print('WARNING: The events are generated without accounting for energy dispersion.  ')
+            print('         The current analysis method is set to ONOFF, which necessarily      ')
+            print('         accounts for energy dispersion and might thus leads to biases later.')
+                
         #----- Get the obs ID to run
         obsID = self._check_obsID(obsID)
         if not self.silent: print('----- ObsID to be observed: '+str(obsID))
