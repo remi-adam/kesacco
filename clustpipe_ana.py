@@ -23,6 +23,7 @@ import gammalib
 from kesacco.Tools import tools_spectral
 from kesacco.Tools import tools_imaging
 from kesacco.Tools import tools_timing
+from kesacco.Tools import tools_onoff
 from kesacco.Tools import plotting
 from kesacco.Tools import cubemaking
 from kesacco.Tools import utilities
@@ -168,7 +169,8 @@ class CTAana(object):
     #==================================================
     
     def run_ana_dataprep(self,
-                         obsID=None):
+                         obsID=None,
+                         frac_src_on_reg=0.8):
         """
         This function is used to prepare the data to the 
         analysis.
@@ -177,6 +179,8 @@ class CTAana(object):
         ----------
         - obsID (str): list of obsID to be used in data preparation. 
         By default, all of the are used.
+        - frac_src_on_reg (float): fraction of source flux in the on region,
+        used to define the OnOff analysis
         
         Outputs files
         -------------
@@ -220,8 +224,9 @@ class CTAana(object):
         #----- Check onoff/Edisp
         if self.method_ana == 'ONOFF':
             if self.spec_edisp == False:
-                print('WARNING: the ONOFF method always uses energy dispersion. This should be used when simulating the data')
-                print('spec_edisp set to true')
+                print('WARNING: The ONOFF method always uses energy dispersion.') 
+                print('         This should be used when simulating the data')
+                print('--> spec_edisp is set to true')
                 self.spec_edisp = True
                 
         #----- Create the output directory if needed
@@ -250,7 +255,8 @@ class CTAana(object):
         self._write_new_xmlevent_from_obsid(self.output_dir+'/Events.xml',
                                             self.output_dir+'/Ana_Events.xml',
                                             obsID)
-        
+
+        '''
         #----- Data selection
         sel = ctools.ctselect()
         sel['inobs']    = self.output_dir+'/Ana_Events.xml'
@@ -336,13 +342,39 @@ class CTAana(object):
                                            logfile=self.output_dir+'/Ana_Edispcube_log.txt',
                                            silent=self.silent)
             outs.append(edcube)
-
+        '''
+        
         #----- ON/OFF files
-
-
-
+        if self.method_ana == 'ONOFF':
+            # Get the radius to have frac_src_on_reg * flux tot in the on region
+            rad = tools_onoff.containment_on_source_fraction(self.cluster,
+                                                             frac_src_on_reg,
+                                                             self.spec_emin, self.spec_emax)
+            exclumap = tools_onoff.build_exclusion_map(self.compact_sources,
+                                                       map_coord, map_reso, map_fov
+                                                       rad=0.2*u.deg)
             
-        return tuple(outs) # model_tot, ctscube_stack, ctscube_unstack, expcube, psfcube, bkgcube, edcube
+            onoff = tools_onoff.onoff_filegen(self.output_dir+'/Ana_ObsDef.xml',
+                                              self.output_dir+'/Ana_Model_Input_UnStack.xml', #stack done auto
+                                              self.cluster.name,
+                                              self.output_dir+'/Ana_ObsDef_OnOff.xml',
+                                              self.output_dir+'/Ana_Model_Input_OnOff.xml',
+                                              self.output_dir+'/Ana_OnOff',
+                                              self.spec_ebinalg,
+                                              self.spec_emin.to_value('TeV'), self.spec_emin.to_value('TeV'),
+                                              self.spec_enumbins,
+                                              self.cluster.coord.ra.to_value('deg'),
+                                              self.cluster.coord.dec.to_value('deg'),
+                                              rad.to_value('deg'),
+                                              inexclusion=None,
+                                              bkgregmin=2, bkgregskip=1,
+                                              use_model_bkg=True,
+                                              maxoffset=4.0,
+                                              stack=self.method_stack,
+                                              logfile=self.output_dir+'/Ana_OnOff_log.txt')            
+            outs.append(onoff)
+            
+        return tuple(outs) #model_tot,ctscube_stack,ctscube_unstack,expcube,psfcube,bkgcube,edcube,onoff
         
         
     #==================================================
