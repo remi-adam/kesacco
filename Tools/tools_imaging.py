@@ -10,6 +10,10 @@ to imaging.
 import ctools
 import cscripts
 import numpy as np
+import astropy.units as u
+from astropy.io import fits
+from minot.ClusterTools import map_tools
+from kesacco.Tools import tools_onoff
 
 #==================================================
 # Sky maps
@@ -27,6 +31,7 @@ def skymap(inobs, outmap,
            outradius=2.0,
            iterations=3,
            threshold=3,
+           inexclusion='NONE',
            logfile=None,
            silent=False):
     """
@@ -82,7 +87,7 @@ def skymap(inobs, outmap,
     smap['outradius']   = outradius
     smap['iterations']  = iterations
     smap['threshold']   = threshold
-    smap['inexclusion'] = 'NONE'
+    smap['inexclusion'] = inexclusion
     smap['usefft']      = True
     if logfile is not None: smap['logfile'] = logfile
 
@@ -337,3 +342,74 @@ def resmap(inobs, inmodel, output_map,
     
     return rmap
 
+
+#==================================================
+# Build exclusion map for OFF region
+#==================================================
+
+def build_exclusion_map(compact_sources,
+                        cluster, fraction_flux_cluster,
+                        map_coord, map_reso, map_fov,
+                        Emin, Emax,
+                        outfile,
+                        rad=0.2*u.deg):
+    """
+    Compute a map with pixels that should be excluded from the off region
+    set to 1 (others should be 0). For instance, point sources in the field.
+
+    Parameters
+    ----------
+    - compact_source: structure containing the compact sources in the field
+    - cluster (minot object): a minot cluster object
+    - map_coord (coord): coordinates of the map center
+    - map_reso (quantity): resolution of the map
+    - map_fov (quantity): field of view size
+    - outfile (str): output file name
+    - rad (quantity): the radius to exclude around a source
+
+    Outputs
+    --------
+    - the map file is saved
+    - the map is output
+
+    """
+
+    #----- Get a standard header
+    header = map_tools.define_std_header(map_coord.ra.to_value('deg'), map_coord.dec.to_value('deg'),
+                                         map_fov.to_value('deg'), map_fov.to_value('deg'),
+                                         map_reso.to_value('deg'))
+    
+    #----- Get the R.A.-Dec. map
+    ra_map, dec_map = map_tools.get_radec_map(header)
+
+    #----- Compute the initial exclusion map
+    exclu = ra_map * 0
+
+    #===== Loop over source
+    Nsource = len(compact_sources.name)
+
+    for isrc in range(Nsource):
+        #----- Compute the radius map
+        rad_isrc = map_tools.greatcircle(ra_map, dec_map,
+                                         compact_sources.spatial[isrc]['param']['RA']['value'].to_value('deg'),
+                                         compact_sources.spatial[isrc]['param']['DEC']['value'].to_value('deg'))
+        
+        #----- Apply the mask
+        wsource = rad_isrc <= rad.to_value('deg')
+        exclu[wsource] = 1
+
+    #===== Cluster
+    radlimcl = tools_onoff.containment_on_source_fraction(cluster, fraction_flux_cluster, Emin, Emax)
+    rad_cl = map_tools.greatcircle(ra_map, dec_map,
+                                   cluster.coord.ra.to_value('deg'),cluster.coord.dec.to_value('deg'))    
+    wcl = rad_cl <= radlimcl.to_value('deg')
+    exclu[wcl] = 1
+
+    #----- Save the map
+    hdu = fits.PrimaryHDU(header=header)
+    hdu.data = exclu
+    hdu.header.add_comment('OFF region exclusion map')
+    hdu.header.add_comment('Flagged region are 1, 0 is ok')
+    hdu.writeto(outfile, overwrite=True)
+    
+    return exclu

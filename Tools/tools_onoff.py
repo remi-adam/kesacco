@@ -9,9 +9,12 @@ to OnOff analysis, and other utilities
 
 import ctools
 import cscripts
+import gammalib
 import numpy as np
 import astropy.units as u
 from scipy.optimize import brentq
+from astropy.io import fits
+from minot.ClusterTools import map_tools
 
 #==================================================
 # Sky maps
@@ -100,7 +103,7 @@ def onoff_filegen(inobs, inmodel,
     # Exponent of the power law for POW energy binning.
     ## onoff['ebingamma'] [real]
     
-    # Shape of the source region. So far only CIRCLE exists which defines a circular region around given position.
+    # Shape of the source region. So far only CIRCLE exists which defines a circular region around location
     onoff['srcshape'] = 'CIRCLE'
     
     # Coordinate system (CEL - celestial, GAL - galactic).
@@ -116,13 +119,13 @@ def onoff_filegen(inobs, inmodel,
     onoff['rad'] = rad
     
     # Source region file (ds9 or FITS WCS map).
-    ## onoff['srcregfile'] = 
+    onoff['srcregfile'] = 'NONE'
     
     # Method for background estimation
     onoff['bkgmethod'] = 'REFLECTED'
     
     # Background regions file (ds9 or FITS WCS map).
-    ## onoff['bkgregfile'] = 
+    onoff['bkgregfile'] = 'NONE'
     
     # Minimum number of background regions that are required for an observation.
     onoff['bkgregmin'] = bkgregmin
@@ -136,16 +139,17 @@ def onoff_filegen(inobs, inmodel,
     # Maximum offset in degrees of source from camera center to accept the observation.
     onoff['maxoffset'] = maxoffset
     
-    # Specifies whether multiple observations should be stacked (yes) or whether run-wise PHA, ARF and RMF files should be produced (no).
+    # Specifies whether multiple observations should be stacked or whether run-wise files should be produced
     onoff['stack'] = stack
     
     # Minimum true energy (TeV).
-    ##onoff['etruemin'] = 0.01) [real]
+    #--#onoff['etruemin'] = emin
     
     # Maximum true energy (TeV).
-    ##onoff['etruemax'] = 0.01) [real]
+    #--#onoff['etruemax'] = emax
+
     # Number of bins per decade for true energy bins.
-    ##onoff['etruebins'] = 30) [integer]
+    #--#onoff['etruebins'] = enumbins
         
     if logfile is not None: onoff['logfile'] = logfile
 
@@ -242,7 +246,7 @@ def containment_on_source_fraction(cluster, fsrc, Emin, Emax):
 #==================================================
 
 def build_exclusion_map(compact_sources,
-                        map_coord, map_reso, map_fov
+                        map_coord, map_reso, map_fov,
                         outfile,
                         rad=0.2*u.deg):
     """
@@ -265,20 +269,120 @@ def build_exclusion_map(compact_sources,
 
     """
 
-    #----- Get the R.A.-Dec. map
-
-    #----- Loop over source
-
-    #----- Compute the radius map
-
-    #----- Apply the mask
-
-    #----- Save the map
-
-
-    compact_source.spatial[0]['param']['RA']['value'].to_value('deg')
-
-
+    #----- Get a standard header
+    header = map_tools.define_std_header(map_coord.ra.to_value('deg'), map_coord.dec.to_value('deg'),
+                                         map_fov.to_value('deg'), map_fov.to_value('deg'),
+                                         map_reso.to_value('deg'))
     
+    #----- Get the R.A.-Dec. map
+    ra_map, dec_map = map_tools.get_radec_map(header)
 
-    return img
+    #----- Compute the initial exclusion map
+    exclu = ra_map * 0
+
+    #===== Loop over source
+    Nsource = len(compact_sources.name)
+
+    for isrc in range(Nsource):
+        #----- Compute the radius map
+        rad_isrc = map_tools.greatcircle(ra_map, dec_map,
+                                         compact_sources.spatial[isrc]['param']['RA']['value'].to_value('deg'),
+                                         compact_sources.spatial[isrc]['param']['DEC']['value'].to_value('deg'))
+        
+        #----- Apply the mask
+        wsource = rad_isrc <= rad.to_value('deg')
+        exclu[wsource] = 1
+        
+    #----- Save the map
+    hdu = fits.PrimaryHDU(header=header)
+    hdu.data = exclu
+    hdu.header.add_comment('OFF region exclusion map')
+    hdu.header.add_comment('Flagged region are 1, 0 is ok')
+    hdu.writeto(outfile, overwrite=True)
+    
+    return exclu
+
+
+#==================================================
+# Make the onoff source model
+#==================================================
+
+def make_onoff_source_model(inmodel, outmodel, compact_source, keepbkg=True):
+    """
+    Make the source model for the on/off file generation
+
+    Parameters
+    ----------
+    - inmodel (str): full path to initial model to use
+    - outmodel (str): full path to output model to save
+    - compact_source (see class in kesacco): compact source structure
+    - keepbkg (bool): keep or not the background in the file
+
+    Outputs
+    --------
+    - output model saved
+
+    """
+
+    model = gammalib.GModels(inmodel)
+
+    # Remove compact sources
+    for iscr in range(len(compact_source.name)):
+        model.remove(compact_source.name[iscr])
+
+    # Remove background if needed
+    if keepbkg == False:
+        list2rm = []
+        for imod in range(len(model)):
+            cond1 = 'Background' in model[imod].name()
+            cond2 = 'background' in model[imod].name()
+            cond3 = 'BACKGROUND' in model[imod].name()
+            if cond1 or cond2 or cond3:
+                list2rm.append(model[imod].name())
+                
+        for imod in range(len(list2rm)):
+            model.remove(list2rm[imod])
+
+    # Save model
+    model.save(outmodel)
+
+
+#==================================================
+# Rename the background model
+#==================================================
+
+def rename_bkg_onoff(modname):
+    """
+    Change the background name in the case of stacked background.
+
+    Parameters
+    ----------
+    - modname (str): full path to model to change
+
+    Outputs
+    --------
+    - output model saved
+
+    """
+
+    # Read the model
+    model = gammalib.GModels(modname)
+
+    # Loop over models to search for background
+    ctn = 0
+    for imod in range(len(model)):
+        cond1 = 'Background' in model[imod].name()
+        cond2 = 'background' in model[imod].name()
+        cond3 = 'BACKGROUND' in model[imod].name()
+        # Change the name when background is found
+        if cond1 or cond2 or cond3:
+            ctn += 1
+            model[imod].name('BackgroundModel')
+
+    # One and only one background model should be found
+    if ctn != 1:
+        print('WARNING: multiple background found in stacked observations after ONOFF file gen')
+
+    # Save the model
+    model.save(modname)
+            
