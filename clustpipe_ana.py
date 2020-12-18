@@ -373,12 +373,15 @@ class CTAana(object):
                                               obsdefonoff, inmodelonoff,
                                               self.output_dir+'/Ana_OnOff',
                                               self.spec_ebinalg,
-                                              self.spec_emin.to_value('TeV'), self.spec_emax.to_value('TeV'),
+                                              self.spec_emin.to_value('TeV'),
+                                              self.spec_emax.to_value('TeV'),
                                               self.spec_enumbins,
-                                              self.cluster.coord.ra.to_value('deg'), self.cluster.coord.dec.to_value('deg'),
+                                              self.cluster.coord.ra.to_value('deg'),
+                                              self.cluster.coord.dec.to_value('deg'),
                                               rad.to_value('deg'),
                                               inexclusion=self.output_dir+'/Ana_OnOff_exclusion.fits',
-                                              bkgregmin=2, bkgregskip=1, use_model_bkg=use_model_bkg, maxoffset=4.0,
+                                              bkgregmin=2, bkgregskip=1,
+                                              use_model_bkg=use_model_bkg, maxoffset=4.0,
                                               stack=self.method_stack,
                                               logfile=self.output_dir+'/Ana_OnOff_log.txt')
             
@@ -418,7 +421,8 @@ class CTAana(object):
         - Ana_Model_Cube.fits: Best fit model cube for the all data
         - Ana_Model_Cube_log.txt: log file of the best fit model cube for the all data
         - Ana_Model_Cube_Cluster.fits: Best fit model cube for the all data without the cluster
-        - Ana_Model_Cube_cluster_log.txt: log file of the best fit model cube for the all data without the cluster
+        - Ana_Model_Cube_cluster_log.txt: log file of the best fit model cube for the all data 
+        without the cluster
         
         """
 
@@ -751,10 +755,10 @@ class CTAana(object):
         # Confidence level of upper limit.
         UL['confidence'] = CL
 
-        # Minimum boundary to start searching for upper limit value. Number of standard deviations above best fit
+        # Minimum boundary to start searching for upper limit value. Number of stddev above best fit
         UL['sigma_min'] = sigma_min
 
-        # Maximum boundary to start searching for upper limit value. Number of standard deviations above best fit
+        # Maximum boundary to start searching for upper limit value. Number of stddev above best fit
         UL['sigma_max'] = sigma_max
 
         # Reference energy for differential limit (in TeV).
@@ -853,7 +857,9 @@ class CTAana(object):
                                           emax=self.spec_emax.to_value('TeV'),
                                           caldb=None, irf=None,
                                           bkgsubtract=bkgsubtract,
-                                          roiradius=0.1, inradius=0.6, outradius=0.8,
+                                          roiradius=0.04,
+                                          inradius=self.cluster.theta500.to_value('deg'),
+                                          outradius=self.cluster.theta500.to_value('deg')*1.2,
                                           iterations=3, threshold=3,
                                           logfile=self.output_dir+'/Ana_SkymapTot_log.txt',
                                           silent=self.silent)
@@ -869,7 +875,7 @@ class CTAana(object):
                                                   logfile=self.output_dir+'/Ana_Sourcedetect_log.txt',
                                                   silent=self.silent)
             else:
-                print(self.output_dir+'/Ana_SkymapTot.fits what not created and is needed for source detection.')
+                print(self.output_dir+'/Ana_SkymapTot.fits not found, but needed for source detection.')
                 print('')
                 
         #========== Compute residual (w/wo cluster subtracted)
@@ -1125,8 +1131,9 @@ class CTAana(object):
             print(' Starting the timing analysis')
             print('======================================================')
             print('')
-            
-            print('===== WARNING: only the ON/OFF lightcurve available for the moment due to strange bug =====')
+
+            if self.method_ana != 'ONOFF':
+                print('===== WARNING: only ON/OFF lightcurve available for the moment =====')
 
         #----- Make sure the map definition is ok
         if self.map_UsePtgRef:
@@ -1470,7 +1477,7 @@ class CTAana(object):
                                                     reset_mcmc=reset_mcmc,
                                                     run_mcmc=run_mcmc)
             else:
-                print(profile_files[0]+' and '+profile_files[1]+' are needed but are not availablefound, no MCMC profile')
+                print(profile_files[0]+' and '+profile_files[1]+' are needed but are not found: no MCMC profile')
                 
             
     #==================================================
@@ -1478,7 +1485,7 @@ class CTAana(object):
     #==================================================
     
     def run_ana_plot(self, obsID=None,
-                     smoothing_FWHM=0.1*u.deg,
+                     bkgsubtract='NONE',smoothing_FWHM=0.1*u.deg,
                      profile_log=True):
         """
         Run the plot analysis
@@ -1506,7 +1513,7 @@ class CTAana(object):
         clustpipe_ana_plot.observing_setup(self)
      
         #========== Show events
-        clustpipe_ana_plot.events_quicklook(self, obsID, smoothing_FWHM=smoothing_FWHM)
+        clustpipe_ana_plot.events_quicklook(self, obsID, smoothing_FWHM=smoothing_FWHM, bkgsubtract=bkgsubtract)
         
         #========== Show Combined map
         clustpipe_ana_plot.combined_maps(self, obsID, smoothing_FWHM=smoothing_FWHM)

@@ -31,7 +31,9 @@ def skymap_quicklook(output_file,
                      smoothing_FWHM=0.0*u.deg,
                      bkgsubtract='NONE',
                      silent=True,
-                     MapCenteredOnTarget=True):
+                     MapCenteredOnTarget=True,
+                     onregion=None,
+                     offregion=None):
     """
     Sky maps to show the data.
     
@@ -48,6 +50,8 @@ def skymap_quicklook(output_file,
     - smoothing_FWHM (quantity): apply smoothing to skymap
     - bkgsubtract (bool): apply IRF background subtraction in skymap
     - MapCenteredOnTarget (bool): center the map on the cluster (or pointing)
+    - onregion (list): list of on region each entry is [ra,dec,radius]
+    - offregion (list): list of off region to be overploted
 
     Outputs
     --------
@@ -87,7 +91,8 @@ def skymap_quicklook(output_file,
                                   emax=setup_obs.emax[0].to_value('TeV'),
                                   caldb=setup_obs.caldb[0], irf=setup_obs.irf[0],
                                   bkgsubtract=bkgsubtract,
-                                  roiradius=CTA_PSF*2, inradius=cluster.theta500.to_value('deg'),
+                                  roiradius=0.04, # Match best CTA PSF
+                                  inradius=cluster.theta500.to_value('deg'),
                                   outradius=cluster.theta500.to_value('deg')*1.2,
                                   iterations=3, threshold=3,
                                   inexclusion='NONE')
@@ -114,7 +119,9 @@ def skymap_quicklook(output_file,
                       rangevalue=[None, None],
                       logscale=True,
                       significance=False,
-                      cmap='magma')
+                      cmap='magma',
+                      onregion=onregion,
+                      offregion=offregion)
     
     
 #==================================================

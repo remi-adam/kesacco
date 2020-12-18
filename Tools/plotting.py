@@ -311,7 +311,9 @@ def show_map(mapfile, outfile,
              rangevalue=[None, None],
              logscale=True,
              significance=False,
-             cmap='magma'):
+             cmap='magma',
+             offregion=None,
+             onregion=None):
     """
     Plot maps to show.
 
@@ -336,6 +338,8 @@ def show_map(mapfile, outfile,
     - logscale (bool): apply log color bar
     - significance (bool): is this a significance map?
     - cmap (str): colormap
+    - onregion (list): list of on region each entry is [ra,dec,radius]
+    - offregion (list): list of off region to be overploted
 
     Outputs
     --------
@@ -459,6 +463,32 @@ def show_map(mapfile, outfile,
                                transform=ax.get_transform('fk5'), fontsize=12,
                                color='white',  verticalalignment='center')
             ax.add_patch(circle_PSF)
+
+        # Show on region
+        if onregion is not None:
+            for i in range(len(onregion)):
+                circle_rad = 2*onregion[i][2]/np.cos(onregion[i][1]*np.pi/180)
+                reg = matplotlib.patches.Ellipse((onregion[i][0], onregion[i][1]),
+                                                        circle_rad,
+                                                        2*onregion[i][2],
+                                                        linewidth=2, fill=False, zorder=2,
+                                                        edgecolor='chartreuse', linestyle='-',
+                                                        facecolor='none',
+                                                        transform=ax.get_transform('fk5'))
+                ax.add_patch(reg)
+            
+        # Show off region
+        if offregion is not None:
+            for i in range(len(offregion)):
+                circle_rad = 2*offregion[i][2]/np.cos(offregion[i][1]*np.pi/180)
+                reg = matplotlib.patches.Ellipse((offregion[i][0], offregion[i][1]),
+                                                        circle_rad,
+                                                        2*offregion[i][2],
+                                                        linewidth=2, fill=False, zorder=2,
+                                                        edgecolor='chartreuse', linestyle='-.',
+                                                        facecolor='none',
+                                                        transform=ax.get_transform('fk5'))
+                ax.add_patch(reg)
 
         # Formating and end
         ax.set_xlabel('R.A. (deg)')
@@ -771,7 +801,9 @@ def get_pointings(filename):
 # Plot the pointings
 #==================================================
 
-def show_pointings(xml_file, plotfile):
+def show_pointings(xml_file, cluster,
+                   compact_sources,
+                   plotfile):
     """
     Plot information
 
@@ -787,7 +819,7 @@ def show_pointings(xml_file, plotfile):
     
     # Create figure
     plt.figure()
-    fig = plt.figure(1, figsize=(10, 10))
+    fig = plt.figure(1, figsize=(15, 15))
     ax  = plt.subplot(111)
     colors = pl.cm.jet(np.linspace(0,1,len(pnt)))
 
@@ -824,6 +856,21 @@ def show_pointings(xml_file, plotfile):
         ymin.append(roi_dec-roi_rad)
         ymax.append(roi_dec+roi_rad)
         i += 1
+
+    # Cluster
+    ax.scatter(cluster.coord.ra.to_value('deg'), cluster.coord.dec.to_value('deg'),
+               s=150, marker='o', color='k', label=cluster.name)
+
+    # Sources
+    for isrc in range(len(compact_sources.name)):
+        if isrc == 0:
+            ax.scatter(compact_sources.spatial[isrc]['param']['RA']['value'].to_value('deg'),
+                       compact_sources.spatial[isrc]['param']['DEC']['value'].to_value('deg'),
+                       s=300, marker='+', color='grey', label='Point source')
+        else:
+            ax.scatter(compact_sources.spatial[isrc]['param']['RA']['value'].to_value('deg'),
+                       compact_sources.spatial[isrc]['param']['DEC']['value'].to_value('deg'),
+                       s=300, marker='+', color='grey')
 
     xctr = (np.amax(xmax) + np.amin(xmin)) / 2.0
     yctr = (np.amax(ymax) + np.amin(ymin)) / 2.0

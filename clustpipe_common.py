@@ -423,3 +423,34 @@ class Common():
         # inobs = self.output_dir+'/Ana_ObsDef.xml'
 
         return inobs, inmodel, expcube, psfcube, bkgcube, edispcube, modcube, modcubeCl
+
+
+    #==================================================
+    # Load DS9 ONOFF region
+    #==================================================
+    
+    def load_onoff_region(self, filename):
+        """
+        This function loads DS9 ONOFF regions
+        
+        Parameters
+        ----------
+        - filename (str): full path to the DS9 reg file
+
+        Outputs
+        -------
+        - region (list): list of regions in the file
+
+        """
+
+        reg = []
+        f = open(filename, "r")
+        Lines = f.readlines() 
+        for i in range(2,len(Lines)):
+            txtlist = (((Lines[i][11:]).split(')\n'))[:-1])[0].split(',')
+            numlist = []
+            for index in range(len(txtlist)):
+                numlist.append(float(txtlist[index]))
+            reg.append(numlist)
+        
+        return reg

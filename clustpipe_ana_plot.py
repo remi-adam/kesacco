@@ -37,7 +37,9 @@ def observing_setup(cpipe):
     #========== Pointing plot
     file_exist = os.path.isfile(cpipe.output_dir+'/Ana_ObsDef.xml')
     if file_exist:
-        plotting.show_pointings(cpipe.output_dir+'/Ana_ObsDef.xml', cpipe.output_dir+'/Ana_ObsPointing.pdf')
+        plotting.show_pointings(cpipe.output_dir+'/Ana_ObsDef.xml',
+                                cpipe.cluster, cpipe.compact_source,
+                                cpipe.output_dir+'/Ana_ObsPointing.pdf')
     else:
         if not cpipe.silent: print(cpipe.output_dir+'/Ana_ObsDef.xml does not exist, no ObsPointing plot')
         
@@ -58,7 +60,8 @@ def observing_setup(cpipe):
 #==================================================
 
 def events_quicklook(cpipe, obsID,
-                     smoothing_FWHM=0.1*u.deg):
+                     smoothing_FWHM=0.1*u.deg,
+                     bkgsubtract='NONE'):
     """
     Function runing the event file analysis
     
@@ -77,6 +80,23 @@ def events_quicklook(cpipe, obsID,
     for iobs in obsID:
         if os.path.exists(cpipe.output_dir+'/Ana_SelectedEvents'+
                           cpipe.obs_setup.select_obs(iobs).obsid[0]+'.fits'):
+
+            if cpipe.method_ana == 'ONOFF':
+                offfile = cpipe.output_dir+'/Ana_OnOff_on.reg'
+                onfile = cpipe.output_dir+'/Ana_OnOff_'+cpipe.obs_setup.select_obs(iobs).obsid[0]+'_off.reg'
+                
+                if os.path.exists(offfile):
+                    onreg  = cpipe.load_onoff_region(offfile)
+                else:
+                    onreg = None
+                if os.path.exists(onfile):
+                    offreg = cpipe.load_onoff_region(onfile)
+                else:
+                    offreg = None
+            else:
+                onreg = None
+                offreg = None
+            
             plotting.events_quicklook(cpipe.output_dir+'/Ana_SelectedEvents'+
                                       cpipe.obs_setup.select_obs(iobs).obsid[0]+'.fits',
                                       cpipe.output_dir+'/Ana_SelectedEvents'+
@@ -86,8 +106,9 @@ def events_quicklook(cpipe, obsID,
                              cpipe.output_dir+'/Ana_SelectedEvents'+
                              cpipe.obs_setup.select_obs(iobs).obsid[0]+'.fits',
                              cpipe.obs_setup.select_obs(iobs), cpipe.compact_source, cpipe.cluster,
-                             map_reso=cpipe.map_reso, smoothing_FWHM=smoothing_FWHM, bkgsubtract='NONE',
-                             silent=True, MapCenteredOnTarget=True)
+                             map_reso=cpipe.map_reso, smoothing_FWHM=smoothing_FWHM, bkgsubtract=bkgsubtract,
+                             silent=True, MapCenteredOnTarget=True,
+                             onregion=onreg,offregion=offreg)
 
 
 #==================================================
