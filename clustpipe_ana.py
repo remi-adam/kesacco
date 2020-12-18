@@ -625,7 +625,18 @@ class CTAana(object):
         #----- Fill the parameters and run
         sens = cscripts.cssens()
 
-        sens['inobs']     = 'NONE' # Input event list, counts cube or observation definition XML file.
+        # Input model XML file.
+        if self.method_ana == 'ONOFF':
+            if self.method_stack:
+                sens['inmodel'] = self.output_dir+'/Ana_Model_Input_OnOff_Stack.xml'
+            else:
+                sens['inmodel'] = self.output_dir+'/Ana_Model_Input_OnOff_Unstack.xml'
+        else:
+            if self.method_binned and self.method_stack:
+                sens['inmodel']  = self.output_dir+'/Ana_Model_Input_Stack.xml'
+            else:
+                sens['inmodel']  = self.output_dir+'/Ana_Model_Input_Unstack.xml'
+
         sens['inmodel']   = self.output_dir+'/Ana_Model_Input_Unstack.xml'
         sens['srcname']   = srcname
         sens['caldb']     = caldb
