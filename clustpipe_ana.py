@@ -552,7 +552,8 @@ class CTAana(object):
         #========== Compute the binned model
         modcube = cubemaking.model_cube(self.output_dir,
                                         self.map_reso, self.map_coord, self.map_fov,
-                                        self.spec_emin, self.spec_emax, self.spec_enumbins, self.spec_ebinalg,
+                                        self.spec_emin, self.spec_emax, self.spec_enumbins,
+                                        self.spec_ebinalg,
                                         edisp=self.spec_edisp,
                                         stack=self.method_stack,
                                         logfile=self.output_dir+'/Ana_Model_Cube_log.txt',
@@ -560,7 +561,8 @@ class CTAana(object):
         
         modcube_Cl = cubemaking.model_cube(self.output_dir,
                                            self.map_reso, self.map_coord, self.map_fov,
-                                           self.spec_emin, self.spec_emax, self.spec_enumbins, self.spec_ebinalg,
+                                           self.spec_emin, self.spec_emax, self.spec_enumbins,
+                                           self.spec_ebinalg,
                                            edisp=self.spec_edisp,
                                            stack=self.method_stack, silent=self.silent,
                                            logfile=self.output_dir+'/Ana_Model_Cube_Cluster_log.txt',
@@ -710,39 +712,57 @@ class CTAana(object):
         UL = ctools.ctulimit()
 
         # Input event list, counts cube or observation definition XML file.
-        if self.method_binned:
+        if self.method_ana == 'ONOFF':
             if self.method_stack:
-                UL['inobs'] = self.output_dir+'/Ana_Countscube.fits'
+                UL['inobs'] = self.output_dir+'/Ana_ObsDef_OnOff_Stack.xml'
             else:
-                UL['inobs'] = self.output_dir+'/Ana_Countscube.xml'
+                UL['inobs'] = self.output_dir+'/Ana_ObsDef_OnOff_Unstack.xml'
         else:
-            UL['inobs']     = self.output_dir+'/Ana_EventsSelected.xml'
+            if self.method_binned:
+                if self.method_stack:
+                    UL['inobs'] = self.output_dir+'/Ana_Countscube.fits'
+                else:
+                    UL['inobs'] = self.output_dir+'/Ana_Countscube.xml'
+            else:
+                UL['inobs']     = self.output_dir+'/Ana_EventsSelected.xml'
 
         # Input model XML file.
-        if self.method_binned and self.method_stack:
-            UL['inmodel']  = self.output_dir+'/Ana_Model_Input_Stack.xml'
+        if self.method_ana == 'ONOFF':
+            if self.method_stack:
+                UL['inmodel'] = self.output_dir+'/Ana_Model_Input_OnOff_Stack.xml'
+            else:
+                UL['inmodel'] = self.output_dir+'/Ana_Model_Input_OnOff_Unstack.xml'
         else:
-            UL['inmodel']  = self.output_dir+'/Ana_Model_Input_Unstack.xml'
-        
+            if self.method_binned and self.method_stack:
+                UL['inmodel']  = self.output_dir+'/Ana_Model_Input_Stack.xml'
+            else:
+                UL['inmodel']  = self.output_dir+'/Ana_Model_Input_Unstack.xml'
+
         # Name of source model for which the upper flux limit should be computed.
         UL['srcname'] = self.cluster.name
 
-        # Input exposure cube file.
-        if self.method_binned and self.method_stack :
-            UL['expcube']  = self.output_dir+'/Ana_Expcube.fits'
-            
-        # Input PSF cube file
-        if self.method_binned and self.method_stack :
-            UL['psfcube']  = self.output_dir+'/Ana_Psfcube.fits'
-            
-        # Input background cube file.
-        if self.method_binned and self.method_stack :
-            UL['bkgcube']  = self.output_dir+'/Ana_Bkgcube.fits'
-            
-        # Input energy dispersion cube file.
-        if self.method_binned and self.method_stack and self.spec_edisp:
-            UL['edispcube']  = self.output_dir+'/Ana_Edispcube.fits'
-
+        if self.method_ana != 'ONOFF':
+            # Input exposure cube file.
+            if self.method_binned and self.method_stack :
+                UL['expcube']  = self.output_dir+'/Ana_Expcube.fits'
+                
+            # Input PSF cube file
+            if self.method_binned and self.method_stack :
+                UL['psfcube']  = self.output_dir+'/Ana_Psfcube.fits'
+                
+            # Input background cube file.
+            if self.method_binned and self.method_stack :
+                UL['bkgcube']  = self.output_dir+'/Ana_Bkgcube.fits'
+                
+            # Input energy dispersion cube file.
+            if self.method_binned and self.method_stack and self.spec_edisp:
+                UL['edispcube']  = self.output_dir+'/Ana_Edispcube.fits'
+        else:
+            UL['expcube']    = 'NONE'
+            UL['psfcube']    = 'NONE'
+            UL['bkgcube']    = 'NONE'
+            UL['edispcube']  = 'NONE'
+                
         # Calibration database
         #UL['caldb']  =
         
