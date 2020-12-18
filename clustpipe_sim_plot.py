@@ -87,8 +87,10 @@ def skymap_quicklook(output_file,
                                   emax=setup_obs.emax[0].to_value('TeV'),
                                   caldb=setup_obs.caldb[0], irf=setup_obs.irf[0],
                                   bkgsubtract=bkgsubtract,
-                                  roiradius=0.1, inradius=1.0, outradius=2.0,
-                                  iterations=3, threshold=3)
+                                  roiradius=CTA_PSF*2, inradius=cluster.theta500.to_value('deg'),
+                                  outradius=cluster.theta500.to_value('deg')*1.2,
+                                  iterations=3, threshold=3,
+                                  inexclusion='NONE')
     if silent == False:
         print('')
         print(skymap)
