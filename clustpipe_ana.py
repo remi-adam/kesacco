@@ -170,7 +170,9 @@ class CTAana(object):
     
     def run_ana_dataprep(self,
                          obsID=None,
-                         frac_src_on_reg=0.8):
+                         frac_src_on_reg=0.8,
+                         exclu_rad=0.2*u.deg,
+                         use_model_bkg=False):
         """
         This function is used to prepare the data to the 
         analysis.
@@ -181,7 +183,10 @@ class CTAana(object):
         By default, all of the are used.
         - frac_src_on_reg (float): fraction of source flux in the on region,
         used to define the OnOff analysis
-        
+        - exclu_rad (quantity): exclusion radius for sources in the field of 
+        view in onoff analysis
+        - use_model_bkg (bool): do we use background model in on off analysis
+
         Outputs files
         -------------
         - Ana_Events.xml: observation list to be analysed
@@ -222,12 +227,9 @@ class CTAana(object):
             self.method_stack = False
 
         #----- Check onoff/Edisp
-        if self.method_ana == 'ONOFF':
-            if self.spec_edisp == False:
-                print('WARNING: The ONOFF method always uses energy dispersion.') 
-                print('         This should be used when simulating the data')
-                print('--> spec_edisp is set to true')
-                self.spec_edisp = True
+        if self.method_ana == 'ONOFF' and self.spec_edisp == False:
+            print('WARNING: The ONOFF method always uses energy dispersion.') 
+            print('         This should be used when simulating the data.  ')
                 
         #----- Create the output directory if needed
         if not os.path.exists(self.output_dir):
@@ -256,7 +258,6 @@ class CTAana(object):
                                             self.output_dir+'/Ana_Events.xml',
                                             obsID)
 
-        '''
         #----- Data selection
         sel = ctools.ctselect()
         sel['inobs']    = self.output_dir+'/Ana_Events.xml'
@@ -342,36 +343,48 @@ class CTAana(object):
                                            logfile=self.output_dir+'/Ana_Edispcube_log.txt',
                                            silent=self.silent)
             outs.append(edcube)
-        '''
         
         #----- ON/OFF files
         if self.method_ana == 'ONOFF':
             # Get the radius to have frac_src_on_reg * flux tot in the on region
-            rad = tools_onoff.containment_on_source_fraction(self.cluster,
-                                                             frac_src_on_reg,
+            rad = tools_onoff.containment_on_source_fraction(self.cluster, frac_src_on_reg,
                                                              self.spec_emin, self.spec_emax)
-            exclumap = tools_onoff.build_exclusion_map(self.compact_sources,
-                                                       map_coord, map_reso, map_fov
-                                                       rad=0.2*u.deg)
+            # Compute an exclusion map to avoid other sources
+            exclumap = tools_onoff.build_exclusion_map(self.compact_source,
+                                                       self.map_coord, self.map_reso, self.map_fov,
+                                                       self.output_dir+'/Ana_OnOff_exclusion.fits',
+                                                       rad=exclu_rad)
+            # Make a source model for On/Off
+            tools_onoff.make_onoff_source_model(self.output_dir+'/Ana_Model_Input_UnStack.xml',
+                                                self.output_dir+'/Ana_Model_Input_OnOffIn.xml',
+                                                self.compact_source, keepbkg=use_model_bkg)
             
-            onoff = tools_onoff.onoff_filegen(self.output_dir+'/Ana_ObsDef.xml',
-                                              self.output_dir+'/Ana_Model_Input_UnStack.xml', #stack done auto
-                                              self.cluster.name,
-                                              self.output_dir+'/Ana_ObsDef_OnOff.xml',
-                                              self.output_dir+'/Ana_Model_Input_OnOff.xml',
+            # Run the onoff data preparation
+            if self.method_stack:
+                obsdefonoff = self.output_dir+'/Ana_ObsDef_OnOff_Stack.xml'
+                inmodelonoff = self.output_dir+'/Ana_Model_Input_OnOff_Stack.xml'
+            else:
+                obsdefonoff = self.output_dir+'/Ana_ObsDef_OnOff_Unstack.xml'
+                inmodelonoff = self.output_dir+'/Ana_Model_Input_OnOff_Unstack.xml'
+                
+            onoff = tools_onoff.onoff_filegen(self.output_dir+'/Ana_EventsSelected.xml',
+                                              self.output_dir+'/Ana_Model_Input_OnOffIn.xml',
+                                              self.cluster.name, 
+                                              obsdefonoff, inmodelonoff,
                                               self.output_dir+'/Ana_OnOff',
                                               self.spec_ebinalg,
-                                              self.spec_emin.to_value('TeV'), self.spec_emin.to_value('TeV'),
+                                              self.spec_emin.to_value('TeV'), self.spec_emax.to_value('TeV'),
                                               self.spec_enumbins,
-                                              self.cluster.coord.ra.to_value('deg'),
-                                              self.cluster.coord.dec.to_value('deg'),
+                                              self.cluster.coord.ra.to_value('deg'), self.cluster.coord.dec.to_value('deg'),
                                               rad.to_value('deg'),
-                                              inexclusion=None,
-                                              bkgregmin=2, bkgregskip=1,
-                                              use_model_bkg=True,
-                                              maxoffset=4.0,
+                                              inexclusion=self.output_dir+'/Ana_OnOff_exclusion.fits',
+                                              bkgregmin=2, bkgregskip=1, use_model_bkg=use_model_bkg, maxoffset=4.0,
                                               stack=self.method_stack,
-                                              logfile=self.output_dir+'/Ana_OnOff_log.txt')            
+                                              logfile=self.output_dir+'/Ana_OnOff_log.txt')
+            
+            if self.method_stack and use_model_bkg:
+                tools_onoff.rename_bkg_onoff(inmodelonoff)
+                
             outs.append(onoff)
             
         return tuple(outs) #model_tot,ctscube_stack,ctscube_unstack,expcube,psfcube,bkgcube,edcube,onoff
@@ -435,36 +448,54 @@ class CTAana(object):
         like = ctools.ctlike()
         
         # Input event list, counts cube or observation definition XML file.
-        if self.method_binned:
+        if self.method_ana == 'ONOFF':
             if self.method_stack:
-                like['inobs'] = self.output_dir+'/Ana_Countscube.fits'
+                like['inobs'] = self.output_dir+'/Ana_ObsDef_OnOff_Stack.xml'
             else:
-                like['inobs'] = self.output_dir+'/Ana_Countscube.xml'
+                like['inobs'] = self.output_dir+'/Ana_ObsDef_OnOff_Unstack.xml'
         else:
-            like['inobs']     = self.output_dir+'/Ana_EventsSelected.xml'
+            if self.method_binned:
+                if self.method_stack:
+                    like['inobs'] = self.output_dir+'/Ana_Countscube.fits'
+                else:
+                    like['inobs'] = self.output_dir+'/Ana_Countscube.xml'
+            else:
+                like['inobs']     = self.output_dir+'/Ana_EventsSelected.xml'
 
         # Input model XML file.
-        if self.method_binned and self.method_stack:
-            like['inmodel']  = self.output_dir+'/Ana_Model_Input_Stack.xml'
+        if self.method_ana == 'ONOFF':
+            if self.method_stack:
+                like['inmodel'] = self.output_dir+'/Ana_Model_Input_OnOff_Stack.xml'
+            else:
+                like['inmodel'] = self.output_dir+'/Ana_Model_Input_OnOff_Unstack.xml'
         else:
-            like['inmodel']  = self.output_dir+'/Ana_Model_Input_Unstack.xml'
-        
-        # Input exposure cube file.
-        if self.method_binned and self.method_stack :
-            like['expcube']  = self.output_dir+'/Ana_Expcube.fits'
-            
-        # Input PSF cube file
-        if self.method_binned and self.method_stack :
-            like['psfcube']  = self.output_dir+'/Ana_Psfcube.fits'
-            
-        # Input background cube file.
-        if self.method_binned and self.method_stack :
-            like['bkgcube']  = self.output_dir+'/Ana_Bkgcube.fits'
-            
-        # Input energy dispersion cube file.
-        if self.method_binned and self.method_stack and self.spec_edisp:
-            like['edispcube']  = self.output_dir+'/Ana_Edispcube.fits'
-        
+            if self.method_binned and self.method_stack:
+                like['inmodel']  = self.output_dir+'/Ana_Model_Input_Stack.xml'
+            else:
+                like['inmodel']  = self.output_dir+'/Ana_Model_Input_Unstack.xml'
+
+        if self.method_ana != 'ONOFF':
+            # Input exposure cube file.
+            if self.method_binned and self.method_stack :
+                like['expcube']  = self.output_dir+'/Ana_Expcube.fits'
+                
+            # Input PSF cube file
+            if self.method_binned and self.method_stack :
+                like['psfcube']  = self.output_dir+'/Ana_Psfcube.fits'
+                
+            # Input background cube file.
+            if self.method_binned and self.method_stack :
+                like['bkgcube']  = self.output_dir+'/Ana_Bkgcube.fits'
+                
+            # Input energy dispersion cube file.
+            if self.method_binned and self.method_stack and self.spec_edisp:
+                like['edispcube']  = self.output_dir+'/Ana_Edispcube.fits'
+        else:
+            like['expcube']    = 'NONE'
+            like['psfcube']    = 'NONE'
+            like['bkgcube']    = 'NONE'
+            like['edispcube']  = 'NONE'
+                
         # Calibration database
         #like['caldb']  =
         
@@ -498,6 +529,7 @@ class CTAana(object):
         # Log file
         like['logfile'] = self.output_dir+'/Ana_Model_Output_log.txt'
 
+        print(like)
         like.logFileOpen()
         like.execute()
         like.logFileClose()
