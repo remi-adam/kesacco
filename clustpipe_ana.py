@@ -901,7 +901,7 @@ class CTAana(object):
                 srcmap = tools_imaging.src_detect(self.output_dir+'/Ana_SkymapTot.fits',
                                                   self.output_dir+'/Ana_Sourcedetect.xml',
                                                   self.output_dir+'/Ana_Sourcedetect.reg',
-                                                  threshold=4.0, maxsrcs=10, avgrad=1.0,
+                                                  threshold=5.0, maxsrcs=10, avgrad=1.0,
                                                   corr_rad=0.05, exclrad=0.2,
                                                   logfile=self.output_dir+'/Ana_Sourcedetect_log.txt',
                                                   silent=self.silent)
@@ -911,6 +911,10 @@ class CTAana(object):
                 
         #========== Compute residual (w/wo cluster subtracted)
         if do_Res:
+            if self.method_ana == 'ONOFF':
+                print('===== WARNING: the implemented ON/OFF analysis focuses residualon the cluster.')
+                print('               Other sources unaccounted for in the model may bias the residual.')
+
             #----- Total residual and keeping the cluster
             for alg in ['SIGNIFICANCE', 'SUB', 'SUBDIV']:
                 resmap = tools_imaging.resmap(self.output_dir+'/Ana_Countscube.fits',
@@ -1025,7 +1029,7 @@ class CTAana(object):
         if not self.silent:
             print('')
             print('======================================================')
-            print(' Starting the imaging analysis')
+            print(' Starting the spectral analysis')
             print('======================================================')
             print('')
 
@@ -1186,6 +1190,9 @@ class CTAana(object):
             tmax = Time(np.amax(tmaxs.mjd), format='mjd', scale='utc').fits
         else:
             tmax = self.time_tmax
+
+        #========== Defines cubes
+        inobs, inmodel, expcube, psfcube, bkgcube, edispcube, modcube, modcubeCl = self._define_std_filenames()
             
         #========== Loop over the sources
         for isource in range(Nsource):
@@ -1205,9 +1212,9 @@ class CTAana(object):
                         yref = models[isource].spatial().dec()
 
                     #----- Compute lightcurve
-                    tools_timing.lightcurve(self.output_dir+'/Ana_EventsSelected.xml', #
-                                            self.output_dir+'/Ana_Model_Output.xml',   #
-                                            srcname, self.output_dir+'/Ana_Lightcurve_'+srcname+'.fits', #
+                    tools_timing.lightcurve(self.output_dir+'/Ana_EventsSelected.xml',
+                                            self.output_dir+'/Ana_Model_Output.xml', 
+                                            srcname, self.output_dir+'/Ana_Lightcurve_'+srcname+'.fits',
                                             self.map_reso, self.map_coord, self.map_fov, #
                                             xref=xref,
                                             yref=yref,

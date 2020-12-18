@@ -879,7 +879,7 @@ def show_pointings(xml_file, cluster,
         
     plt.xlim(xctr+fovx/2, xctr-fovx/2)
     plt.ylim(yctr-fovy/2, yctr+fovy/2)
-    plt.legend()
+    plt.legend(fontsize=14)
         
     # Plot title and labels
     plt.xlabel('R.A. (deg)')

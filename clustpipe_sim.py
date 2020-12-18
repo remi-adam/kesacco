@@ -151,7 +151,9 @@ class CTAsim(object):
 
         #----- Show the observing properties
         if ShowObsDef:
-            plotting.show_pointings(self.output_dir+'/Sim_ObsDef.xml', self.output_dir+'/Sim_ObsPointing.pdf')
+            plotting.show_pointings(self.output_dir+'/Sim_ObsDef.xml',
+                                    self.cluster, self.compact_source,
+                                    self.output_dir+'/Sim_ObsPointing.pdf')
             plotting.show_obsdef(self.output_dir+'/Sim_ObsDef.xml',
                                  self.cluster.coord, self.output_dir+'/Sim_ObsDef.pdf')
             plotting.show_irf(self.obs_setup.caldb, self.obs_setup.irf, self.output_dir+'/Sim_ObsIRF')
