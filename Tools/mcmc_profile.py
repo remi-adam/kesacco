@@ -131,8 +131,8 @@ def chains_statistics(param_chains, lnL_chains, parname=None, conf=68.0, show=Tr
 
             if outfile is not None:
                 file.write('param '+str(ipar)+' ('+parnamei+'): '+'\n')
-                file.write('   median   = '+str(perc[1])+' -'+str(perc[1]-perc[0])+' +'+str(perc[2]-perc[1])+'\n')
-                file.write('   best-fit = '+str(par_best[ipar])+' -'+str(par_best[ipar]-perc[0])+' +'+str(perc[2]-par_best[ipar])+'\n')
+                file.write('  median = '+str(perc[1])+' -'+str(perc[1]-perc[0])+' +'+str(perc[2]-perc[1])+'\n')
+                file.write('  best   = '+str(par_best[ipar])+' -'+str(par_best[ipar]-perc[0])+' +'+str(perc[2]-par_best[ipar])+'\n')
                 file.write('   '+parnamei+' = '+txt+'\n')
 
     if outfile is not None:
@@ -364,13 +364,20 @@ def read_data(prof_files):
     # Extract quantities and fill data
     data = Table()
     
-    radius   = measured['radius']*u.deg
-    profile  = measured['profile']*u.deg**-2
-    error    = measured['error']*u.deg**-2
+    radius      = measured['radius']*u.deg
+    profile     = measured['profile']*u.deg**-2
+    error       = measured['error']*u.deg**-2
+    bkg_error   = measured['bkg_error']*u.deg**-2
+    bkg_profile = measured['bkg_profile']*u.deg**-2
+    radius_min  = measured['radius_min']*u.deg
+    radius_max  = measured['radius_max']*u.deg
     
     data['radius']   = radius.to_value('deg')
     data['profile']  = profile.to_value('deg-2')
     data['error']    = error.to_value('deg-2')
+    data['bkg']      = bkg_profile.to_value('deg-2')
+    data['rmin']     = radius_min.to_value('deg')
+    data['rmax']     = radius_max.to_value('deg')
 
     # Extract and fill model_grid
     model_list = []
@@ -417,7 +424,7 @@ def lnprior(params, par_min, par_max):
 # MCMC: Defines log likelihood
 #==================================================
 
-def lnlike(params, data, modgrid, par_min, par_max):
+def lnlike(params, data, modgrid, par_min, par_max, gauss=True):
     '''
     Return the log likelihood for the given parameters
 
@@ -452,9 +459,26 @@ def lnlike(params, data, modgrid, par_min, par_max):
     test_model = model_profile(modgrid, params)
     
     #---------- Compute the Gaussian likelihood
-    chi2 = (data['profile'] - test_model)**2 / data['error']**2
-    lnL = -0.5*np.nansum(chi2)
-    
+    # Gaussian likelihood
+    if gauss:
+        chi2 = (data['profile'] - test_model)**2 / data['error']**2
+        lnL = -0.5*np.nansum(chi2)
+
+    # Likelihood taking into account the background counts
+    else:
+        area = np.pi*data['rmax']**2 - np.pi*data['rmin']**2
+        
+        # Poisson with Bkg
+        L_i1 = (test_model + data['bkg'])*area
+        L_i2 = (data['profile'] + data['bkg'])*area * np.log(L_i1)
+        lnL  = -np.nansum(L_i1 - L_i2)
+
+        # Poisson without Bkg
+        #L_i1 = test_model*area
+        #L_i2 = data['profile']*area * np.log(L_i1)
+        #lnL  = -np.nansum(L_i1 - L_i2)
+        
+    # In case of NaN, goes to infinity
     if np.isnan(lnL):
         lnL = -np.inf
         
@@ -497,6 +521,7 @@ def run_profile_constraint(cluster_test,
                            burnin=100,
                            conf=68.0,
                            Nmc=100,
+                           GaussLike=False,
                            reset_mcmc=False,
                            run_mcmc=True):
     """
@@ -511,9 +536,9 @@ def run_profile_constraint(cluster_test,
     - burnin (int): number of point to remove assuming it is burnin
     - conf (float): confidence limit percentage for results
     - Nmc (int): number of monte carlo point when resampling the chains
+    - GaussLike (bool): use gaussian approximation of the likelihood
     - reset_mcmc (bool): reset the existing MCMC chains?
     - run_mcmc (bool): run the MCMC sampling?                            
-    - Emin/Emax (flaot, GeV): Energy min and max for flux/luminosity computation
 
     Output
     ------
@@ -549,6 +574,7 @@ def run_profile_constraint(cluster_test,
     print('    burnin     = '+str(burnin))
     print('    conf       = '+str(conf))
     print('    reset_mcmc = '+str(reset_mcmc))
+    print('    Gaussian L = '+str(GaussLike))
 
     #---------- Defines the start
     if sampler_exist:
@@ -559,7 +585,7 @@ def run_profile_constraint(cluster_test,
             #pos = list(np.array(pos).T.reshape((nwalkers,ndim)))
             sampler.reset()
             sampler = emcee.EnsembleSampler(nwalkers, ndim, lnlike,
-                                            args=[data, modgrid, par_min, par_max])
+                                            args=[data, modgrid, par_min, par_max, GaussLike])
         else:
             print('--- Start from already existing sampler')
             pos = sampler.chain[:,-1,:]
@@ -569,7 +595,7 @@ def run_profile_constraint(cluster_test,
         #pos = [np.random.uniform(par_min[i],par_max[i], nwalkers) for i in range(ndim)]
         #pos = list(np.array(pos).T.reshape((nwalkers,ndim)))
         sampler = emcee.EnsembleSampler(nwalkers, ndim, lnlike,
-                                        args=[data, modgrid, par_min, par_max])
+                                        args=[data, modgrid, par_min, par_max, GaussLike])
         
     #---------- Run the MCMC
     if run_mcmc:

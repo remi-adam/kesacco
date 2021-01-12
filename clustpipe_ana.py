@@ -912,7 +912,7 @@ class CTAana(object):
         #========== Compute residual (w/wo cluster subtracted)
         if do_Res:
             if self.method_ana == 'ONOFF':
-                print('===== WARNING: the implemented ON/OFF analysis focuses residualon the cluster.')
+                print('===== WARNING: the implemented ON/OFF analysis focuses on the residual of the cluster.')
                 print('               Other sources unaccounted for in the model may bias the residual.')
 
             #----- Total residual and keeping the cluster
@@ -952,7 +952,7 @@ class CTAana(object):
                                                  algo=alg,
                                                  logfile=self.output_dir+'/Ana_ResmapCluster_'+alg+'_log.txt',
                                                  silent=self.silent)
-                
+            
             #----- Cluster profile
             hdul       = fits.open(self.output_dir+'/Ana_ResmapCluster_SUB.fits')
             res_counts = hdul[0].data
@@ -967,18 +967,42 @@ class CTAana(object):
             header     = hdul[0].header
             hdul.close()
             model = res_all/subdiv_all
-            
+            hdul       = fits.open(self.output_dir+'/Ana_ResmapCluster_SUB.fits')
+            res_clall    = hdul[0].data
+            header     = hdul[0].header
+            hdul.close()
+            hdul       = fits.open(self.output_dir+'/Ana_ResmapCluster_SUBDIV.fits')
+            subdiv_clall = hdul[0].data
+            header     = hdul[0].header
+            hdul.close()
+            clmodel = res_clall/subdiv_clall
+
+            # Residual counts
             radius, prof, err = radial_profile_cts(res_counts,
                                                    [self.cluster.coord.icrs.ra.to_value('deg'),
                                                     self.cluster.coord.icrs.dec.to_value('deg')],
                                                    stddev=np.sqrt(model), header=header,
                                                    binsize=profile_reso.to_value('deg'), stat='POISSON',
                                                    counts2brightness=True)
+
+            # Background counts
+            radius, bkgprof, bkgerr = radial_profile_cts(clmodel,
+                                                         [self.cluster.coord.icrs.ra.to_value('deg'),
+                                                          self.cluster.coord.icrs.dec.to_value('deg')],
+                                                         stddev=np.sqrt(clmodel), header=header,
+                                                         binsize=profile_reso.to_value('deg'), stat='POISSON',
+                                                         counts2brightness=True)
+
+            
             tab  = Table()
-            tab['radius']  = Column(radius, unit='deg',
-                                    description='Cluster offset (bin='+str(profile_reso.to_value('deg'))+'deg')
-            tab['profile'] = Column(prof,   unit='deg-2', description='Counts per deg-2')
-            tab['error']   = Column(err,    unit='deg-2', description='Counts per deg-2 uncertainty')
+            tab['radius']      = Column(radius, unit='deg',
+                                        description='Cluster offset (bin='+str(profile_reso.to_value('deg'))+'deg')
+            tab['profile']     = Column(prof,   unit='deg-2', description='Counts per deg-2')
+            tab['error']       = Column(err,    unit='deg-2', description='Counts per deg-2 uncertainty')
+            tab['bkg_profile'] = Column(bkgprof,    unit='deg-2', description='Bkg counts per deg-2')
+            tab['bkg_error']   = Column(bkgerr,    unit='deg-2', description='Bkg counts per deg-2 uncertainty')
+            tab['radius_min']  = radius - profile_reso.to_value('deg')/2.0
+            tab['radius_max']  = radius + profile_reso.to_value('deg')/2.0
             tab.write(self.output_dir+'/Ana_ResmapCluster_profile.fits', overwrite=True)
             
         #----- Compute the TS map
@@ -1268,14 +1292,12 @@ class CTAana(object):
         Parameters
         ----------
         - profile_reso (quantity): the resolution of the profile
+        - profile_sampling (bool):  do the profile sampling?
+        - scaling_npt (int): number of point for the scaling parameter
+        - scaling_range (list of): input profile scaling range
+        - includeIC (bool): include inverse Compton in the model?
+        - rm_tmp (bool): remove temporary templates?
 
-        Outputs files
-        -------------
-        - Ana_Expected_Cluster.xml: xml model file of the excpected signal
-        - Ana_Expected_Cluster_Counts_log.txt: log file for counts cube
-        - Ana_Expected_Cluster_Counts.fits: the count cube expected model
-        - Ana_Expected_Cluster_profile.fits: the profile centered on the cluster coordinates
-        
         Outputs files
         -------------
         - Ana_Expected_Cluster.xml: expected cluster signal model xml file
@@ -1352,6 +1374,13 @@ class CTAana(object):
         #----- Get the initial CRp profile
         rad      = np.logspace(-1,5,10000)*u.kpc
         prof_ini = self.cluster._get_generic_profile(rad, self.cluster.density_crp_model)
+
+        if np.nanmax(prof_ini) == np.nanmin(prof_ini):
+            print('!!!!! ERROR !!!!! The input CRp profile model is flat.')
+            print('                  Thus, rescaling the model does not change it.')
+            print('                  This may cause the MCMC constraint to fail latter.')
+            print('                  Change the CRp profile model.')
+            raise ValueError
 
         #----- Loop changing profile        
         scaling_value = np.linspace(scaling_range[0],scaling_range[1],scaling_npt)
@@ -1512,6 +1541,7 @@ class CTAana(object):
                                                     burnin=self.mcmc_burnin,
                                                     conf=self.mcmc_conf,
                                                     Nmc=self.mcmc_Nmc,
+                                                    GaussLike=GaussLike,
                                                     reset_mcmc=reset_mcmc,
                                                     run_mcmc=run_mcmc)
             else:

@@ -131,8 +131,8 @@ def chains_statistics(param_chains, lnL_chains, parname=None, conf=68.0, show=Tr
 
             if outfile is not None:
                 file.write('param '+str(ipar)+' ('+parnamei+'): '+'\n')
-                file.write('   median   = '+str(perc[1])+' -'+str(perc[1]-perc[0])+' +'+str(perc[2]-perc[1])+'\n')
-                file.write('   best-fit = '+str(par_best[ipar])+' -'+str(par_best[ipar]-perc[0])+' +'+str(perc[2]-par_best[ipar])+'\n')
+                file.write('  median = '+str(perc[1])+' -'+str(perc[1]-perc[0])+' +'+str(perc[2]-perc[1])+'\n')
+                file.write('  best   = '+str(par_best[ipar])+' -'+str(par_best[ipar]-perc[0])+' +'+str(perc[2]-par_best[ipar])+'\n')
                 file.write('   '+parnamei+' = '+txt+'\n')
 
     if outfile is not None:
@@ -629,6 +629,7 @@ def lnlike(params, cluster, data, par_min, par_max,
             
         lnL = np.sum(lnL_i)
 
+    # In case of NaN, goes to infinity
     if np.isnan(lnL):
         lnL = -np.inf
         
