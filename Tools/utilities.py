@@ -114,7 +114,7 @@ def listcord2fov(coord_list, rad_list):
     Parameters
     ----------
     - coord_list (SkyCoord list): list of sky coordinates
-    - rad_list (deg): list of radius associated to center
+    - rad_list (deg): list of radius associated to pointings
     
     Outputs
     --------
@@ -168,11 +168,11 @@ def squeeze_fov(center_fov, fov_ini, center_cluster, theta_cluster, extra=1.1):
     # Compute FoV along x
     fov_x = 2*np.amin([fov_ini.to_value('deg')/2.0,
                        (sep_x+extra*theta_cluster).to_value('deg')])
-
+    
     # Compute FoV along y
     fov_y = 2*np.amin([fov_ini.to_value('deg')/2.0,
-                       (sep_x+extra*theta_cluster).to_value('deg')])
-
+                       (sep_y+extra*theta_cluster).to_value('deg')])
+    
     # The fov is squared, so take the max
     fov = np.amax([fov_x, fov_y])*u.deg
 
