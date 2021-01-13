@@ -82,17 +82,21 @@ def events_quicklook(cpipe, obsID,
                           cpipe.obs_setup.select_obs(iobs).obsid[0]+'.fits'):
 
             if cpipe.method_ana == 'ONOFF':
-                offfile = cpipe.output_dir+'/Ana_OnOff_on.reg'
-                onfile = cpipe.output_dir+'/Ana_OnOff_'+cpipe.obs_setup.select_obs(iobs).obsid[0]+'_off.reg'
+                onfile = cpipe.output_dir+'/Ana_OnOff_on.reg'
+
+                if len(obsID)>1:
+                    offfile = cpipe.output_dir+'/Ana_OnOff_'+cpipe.obs_setup.select_obs(iobs).obsid[0]+'_off.reg'
+                else:
+                    offfile = cpipe.output_dir+'/Ana_OnOff_off.reg' #with single obsID
                 
                 if os.path.exists(offfile):
-                    onreg  = cpipe.load_onoff_region(offfile)
-                else:
-                    onreg = None
-                if os.path.exists(onfile):
-                    offreg = cpipe.load_onoff_region(onfile)
+                    offreg  = cpipe.load_onoff_region(offfile)
                 else:
                     offreg = None
+                if os.path.exists(onfile):
+                    onreg = cpipe.load_onoff_region(onfile)
+                else:
+                    onreg = None
             else:
                 onreg = None
                 offreg = None
