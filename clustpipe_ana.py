@@ -31,6 +31,7 @@ from kesacco.Tools import build_ctools_model
 from kesacco.Tools import make_cluster_template
 from kesacco.Tools import mcmc_spectrum
 from kesacco.Tools import mcmc_profile
+from kesacco.Tools import mcmc_spectralimaging
 from kesacco       import clustpipe_ana_plot
 
 from minot.ClusterTools.map_tools import radial_profile_cts
@@ -1555,11 +1556,11 @@ class CTAana(object):
     def run_ana_spectralimaging_mcmc(self,
                                      reset_modelgrid=True,
                                      reset_mcmc=True, run_mcmc=True,
+                                     GaussLike=False,
                                      spatial_scaling_range=[0.0,3.0],
                                      spatial_scaling_npt=11,
                                      spectral_slope_range=[2.0,3.0],
                                      spectral_slope_npt=11,
-                                     GaussLike=False,
                                      includeIC=False,
                                      rm_tmp=False):
         """
@@ -1580,14 +1581,12 @@ class CTAana(object):
         -------------
         
         """
-
-        import pdb
         
-        #----- Make subdirectory
-        subdirname = self.output_dir+'/Ana_SpecImgMCMC'
-        if not os.path.exists(subdirname): os.mkdir(subdirname)
+        #===== Make subdirectory
+        subdir = self.output_dir+'/Ana_SpecImgMCMC'
+        if not os.path.exists(subdir): os.mkdir(subdir)
         
-        #----- Param checks
+        #===== Param checks
         if self.map_UsePtgRef:
             self._match_cluster_to_pointing()      # Cluster map defined using pointings
             self._match_anamap_to_pointing()       # Analysis map defined using pointings
@@ -1601,11 +1600,11 @@ class CTAana(object):
         if self.method_ana != '3D':
             self.method_ana  = '3D'
             print('run_ana_spectralimaging_mcmc requires method_ana="3D", change done')            
-        
-        #----- Save the current cluster to restore it later
+            
+        #===== Save the current cluster to restore it later
         cluster_ini = copy.deepcopy(self.cluster)
         
-        #----- Get the initial CRp profile
+        #===== Get the initial CRp profile
         rad      = np.logspace(-1,5,10000)*u.kpc
         prof_ini = self.cluster._get_generic_profile(rad, self.cluster.density_crp_model)
 
@@ -1616,133 +1615,194 @@ class CTAana(object):
             print('                  Change the CRp profile model.')
             raise ValueError
         
-        #----- Define the sampling values
+        #===== Define the sampling values
         spatial_scaling_value  = np.linspace(spatial_scaling_range[0],spatial_scaling_range[1],spatial_scaling_npt)
-        spectral_slope_value = np.linspace(spectral_slope_range[0],spectral_slope_range[1],spectral_slope_npt)
+        spectral_slope_value   = np.linspace(spectral_slope_range[0],spectral_slope_range[1],spectral_slope_npt)
+        idx_spatial  = np.linspace(0, spatial_scaling_npt-1, spatial_scaling_npt, dtype=np.int)
+        idx_spectral = np.linspace(0, spectral_slope_npt-1, spectral_slope_npt, dtype=np.int)
 
-        spatial_scaling_1darr = []
-        spatial_scaling_2darr = []
-        spectral_slope_1darr  = []
-        spectral_slope_2darr  = []
-        index1d               = []
-        index2d               = []
+        #===== Check that parameters are fine
+        if reset_modelgrid is False:
+            if not os.path.exists(subdir+'/Grid_Parameters.npy'):
+                raise ValueError('reset_modelgrid is False, but no previous run was found.')
+            
+            listpar = np.load(subdir+'/Grid_Parameters.npy', allow_pickle=True)
+            cluster_ini_previous = listpar[0]
+            spatial_scaling_value_previous = listpar[1]
+            spectral_slope_value_previous = listpar[2]
+            
+            prof_previous = cluster_ini_previous._get_generic_profile(rad, cluster_ini_previous.density_crp_model)
+            if not (prof_previous.value == prof_ini.value).all():
+                raise ValueError('You used reset_modelgrid=False, but the cluster object has changed')
+
+            if not (spatial_scaling_value_previous == spatial_scaling_value).all():
+                raise ValueError('You used reset_modelgrid=False, but the spatial_scaling_value has changed')
+
+            if not (spectral_slope_value_previous == spectral_slope_value).all():
+                raise ValueError('You used reset_modelgrid=False, but the spectral_slope_value has changed')
         
         #===== Loop over all models to be tested
-        idx = 0
+        if reset_modelgrid is True:
+            for imod in range(spatial_scaling_npt):
+                for jmod in range(spectral_slope_npt):
+                    #---------- Indexing
+                    scaling_i = spatial_scaling_value[imod]            
+                    slope_j   = spectral_slope_value[jmod]
+                    extij = 'TMP_'+str(imod)+'_'+str(jmod)
+                    
+                    #---------- Compute the model spectrum, map, and xml model file
+                    # Re-scaling        
+                    self.cluster.density_crp_model  = {'name':'User',
+                                                       'radius':rad, 'profile':prof_ini.value**scaling_i}
+                    self.cluster.spectrum_crp_model = {'name':'PowerLaw', 'Index':slope_j}
+                    
+                    # Cluster model
+                    make_cluster_template.make_map(self.cluster,
+                                                   subdir+'/Model_Map_'+extij+'.fits',
+                                                   Egmin=self.obs_setup.get_emin(),Egmax=self.obs_setup.get_emax(),
+                                                   includeIC=includeIC)
+                    make_cluster_template.make_spectrum(self.cluster,
+                                                        subdir+'/Model_Spectrum_'+extij+'.txt',
+                                                        energy=np.logspace(-1,5,1000)*u.GeV,
+                                                        includeIC=includeIC)
+                    
+                    # xml model
+                    model_tot = gammalib.GModels(self.output_dir+'/Ana_Model_Input_Stack.xml')
+                    clencounter = 0
+                    for i in range(len(model_tot)):
+                        if model_tot[i].name() == self.cluster.name:
+                            spefn = subdir+'/Model_Spectrum_'+extij+'.txt'
+                            model_tot[i].spectral().filename(spefn)
+                            spafn = subdir+'/Model_Map_'+extij+'.fits'
+                            model_tot[i].spatial(gammalib.GModelSpatialDiffuseMap(spafn))
+                            clencounter += 1
+                    if clencounter != 1:
+                        raise ValueError('No cluster encountered in the input stack model')
+                    model_tot.save(subdir+'/Model_Input_'+extij+'.xml',)
+                    
+                    #---------- Likelihood fit
+                    like = ctools.ctlike()
+                    like['inobs']           = self.output_dir+'/Ana_Countscube.fits'
+                    like['inmodel']         = subdir+'/Model_Input_'+extij+'.xml'
+                    like['expcube']         = self.output_dir+'/Ana_Expcube.fits'
+                    like['psfcube']         = self.output_dir+'/Ana_Psfcube.fits'
+                    like['bkgcube']         = self.output_dir+'/Ana_Bkgcube.fits'
+                    like['edispcube']       = self.output_dir+'/Ana_Edispcube.fits'
+                    like['edisp']           = self.spec_edisp
+                    like['outmodel']        = subdir+'/Model_Output_'+extij+'.xml'
+                    like['outcovmat']       = 'NONE'
+                    like['statistic']       = self.method_stat
+                    like['refit']           = False
+                    like['like_accuracy']   = 0.005
+                    like['max_iter']        = 50
+                    like['fix_spat_for_ts'] = False
+                    like['logfile']         = subdir+'/Model_Output_log_'+extij+'.txt'
+                    like.logFileOpen()
+                    like.execute()
+                    like.logFileClose()
+                    
+                    #---------- Compute the 3D residual cube
+                    self._rm_source_xml(subdir+'/Model_Output_'+extij+'.xml',
+                                        subdir+'/Model_Output_Cluster_'+extij+'.xml',
+                                        self.cluster.name)
+                    
+                    modcube = cubemaking.model_cube(self.output_dir,
+                                                    self.map_reso, self.map_coord, self.map_fov,
+                                                    self.spec_emin, self.spec_emax, self.spec_enumbins,
+                                                    self.spec_ebinalg,
+                                                    edisp=self.spec_edisp,
+                                                    stack=self.method_stack,
+                                                    silent=True,
+                                                    logfile=subdir+'/Model_Cube_log_'+extij+'.txt',
+                                                    inmodel_usr=subdir+'/Model_Output_'+extij+'.xml',
+                                                    outmap_usr=subdir+'/Model_Cube_'+extij+'.fits')
+                    
+                    modcube_Cl = cubemaking.model_cube(self.output_dir,
+                                                       self.map_reso, self.map_coord, self.map_fov,
+                                                       self.spec_emin, self.spec_emax, self.spec_enumbins,
+                                                       self.spec_ebinalg,
+                                                       edisp=self.spec_edisp,
+                                                       stack=self.method_stack, silent=True,
+                                                       logfile=subdir+'/Model_Cube_Cluster_log_'+extij+'.txt',
+                                                       inmodel_usr=subdir+'/Model_Output_Cluster_'+extij+'.xml',
+                                                       outmap_usr=subdir+'/Model_Cube_Cluster_'+extij+'.fits')
+                    
+            #----- Save the properties of the last computation run
+            np.save(subdir+'/Grid_Parameters.npy',
+                    [cluster_ini, spatial_scaling_value, spectral_slope_value], allow_pickle=True)
+            
+        #===== Build the grid
+        hdul = fits.open(subdir+'/Model_Cube_TMP_'+str(0)+'_'+str(0)+'.fits')
+        cnt0 = hdul[0].data
+        hdul.close()
+        modgrid_bk = np.zeros((spatial_scaling_npt, spectral_slope_npt,
+                               cnt0.shape[0], cnt0.shape[1], cnt0.shape[2]))
+        modgrid_cl = np.zeros((spatial_scaling_npt, spectral_slope_npt,
+                               cnt0.shape[0], cnt0.shape[1], cnt0.shape[2]))
+        
         for imod in range(spatial_scaling_npt):
             for jmod in range(spectral_slope_npt):
-                #---------- Indexing
-                scaling_i = spatial_scaling_value[imod]            
-                slope_j   = spectral_slope_value[jmod]
+                extij = 'TMP_'+str(imod)+'_'+str(jmod)
                 
-                spatial_scaling_array.append(scaling_i)
-                spectral_slope_array.append(slope_j)
-                index.append(idx)
-                idx = idx+1
-                
-                #---------- Compute the model spectrum, map, and xml model file
-                # Re-scaling        
-                self.cluster.density_crp_model  = {'name':'User', 'radius':rad, 'profile':prof_ini.value**scaling_i}
-                self.cluster.spectrum_crp_model = {'name':'PowerLaw', 'Index':slope_j}
-                
-                # Cluster model
-                make_cluster_template.make_map(self.cluster,
-                                               subdirname+'/Ana_Model_TMP'+str(imod)+'_'+str(jmod)+'_Map.fits',
-                                               Egmin=self.obs_setup.get_emin(),Egmax=self.obs_setup.get_emax(),
-                                               includeIC=includeIC)
-                make_cluster_template.make_spectrum(self.cluster,
-                                                    subdirname+'/Ana_Model_TMP'+str(imod)+'_'+str(jmod)+'_Spectrum.txt',
-                                                    energy=np.logspace(-1,5,1000)*u.GeV,
-                                                    includeIC=includeIC)
-                
-                # xml model
-                model_tot = gammalib.GModels(self.output_dir+'/Ana_Model_Input_Stack.xml')
-                clencounter = 0
-                for i in range(len(model_tot)):
-                    if model_tot[i].name() == self.cluster.name:
-                        spefn = subdirname+'/Ana_Model_TMP'+str(imod)+'_'+str(jmod)+'_Spectrum.txt'
-                        model_tot[i].spectral().filename(spefn)
-                        spafn = subdirname+'/Ana_Model_TMP'+str(imod)+'_'+str(jmod)+'_Map.fits'
-                        model_tot[i].spatial(gammalib.GModelSpatialDiffuseMap(spafn))
-                        clencounter += 1
-                if clencounter != 1:
-                    raise ValueError('No cluster encountered in the input stack model')
-                model_tot.save(subdirname+'/Model_Input_'+str(imod)+'_'+str(jmod)+'.xml',)
-                
-                #---------- Likelihood fit
-                like = ctools.ctlike()
-                like['inobs']           = self.output_dir+'/Ana_Countscube.fits'
-                like['inmodel']         = subdirname+'/Model_Input_'+str(imod)+'_'+str(jmod)+'.xml'
-                like['expcube']         = self.output_dir+'/Ana_Expcube.fits'
-                like['psfcube']         = self.output_dir+'/Ana_Psfcube.fits'
-                like['bkgcube']         = self.output_dir+'/Ana_Bkgcube.fits'
-                like['edispcube']       = self.output_dir+'/Ana_Edispcube.fits'
-                like['edisp']           = self.spec_edisp
-                like['outmodel']        = subdirname+'/Model_Output_'+str(imod)+'_'+str(jmod)+'.xml'
-                like['outcovmat']       = 'NONE'
-                like['statistic']       = self.method_stat
-                like['refit']           = False
-                like['like_accuracy']   = 0.005
-                like['max_iter']        = 50
-                like['fix_spat_for_ts'] = False
-                like['logfile']         = subdirname+'/Model_Output_'+str(imod)+'_'+str(jmod)+'_log.txt'
-                like.logFileOpen()
-                like.execute()
-                like.logFileClose()
-                
-                #---------- Compute the 3D residual cube
-                self._rm_source_xml(subdirname+'/Model_Output_'+str(imod)+'_'+str(jmod)+'.xml',
-                                    subdirname+'/Model_Output_Cluster_'+str(imod)+'_'+str(jmod)+'.xml',
-                                    self.cluster.name)
-
-                modcube = cubemaking.model_cube(self.output_dir,
-                                                self.map_reso, self.map_coord, self.map_fov,
-                                                self.spec_emin, self.spec_emax, self.spec_enumbins,
-                                                self.spec_ebinalg,
-                                                edisp=self.spec_edisp,
-                                                stack=self.method_stack,
-                                                silent=True,
-                                                logfile=subdirname+'/Model_Cube_'+str(imod)+'_'+str(jmod)+'_log.txt',
-                                                inmodel_usr=subdirname+'/Model_Output_'+str(imod)+'_'+str(jmod)+'.xml',
-                                                outmap_usr=subdirname+'/Model_Cube_'+str(imod)+'_'+str(jmod)+'.fits')
-                
-                modcube_Cl = cubemaking.model_cube(self.output_dir,
-                                                   self.map_reso, self.map_coord, self.map_fov,
-                                                   self.spec_emin, self.spec_emax, self.spec_enumbins,
-                                                   self.spec_ebinalg,
-                                                   edisp=self.spec_edisp,
-                                                   stack=self.method_stack, silent=True,
-                                                   logfile=subdirname+'/Model_Cube_Cluster_'+str(imod)+'_'+str(jmod)+'_log.txt',
-                                                   inmodel_usr=subdirname+'/Model_Output_Cluster_'+str(imod)+'_'+str(jmod)+'.xml',
-                                                   outmap_usr=subdirname+'/Model_Cube_Cluster_'+str(imod)+'_'+str(jmod)+'.fits')
-
-        #===== Build the table
-        for imod in range(spatial_scaling_npt):
-            for jmod in range(spectral_slope_npt):
-
-
-                
-                
+                hdul1 = fits.open(subdir+'/Model_Cube_'+extij+'.fits')
+                hdul2 = fits.open(subdir+'/Model_Cube_Cluster_'+extij+'.fits')
+                modgrid_bk[imod,jmod,:,:,:] = hdul2[0].data
+                modgrid_cl[imod,jmod,:,:,:] = hdul1[0].data - hdul2[0].data
+                hdul1.close()
+                hdul2.close()
+        
         #===== Save in a table
+        scal_spa = Table()
+        scal_spa['spatial_idx']  = idx_spatial
+        scal_spa['spatial_val']  = spatial_scaling_value
+        scal_spa_hdu = fits.BinTableHDU(scal_spa)
+
+        scal_spe = Table()        
+        scal_spe['spectral_idx'] = idx_spectral
+        scal_spe['spectral_val'] = spectral_slope_value
+        scal_spe_hdu = fits.BinTableHDU(scal_spe)
+
+        grid_cl_hdu = fits.ImageHDU(modgrid_cl)
+        grid_bk_hdu = fits.ImageHDU(modgrid_bk)
+
         hdul = fits.HDUList()
-        hdul.append(scal_hdu)
-        hdul.append(sampling_hdu)
-        hdul.writeto(subdirname+'/Cluster_profile_sampling.fits', overwrite=True)
+        hdul.append(scal_spa_hdu)
+        hdul.append(scal_spe_hdu)
+        hdul.append(grid_bk_hdu)
+        hdul.append(grid_cl_hdu)
+        hdul.writeto(subdir+'/Grid_Sampling.fits', overwrite=True)
         
         #===== Reset cluster
         self.cluster = cluster_ini
 
+        #===== remove TMP files
+        if rm_tmp:
+            for imod in range(spatial_scaling_npt):
+                for jmod in range(spectral_slope_npt):
+                    extij = 'TMP_'+str(imod)+'_'+str(jmod)
+                    os.remove(subdir+'/Model_Map_'+extij+'.fits')
+                    os.remove(subdir+'/Model_Spectrum_'+extij+'.txt')
+                    os.remove(subdir+'/Model_Cube_'+extij+'.fits')
+                    os.remove(subdir+'/Model_Cube_log_'+extij+'.txt')
+                    os.remove(subdir+'/Model_Cube_Cluster_'+extij+'.fits')
+                    os.remove(subdir+'/Model_Cube_Cluster_log_'+extij+'.txt')
+                    os.remove(subdir+'/Model_Input_'+extij+'.xml')
+                    os.remove(subdir+'/Model_Output_'+extij+'.xml')
+                    os.remove(subdir+'/Model_Output_log_'+extij+'.txt')
+                    os.remove(subdir+'/Model_Output_Cluster_'+extij+'.xml')
+
         #===== MCMC fit with cluster parameters
-        #mcmc_spectralimaging.run_constraint()
-        
-        '''
-        - data                --> 'Ana_Countscube.fits'
-        - cluster_model_grid  --> 
-        - bkg_model_grid      --> (depends on the model)
-
-        MCMC: minimize(data-bkg_model_itpl-cluster_model_itpl)
-        '''
-
+        mcmc_spectralimaging.run_constraint(self.cluster,
+                                            [self.output_dir+'/Ana_Countscube.fits',
+                                             subdir+'/Grid_Sampling.fits'],
+                                            nwalkers=self.mcmc_nwalkers,
+                                            nsteps=self.mcmc_nsteps,
+                                            burnin=self.mcmc_burnin,
+                                            conf=self.mcmc_conf,
+                                            Nmc=self.mcmc_Nmc,
+                                            GaussLike=GaussLike,
+                                            reset_mcmc=reset_mcmc,
+                                            run_mcmc=run_mcmc)
      
     #==================================================
     # Run the plotting tools
