@@ -1,5 +1,5 @@
 """
-This file contains the Common class, which list 
+This file contains the Common class, which lists 
 functions used for common (e.g. administrative) tasks 
 related to the ClusterPipe.
 """
@@ -31,8 +31,8 @@ class Common():
     
     Methods
     ----------  
-    - config_save(self, config_file)
-    - config_load(self)
+    - config_save(self)
+    - config_load(self, config_file)
     - _check_obsID(self, obsID)
     - _correct_eventfile_names(self, xmlfile, prefix='Events')
     - _write_new_xmlevent_from_obsid(self, xmlin, xmlout, obsID)
@@ -40,6 +40,8 @@ class Common():
     - _match_cluster_to_pointing(self, extra=1.1)
     - _match_anamap_to_pointing(self, extra=1.1)
     - _make_model(self, prefix='Model', includeIC=False)
+    - _define_std_filenames(self)
+    - _load_onoff_region(self, filename)
 
     """
         
@@ -96,7 +98,8 @@ class Common():
     
     def _check_obsID(self, obsID):
         """
-        Validate the obsID given by the user
+        Validate the obsID given by the user (e.g. remove duplicate
+        obsid, check that the obsid exists, make sure of the format).
         
         Parameters
         ----------
@@ -155,7 +158,7 @@ class Common():
     def _correct_eventfile_names(self, xmlfile, prefix='Events'):
         """
         Change the event filename and associated xml file
-        by naming them using the obsid
+        by naming them using the obsid.
         
         Parameters
         ----------
@@ -287,7 +290,7 @@ class Common():
     
     def _match_anamap_to_pointing(self, extra=1.1):
         """
-        Match the ClusterPipe map and according to the pointing list.
+        Match the ClusterPipe map according to the pointing list.
         
         Parameters
         ----------
@@ -321,7 +324,8 @@ class Common():
     
     def _make_model(self, prefix='Model', includeIC=False, obsID=None):
         """
-        This function is used to construct the model.
+        This function is used to construct the overall model (unstacked) 
+        and save the xml file.
         
         Parameters
         ----------
@@ -332,8 +336,10 @@ class Common():
         
         #----- Make cluster template files
         if (not self.silent) and (self.cluster.map_reso > 0.01*u.deg):
+            print('------------------------------------------------------------------')
             print('WARNING: the FITS map resolution (self.cluster.map_reso) is larger')
             print('         than 0.01 deg, while the PSF at 100 TeV is ~0.02 deg.    ')
+            print('------------------------------------------------------------------')
             print('')
         
         make_cluster_template.make_map(self.cluster,
@@ -378,7 +384,7 @@ class Common():
     
     def _define_std_filenames(self):
         """
-        This function defines the standard filenames
+        This function defines the standard filenames.
         
         Parameters
         ----------
@@ -437,9 +443,9 @@ class Common():
     # Load DS9 ONOFF region
     #==================================================
     
-    def load_onoff_region(self, filename):
+    def _load_onoff_region(self, filename):
         """
-        This function loads DS9 ONOFF regions
+        This function loads DS9 ONOFF regions.
         
         Parameters
         ----------

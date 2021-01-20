@@ -1,8 +1,9 @@
 """
 This file contains the ClusterPipe class. It is dedicated to the construction of a 
 ClusterPipe object, which defines how CTA observations of a cluster would proceed.
-These simulations of observations are then performed and a quicklook analysis 
-is available. The class provides an analysis pipeline to reduce the events.
+These simulations of observations can then be performed and a quicklook analysis 
+is available. The class also provides an analysis pipeline to reduce the events
+and extract the required physical information.
 
 """
 

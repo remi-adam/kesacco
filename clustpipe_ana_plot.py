@@ -108,8 +108,12 @@ def events_quicklook(cpipe, obsID,
             plotting.skymap_quicklook(cpipe.output_dir+'/Ana_Skymap'+cpipe.obs_setup.select_obs(iobs).obsid[0],
                                       cpipe.output_dir+'/Ana_SelectedEvents'+
                                       cpipe.obs_setup.select_obs(iobs).obsid[0]+'.fits',
-                                      cpipe.obs_setup.select_obs(iobs), cpipe.compact_source, cpipe.cluster,
-                                      map_reso=cpipe.map_reso, smoothing_FWHM=smoothing_FWHM, bkgsubtract=bkgsubtract,
+                                      cpipe.obs_setup.select_obs(iobs),
+                                      cpipe.compact_source,
+                                      cpipe.cluster,
+                                      map_reso=cpipe.map_reso,
+                                      smoothing_FWHM=smoothing_FWHM,
+                                      bkgsubtract=bkgsubtract,
                                       silent=True, MapCenteredOnTarget=True,
                                       onregion=onreg,offregion=offreg)
 

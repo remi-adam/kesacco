@@ -1420,7 +1420,7 @@ def show_lightcurve(lcfile, outfile):
     plt.xscale('linear')
     plt.yscale('linear')
     plt.xlim(np.amin(mjd-e_mjd), np.amax(mjd-e_mjd))
-    plt.ylim(0,np.amax(TS**0.5)*1.2)
+    plt.ylim(0,np.nanmax(TS**0.5)*1.2)
     plt.xlabel('Time (MJD)')
     plt.ylabel('TS$^{1/2}$')
 

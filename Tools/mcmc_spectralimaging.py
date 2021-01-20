@@ -23,204 +23,197 @@ from astropy.io import fits
 from astropy.table import Table
 import astropy.units as u
 from astropy.wcs import WCS
-import seaborn as sns
-import pandas as pd
 import emcee
-import corner
+import ctools
+import gammalib
 
 from minot.model_tools import trapz_loglog
 from minot.ClusterTools import map_tools
 from kesacco.Tools import plotting
+from kesacco.Tools import mcmc_common
+from kesacco.Tools import make_cluster_template
+from kesacco.Tools import cubemaking
 
 
 #==================================================
-# Save object
+# Build model grid
 #==================================================
 
-def save_object(obj, filename):
-    '''
-    Save MCMC object
-
-    Parameters
-    ----------
-    - obj (object): python object, in this case a MCMC emcee object
-    - filename (str): file where to save the object
-
-    Output
-    ------
-    - Object saved as filename
-    '''
-    
-    with open(filename, 'wb') as output:
-        pickle.dump(obj, output, pickle.HIGHEST_PROTOCOL)
-
-        
-#==================================================
-# Restore object
-#==================================================
-
-def load_object(filename):
-    '''
-    Restore MCMC object
-
-    Parameters
-    ----------
-    - filename (str): file to restore
-
-    Output
-    ------
-    - obj: Object saved in filename
-    '''
-    
-    with open(filename, 'rb') as f:
-        obj = pickle.load(f)
-        
-    return obj
-
-
-#==================================================
-# Compute chain statistics
-#==================================================
-
-def chains_statistics(param_chains, lnL_chains, parname=None, conf=68.0, show=True,
-                      outfile=None):
+def build_model_grid(cpipe,
+                     subdir,
+                     rad, prof_ini,
+                     spatial_value,
+                     spatial_idx,
+                     spectral_value,
+                     spectral_idx,
+                     includeIC=False,
+                     rm_tmp=False):
     """
-    Get the statistics of the chains, such as maximum likelihood,
-    parameters errors, etc.
+    Build a grid of models for the cluster and background
         
     Parameters
     ----------
-    - param_chains (np array): parameters as Nchain x Npar x Nsample
-    - lnl_chains (np array): log likelihood values corresponding to the chains
-    - parname (list): list of parameter names
-    - conf (float): confidence interval in %
-    - show (bool): show or not the values
-    - outfile (str): full path to file to write results
+    - subdir (str): full path to the working directory
+    - test_cluster (minot object): a cluster used for model computation
 
     Output
     ------
-    - par_best (float): best-fit parameter
-    - par_percentile (list of float): median, lower bound at CL, upper bound at CL
     
     """
     
-    if outfile is not None:
-        file = open(outfile,'w')
+    # Save the cluster model before modification
+    cluster_tmp = copy.deepcopy(cpipe.cluster)
     
-    Npar = len(param_chains[0,0,:])
-
-    wbest = (lnL_chains == np.amax(lnL_chains))
-    par_best       = np.zeros(Npar)
-    par_percentile = np.zeros((3, Npar))
-    for ipar in range(Npar):
-        # Maximum likelihood
-        par_best[ipar]          = param_chains[:,:,ipar][wbest][0]
-
-        # Median and xx % CL
-        perc = np.percentile(param_chains[:,:,ipar].flatten(),
-                             [(100-conf)/2.0, 50, 100 - (100-conf)/2.0])
-        par_percentile[:, ipar] = perc
-        if show:
-            if parname is not None:
-                parnamei = parname[ipar]
-            else:
-                parnamei = 'no name'
-
-            q = np.diff(perc)
-            txt = "{0}_{{-{1}}}^{{{2}}}"
-            txt = txt.format(perc[1], q[0], q[1])
+    #===== Loop over all models to be tested
+    spatial_npt = len(spatial_value)
+    spectral_npt = len(spectral_value)
+    
+    for imod in range(spatial_npt):
+        for jmod in range(spectral_npt):
+            print('--- Building model template '+str(1+jmod+imod*spectral_npt)+'/'+str(spatial_npt*spectral_npt))
             
-            print('param '+str(ipar)+' ('+parnamei+'): ')
-            print('   median   = '+str(perc[1])+' -'+str(perc[1]-perc[0])+' +'+str(perc[2]-perc[1]))
-            print('   best-fit = '+str(par_best[ipar])+' -'+str(par_best[ipar]-perc[0])+' +'+str(perc[2]-par_best[ipar]))
-            print('   '+parnamei+' = '+txt)
-
-            if outfile is not None:
-                file.write('param '+str(ipar)+' ('+parnamei+'): '+'\n')
-                file.write('  median = '+str(perc[1])+' -'+str(perc[1]-perc[0])+' +'+str(perc[2]-perc[1])+'\n')
-                file.write('  best   = '+str(par_best[ipar])+' -'+str(par_best[ipar]-perc[0])+' +'+str(perc[2]-par_best[ipar])+'\n')
-                file.write('   '+parnamei+' = '+txt+'\n')
-
-    if outfile is not None:
-        file.close() 
+            #---------- Indexing
+            spatial_i = spatial_value[imod]            
+            spectral_j   = spectral_value[jmod]
+            extij = 'TMP_'+str(imod)+'_'+str(jmod)
             
-    return par_best, par_percentile
+            #---------- Compute the model spectrum, map, and xml model file
+            # Re-scaling        
+            cluster_tmp.density_crp_model  = {'name':'User',
+                                              'radius':rad, 'profile':prof_ini.value ** spatial_i}
+            cluster_tmp.spectrum_crp_model = {'name':'PowerLaw', 'Index':spectral_j}
+            
+            # Cluster model
+            make_cluster_template.make_map(cluster_tmp,
+                                           subdir+'/Model_Map_'+extij+'.fits',
+                                           Egmin=cpipe.obs_setup.get_emin(),Egmax=cpipe.obs_setup.get_emax(),
+                                           includeIC=includeIC)
+            make_cluster_template.make_spectrum(cluster_tmp,
+                                                subdir+'/Model_Spectrum_'+extij+'.txt',
+                                                energy=np.logspace(-1,5,1000)*u.GeV,
+                                                includeIC=includeIC)
 
+            # xml model
+            model_tot = gammalib.GModels(cpipe.output_dir+'/Ana_Model_Input_Stack.xml')
+            clencounter = 0
+            for i in range(len(model_tot)):
+                if model_tot[i].name() == cluster_tmp.name:
+                    spefn = subdir+'/Model_Spectrum_'+extij+'.txt'
+                    model_tot[i].spectral().filename(spefn)
+                    spafn = subdir+'/Model_Map_'+extij+'.fits'
+                    model_tot[i].spatial(gammalib.GModelSpatialDiffuseMap(spafn))
+                    clencounter += 1
+            if clencounter != 1:
+                raise ValueError('No cluster encountered in the input stack model')
+            model_tot.save(subdir+'/Model_Input_'+extij+'.xml')
 
-#==================================================
-# Plots related to the chains
-#==================================================
+            #---------- Likelihood fit
+            like = ctools.ctlike()
+            like['inobs']           = cpipe.output_dir+'/Ana_Countscube.fits'
+            like['inmodel']         = subdir+'/Model_Input_'+extij+'.xml'
+            like['expcube']         = cpipe.output_dir+'/Ana_Expcube.fits'
+            like['psfcube']         = cpipe.output_dir+'/Ana_Psfcube.fits'
+            like['bkgcube']         = cpipe.output_dir+'/Ana_Bkgcube.fits'
+            like['edispcube']       = cpipe.output_dir+'/Ana_Edispcube.fits'
+            like['edisp']           = cpipe.spec_edisp
+            like['outmodel']        = subdir+'/Model_Output_'+extij+'.xml'
+            like['outcovmat']       = 'NONE'
+            like['statistic']       = cpipe.method_stat
+            like['refit']           = False
+            like['like_accuracy']   = 0.005
+            like['max_iter']        = 50
+            like['fix_spat_for_ts'] = False
+            like['logfile']         = subdir+'/Model_Output_log_'+extij+'.txt'
+            like.logFileOpen()
+            like.execute()
+            like.logFileClose()
 
-def chainplots(param_chains, parname, rout_file,
-               par_best=None, par_percentile=None, conf=68.0,
-               par_min=None, par_max=None):
-    """
-    Plot related to chains
-        
-    Parameters
-    ----------
-    - param_chains (np array): parameters as Nchain x Npar x Nsample
-    - parname (list): list of parameter names
-    - rout_file (str): rout file  where to save plots
-    - par_best (float): best-fit parameter
-    - par_percentile (list of float): median, lower bound at CL, upper bound at CL
-    - conf (float): confidence interval in %
+            #---------- Compute the 3D residual cube
+            cpipe._rm_source_xml(subdir+'/Model_Output_'+extij+'.xml',
+                                subdir+'/Model_Output_Cluster_'+extij+'.xml',
+                                cluster_tmp.name)
+            
+            modcube = cubemaking.model_cube(cpipe.output_dir,
+                                            cpipe.map_reso, cpipe.map_coord, cpipe.map_fov,
+                                            cpipe.spec_emin, cpipe.spec_emax, cpipe.spec_enumbins,
+                                            cpipe.spec_ebinalg,
+                                            edisp=cpipe.spec_edisp,
+                                            stack=cpipe.method_stack,
+                                            silent=True,
+                                            logfile=subdir+'/Model_Cube_log_'+extij+'.txt',
+                                            inmodel_usr=subdir+'/Model_Output_'+extij+'.xml',
+                                            outmap_usr=subdir+'/Model_Cube_'+extij+'.fits')
+            
+            modcube_Cl = cubemaking.model_cube(cpipe.output_dir,
+                                               cpipe.map_reso, cpipe.map_coord, cpipe.map_fov,
+                                               cpipe.spec_emin, cpipe.spec_emax, cpipe.spec_enumbins,
+                                               cpipe.spec_ebinalg,
+                                               edisp=cpipe.spec_edisp,
+                                               stack=cpipe.method_stack, silent=True,
+                                               logfile=subdir+'/Model_Cube_Cluster_log_'+extij+'.txt',
+                                               inmodel_usr=subdir+'/Model_Output_Cluster_'+extij+'.xml',
+                                               outmap_usr=subdir+'/Model_Cube_Cluster_'+extij+'.fits')
 
-    Output
-    ------
-    Plots are saved in the output directory
-
-    """
-
-    Nbin_hist = 40
-    Npar = len(param_chains[0,0,:])
-    Nchain = len(param_chains[:,0,0])
-
-    # Chain histogram
-    for ipar in range(Npar):
-        if par_best is not None:
-            par_besti = par_best[ipar]
-        plotting.seaborn_1d(param_chains[:,:,ipar].flatten(),
-                            output_fig=rout_file+'_histo'+str(ipar)+'.pdf',
-                            ci=0.68, truth=None, best=par_besti,
-                            label='$'+parname[ipar]+'$',
-                            gridsize=100, alpha=(0.2, 0.4), 
-                            figsize=(10,10), fontsize=12,
-                            cols=[('blue','grey', 'orange')])
-        plt.close("all")
-
-    # Chains
-    fig, axes = plt.subplots(Npar, figsize=(8, 2*Npar), sharex=True)
-    for i in range(Npar):
-        ax = axes[i]
-        for j in range(Nchain):
-            ax.plot(param_chains[j, :, i], alpha=0.5)
-        ax.set_xlim(0, len(param_chains[0,:,0]))
-        ax.set_ylabel('$'+parname[i]+'$')
-    axes[-1].set_xlabel("step number")
-    fig.savefig(rout_file+'_chains.pdf')
-    plt.close()
-
-    # Corner plot using seaborn
-    parname_corner = []
-    for i in range(Npar): parname_corner.append('$'+parname[i]+'$')
-    par_flat = param_chains.reshape(param_chains.shape[0]*param_chains.shape[1], param_chains.shape[2])
-    df = pd.DataFrame(par_flat, columns=parname_corner)
-    plotting.seaborn_corner(df, output_fig=rout_file+'_triangle_seaborn.pdf',
-                            n_levels=30, cols=[('royalblue', 'k', 'grey', 'Blues')], 
-                            ci2d=[0.68, 0.95], gridsize=100,
-                            linewidth=2.0, alpha=(0.1, 0.3, 1.0), figsize=((Npar+1)*3,(Npar+1)*3))
-    plt.close("all")
+    #===== Build the grid
+    hdul = fits.open(subdir+'/Model_Cube_TMP_'+str(0)+'_'+str(0)+'.fits')
+    cnt0 = hdul[0].data
+    hdul.close()
+    modgrid_bk = np.zeros((spatial_npt, spectral_npt,
+                           cnt0.shape[0], cnt0.shape[1], cnt0.shape[2]))
+    modgrid_cl = np.zeros((spatial_npt, spectral_npt,
+                           cnt0.shape[0], cnt0.shape[1], cnt0.shape[2]))
     
-    # Corner plot using corner
-    figure = corner.corner(par_flat,
-                           bins=Nbin_hist,
-                           color='k',
-                           smooth=1,
-                           labels=parname_corner,
-                           quantiles=(0.16, 0.84))
-    figure.savefig(rout_file+'_triangle_corner.pdf')
-    plt.close("all")
+    for imod in range(spatial_npt):
+        for jmod in range(spectral_npt):
+            extij = 'TMP_'+str(imod)+'_'+str(jmod)
+            
+            hdul1 = fits.open(subdir+'/Model_Cube_'+extij+'.fits')
+            hdul2 = fits.open(subdir+'/Model_Cube_Cluster_'+extij+'.fits')
+            modgrid_bk[imod,jmod,:,:,:] = hdul2[0].data
+            modgrid_cl[imod,jmod,:,:,:] = hdul1[0].data - hdul2[0].data
+            hdul1.close()
+            hdul2.close()
+            
+    #===== Save in a table
+    scal_spa = Table()
+    scal_spa['spatial_idx'] = spatial_idx
+    scal_spa['spatial_val'] = spatial_value
+    scal_spa_hdu = fits.BinTableHDU(scal_spa)
+    
+    scal_spe = Table()        
+    scal_spe['spectral_idx'] = spectral_idx
+    scal_spe['spectral_val'] = spectral_value
+    scal_spe_hdu = fits.BinTableHDU(scal_spe)
+    
+    grid_cl_hdu = fits.ImageHDU(modgrid_cl)
+    grid_bk_hdu = fits.ImageHDU(modgrid_bk)
+    
+    hdul = fits.HDUList()
+    hdul.append(scal_spa_hdu)
+    hdul.append(scal_spe_hdu)
+    hdul.append(grid_bk_hdu)
+    hdul.append(grid_cl_hdu)
+    hdul.writeto(subdir+'/Grid_Sampling.fits', overwrite=True)
+
+    #===== Save the properties of the last computation run
+    np.save(subdir+'/Grid_Parameters.npy',
+            [cpipe.cluster, spatial_value, spectral_value], allow_pickle=True)
+    
+    #===== remove TMP files
+    if rm_tmp:
+        for imod in range(spatial_scaling_npt):
+            for jmod in range(spectral_slope_npt):
+                extij = 'TMP_'+str(imod)+'_'+str(jmod)
+                os.remove(subdir+'/Model_Map_'+extij+'.fits')
+                os.remove(subdir+'/Model_Spectrum_'+extij+'.txt')
+                os.remove(subdir+'/Model_Cube_'+extij+'.fits')
+                os.remove(subdir+'/Model_Cube_log_'+extij+'.txt')
+                os.remove(subdir+'/Model_Cube_Cluster_'+extij+'.fits')
+                os.remove(subdir+'/Model_Cube_Cluster_log_'+extij+'.txt')
+                os.remove(subdir+'/Model_Input_'+extij+'.xml')
+                os.remove(subdir+'/Model_Output_'+extij+'.xml')
+                os.remove(subdir+'/Model_Output_log_'+extij+'.txt')
+                os.remove(subdir+'/Model_Output_Cluster_'+extij+'.xml')
 
 
 #==================================================
@@ -319,12 +312,14 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     pdf_pages = PdfPages(outdir+'/MCMC_MapSliceResidual.pdf')
     
     for i in range(len(Ebins)):
+        Ebinprint = '{:.1f}'.format(Ebins[i][0]*1e-6)+', '+'{:.1f}'.format(Ebins[i][1]*1e-6)
+        
         fig = plt.figure(0, figsize=(15, 4))
         ax = plt.subplot(131, projection=WCS(header), slices=('x', 'y', i))
         plt.imshow(gaussian_filter(data[i,:,:], sigma=sigma_sm),
                    origin='lower', cmap='magma', norm=SymLogNorm(1))
         cb = plt.colorbar()
-        plt.title('Data (counts) - E=['+'{:.1f}'.format(Ebins[i][0]*1e-6)+', '+'{:.1f}'.format(Ebins[i][1]*1e-6)+'] GeV')
+        plt.title('Data (counts) - E=['+Ebinprint+'] GeV')
         plt.xlabel('R.A.')
         plt.ylabel('Dec.')
         
@@ -332,7 +327,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
         plt.imshow(gaussian_filter((modbest['cluster']+modbest['background'])[i,:,:], sigma=sigma_sm),
                    origin='lower', cmap='magma',vmin=cb.norm.vmin, vmax=cb.norm.vmax, norm=SymLogNorm(1))
         plt.colorbar()
-        plt.title('Model (counts) - E=['+'{:.1f}'.format(Ebins[i][0]*1e-6)+', '+'{:.1f}'.format(Ebins[i][1]*1e-6)+'] GeV')
+        plt.title('Model (counts) - E=['+Ebinprint+'] GeV')
         plt.xlabel('R.A.')
         plt.ylabel('Dec.')
         
@@ -340,7 +335,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
         plt.imshow(gaussian_filter((data-(modbest['cluster']+modbest['background']))[i,:,:], sigma=sigma_sm),
                    origin='lower', cmap='RdBu')
         plt.colorbar()
-        plt.title('Residual (counts) - E=['+'{:.1f}'.format(Ebins[i][0]*1e-6)+', '+'{:.1f}'.format(Ebins[i][1]*1e-6)+'] GeV')
+        plt.title('Residual (counts) - E=['+Ebinprint+'] GeV')
         plt.xlabel('R.A.')
         plt.ylabel('Dec.')
 
@@ -393,7 +388,8 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     frame1 = fig.add_axes((.1,.3,.8,.6))
     
     plt.errorbar(Emean, data_spec, yerr=np.sqrt(data_spec),
-                 xerr=[Emean-Ebins['E_MIN'], Ebins['E_MAX']-Emean],fmt='ko', capsize=0, linewidth=2, zorder=2, label='Data')
+                 xerr=[Emean-Ebins['E_MIN'], Ebins['E_MAX']-Emean],fmt='ko',
+                 capsize=0, linewidth=2, zorder=2, label='Data')
     plt.step(binsteps, np.append(cluster_spec,cluster_spec[-1]),
              where='post', color='blue', linewidth=2, label='Cluster model')
     plt.step(binsteps, np.append(background_spec, background_spec[-1]),
@@ -427,7 +423,8 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     plt.title('Spectrum within $\\theta = $'+str(theta))
 
     frame2 = fig.add_axes((.1,.1,.8,.2))        
-    plt.plot(Emean, (data_spec-cluster_spec-background_spec)/np.sqrt(data_spec), marker='o', color='k', linestyle='')
+    plt.plot(Emean, (data_spec-cluster_spec-background_spec)/np.sqrt(data_spec),
+             marker='o', color='k', linestyle='')
     plt.axhline(0, color='0.5', linestyle='-')
     plt.axhline(-3, color='0.5', linestyle='--')
     plt.axhline(+3, color='0.5', linestyle='--')
@@ -580,13 +577,15 @@ def lnlike(params, data, modgrid, par_min, par_max, gauss=True):
     #---------- Compute the Gaussian likelihood
     # Gaussian likelihood
     if gauss:
-        chi2 = (data - test_model['cluster'] - test_model['background'])**2 / np.sqrt(test_model['cluster'])**2
+        chi2 = (data - test_model['cluster']-test_model['background'])**2/np.sqrt(test_model['cluster'])**2
         lnL = -0.5*np.nansum(chi2)
 
     # Poisson with Bkg
     else:        
-        L_i = test_model['cluster']+test_model['background'] - data*np.log(test_model['cluster']+test_model['background'])
-        lnL  = -np.nansum(L_i)
+
+        L_i1 = test_model['cluster']+test_model['background']
+        L_i2 = data*np.log(test_model['cluster']+test_model['background'])
+        lnL  = -np.nansum(L_i1 - Li2)
         
     # In case of NaN, goes to infinity
     if np.isnan(lnL):
@@ -681,25 +680,30 @@ def run_constraint(input_files,
     par0 = np.array([1.0, np.mean(modgrid['spa_val']), np.mean(modgrid['spe_val'])])
     par_min = [0,      np.amin(modgrid['spa_val']), np.amin(modgrid['spe_val'])]
     par_max = [np.inf, np.amax(modgrid['spa_val']), np.amax(modgrid['spe_val'])]
-    
+
+    #========== Names
+    sampler_file   = subdir+'/MCMC_sampler.pkl'
+    chainstat_file = subdir+'/MCMC_chainstat.txt'
+    chainplot_file = subdir+'/MCMC_chainplot'
+
     #========== Start running MCMC definition and sampling    
     #---------- Check if a MCMC sampler was already recorded
-    sampler_exist = os.path.exists(subdir+'/MCMC_sampler.pkl')
+    sampler_exist = os.path.exists(sampler_file)
     if sampler_exist:
-        sampler = load_object(subdir+'/MCMC_sampler.pkl')
-        print('    Existing sampler: '+subdir+'/MCMC_sampler.pkl')
+        sampler = mcmc_common.load_object(sampler_file)
+        print('    Existing sampler: '+sampler_file)
     
     #---------- MCMC parameters
     ndim = len(par0)
     
     print('--- MCMC profile parameters: ')
-    print('    ndim       = '+str(ndim))
-    print('    nwalkers   = '+str(nwalkers))
-    print('    nsteps     = '+str(nsteps))
-    print('    burnin     = '+str(burnin))
-    print('    conf       = '+str(conf))
-    print('    reset_mcmc = '+str(reset_mcmc))
-    print('    Gaussian L = '+str(GaussLike))
+    print('    ndim                = '+str(ndim))
+    print('    nwalkers            = '+str(nwalkers))
+    print('    nsteps              = '+str(nsteps))
+    print('    burnin              = '+str(burnin))
+    print('    conf                = '+str(conf))
+    print('    reset_mcmc          = '+str(reset_mcmc))
+    print('    Gaussian likelihood = '+str(GaussLike))
 
     #---------- Defines the start
     if sampler_exist:
@@ -724,25 +728,25 @@ def run_constraint(input_files,
         sampler.run_mcmc(pos, nsteps)
 
     #---------- Save the MCMC after the run
-    save_object(sampler, subdir+'/MCMC_sampler.pkl')
+    mcmc_common.save_object(sampler, sampler_file)
 
     #---------- Burnin
     param_chains = sampler.chain[:, burnin:, :]
     lnL_chains = sampler.lnprobability[:, burnin:]
     
     #---------- Get the parameter statistics
-    par_best, par_percentile = chains_statistics(param_chains, lnL_chains,
-                                                 parname=parname, conf=conf, show=True,
-                                                 outfile=subdir+'/MCMC_chainstat.txt')
+    par_best, par_percentile = mcmc_common.chains_statistics(param_chains, lnL_chains,
+                                                             parname=parname, conf=conf, show=True,
+                                                             outfile=chainstat_file)
     
     #---------- Get the well-sampled models
     MC_model   = get_mc_model(modgrid, param_chains, Nmc=Nmc)
     Best_model = model_specimg(modgrid, par_best)
 
     #---------- Plots and results
-    chainplots(param_chains, parname, subdir+'/MCMC_chainplot',
-               par_best=par_best, par_percentile=par_percentile, conf=conf,
-               par_min=par_min, par_max=par_max)
+    mcmc_common.chains_plots(param_chains, parname, chainplot_file,
+                             par_best=par_best, par_percentile=par_percentile, conf=conf,
+                             par_min=par_min, par_max=par_max)
     
     modelplot(data, Best_model, MC_model, modgrid['header'], modgrid['Ebins'], subdir,
               conf=conf, FWHM=0.1*u.deg, theta=1.0*u.deg)

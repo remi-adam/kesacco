@@ -25,235 +25,9 @@ import corner
 
 from minot.model_tools import trapz_loglog
 from kesacco.Tools import plotting
+from kesacco.Tools import mcmc_common
 
 
-#==================================================
-# Save object
-#==================================================
-
-def save_object(obj, filename):
-    '''
-    Save MCMC object
-
-    Parameters
-    ----------
-    - obj (object): python object, in this case a MCMC emcee object
-    - filename (str): file where to save the object
-
-    Output
-    ------
-    - Object saved as filename
-    '''
-    
-    with open(filename, 'wb') as output:
-        pickle.dump(obj, output, pickle.HIGHEST_PROTOCOL)
-
-        
-#==================================================
-# Restore object
-#==================================================
-
-def load_object(filename):
-    '''
-    Restore MCMC object
-
-    Parameters
-    ----------
-    - filename (str): file to restore
-
-    Output
-    ------
-    - obj: Object saved in filename
-    '''
-    
-    with open(filename, 'rb') as f:
-        obj = pickle.load(f)
-        
-    return obj
-
-
-#==================================================
-# Compute chain statistics
-#==================================================
-
-def chains_statistics(param_chains, lnL_chains, parname=None, conf=68.0, show=True,
-                      outfile=None):
-    """
-    Get the statistics of the chains, such as maximum likelihood,
-    parameters errors, etc.
-        
-    Parameters
-    ----------
-    - param_chains (np array): parameters as Nchain x Npar x Nsample
-    - lnl_chains (np array): log likelihood values corresponding to the chains
-    - parname (list): list of parameter names
-    - conf (float): confidence interval in %
-    - show (bool): show or not the values
-    - outfile (str): full path to file to write results
-
-    Output
-    ------
-    - par_best (float): best-fit parameter
-    - par_percentile (list of float): median, lower bound at CL, upper bound at CL
-    
-    """
-    
-    if outfile is not None:
-        file = open(outfile,'w')
-    
-    Npar = len(param_chains[0,0,:])
-
-    wbest = (lnL_chains == np.amax(lnL_chains))
-    par_best       = np.zeros(Npar)
-    par_percentile = np.zeros((3, Npar))
-    for ipar in range(Npar):
-        # Maximum likelihood
-        par_best[ipar]          = param_chains[:,:,ipar][wbest][0]
-
-        # Median and xx % CL
-        perc = np.percentile(param_chains[:,:,ipar].flatten(),
-                             [(100-conf)/2.0, 50, 100 - (100-conf)/2.0])
-        par_percentile[:, ipar] = perc
-        if show:
-            if parname is not None:
-                parnamei = parname[ipar]
-            else:
-                parnamei = 'no name'
-
-            q = np.diff(perc)
-            txt = "{0}_{{-{1}}}^{{{2}}}"
-            txt = txt.format(perc[1], q[0], q[1])
-            
-            print('param '+str(ipar)+' ('+parnamei+'): ')
-            print('   median   = '+str(perc[1])+' -'+str(perc[1]-perc[0])+' +'+str(perc[2]-perc[1]))
-            print('   best-fit = '+str(par_best[ipar])+' -'+str(par_best[ipar]-perc[0])+' +'+str(perc[2]-par_best[ipar]))
-            print('   '+parnamei+' = '+txt)
-
-            if outfile is not None:
-                file.write('param '+str(ipar)+' ('+parnamei+'): '+'\n')
-                file.write('  median = '+str(perc[1])+' -'+str(perc[1]-perc[0])+' +'+str(perc[2]-perc[1])+'\n')
-                file.write('  best   = '+str(par_best[ipar])+' -'+str(par_best[ipar]-perc[0])+' +'+str(perc[2]-par_best[ipar])+'\n')
-                file.write('   '+parnamei+' = '+txt+'\n')
-
-    if outfile is not None:
-        file.close() 
-            
-    return par_best, par_percentile
-
-
-#==================================================
-# Get models from the parameter space
-#==================================================
-
-def get_mc_model(eng_mc, param_chains, cluster_test, Nmc=100):
-    """
-    Get models randomly sampled from the parameter space
-        
-    Parameters
-    ----------
-    - eng_mc (array): an array of energy
-    - param_chains (ndarray): array of chains parametes
-    - Nmc (int): number of models
-
-    Output
-    ------
-    MC_model (ndarray): Nmc x N_eng array
-
-    """
-
-    par_flat = param_chains.reshape(param_chains.shape[0]*param_chains.shape[1],
-                                    param_chains.shape[2])
-
-    #----- Remove negative values (should never happen but does)
-    wneg = par_flat[:,0]>0
-    par_flat = par_flat[wneg]
-    
-    Nsample = len(par_flat[:,0])-1
-    
-    MC_model = np.zeros((Nmc, len(eng_mc)))
-    
-    for i in range(Nmc):
-        param_MC = par_flat[np.random.randint(0, high=Nsample), :] # randomly taken from chains
-        MC_model[i,:] = model_dNdEdSdt(cluster_test, eng_mc, param_MC)
-    
-    return MC_model
-
-#==================================================
-# Plots related to the chains
-#==================================================
-
-def chainplots(param_chains, parname, rout_file,
-               par_best=None, par_percentile=None, conf=68.0,
-               par_min=None, par_max=None):
-    """
-    Plot related to chains
-        
-    Parameters
-    ----------
-    - param_chains (np array): parameters as Nchain x Npar x Nsample
-    - parname (list): list of parameter names
-    - rout_file (str): rout file  where to save plots
-    - par_best (float): best-fit parameter
-    - par_percentile (list of float): median, lower bound at CL, upper bound at CL
-    - conf (float): confidence interval in %
-
-    Output
-    ------
-    Plots are saved in the output directory
-
-    """
-
-    Nbin_hist = 40
-    Npar = len(param_chains[0,0,:])
-    Nchain = len(param_chains[:,0,0])
-
-    # Chain histogram
-    for ipar in range(Npar):
-        if par_best is not None:
-            par_besti = par_best[ipar]
-        plotting.seaborn_1d(param_chains[:,:,ipar].flatten(),
-                            output_fig=rout_file+'_MCMC_chain_histo'+str(ipar)+'.pdf',
-                            ci=0.68, truth=None, best=par_besti,
-                            label='$'+parname[ipar]+'$',
-                            gridsize=100, alpha=(0.2, 0.4), 
-                            figsize=(10,10), fontsize=12,
-                            cols=[('blue','grey', 'orange')])
-        plt.close("all")
-    
-    # Chains
-    fig, axes = plt.subplots(Npar, figsize=(8, 2*Npar), sharex=True)
-    for i in range(Npar):
-        ax = axes[i]
-        for j in range(Nchain):
-            ax.plot(param_chains[j, :, i], alpha=0.5)
-        ax.set_xlim(0, len(param_chains[0,:,0]))
-        ax.set_ylabel('$'+parname[i]+'$')
-    axes[-1].set_xlabel("step number")
-    fig.savefig(rout_file+'_MCMC_chains.pdf')
-    plt.close()
-
-    # Corner plot using seaborn
-    parname_corner = []
-    for i in range(Npar): parname_corner.append('$'+parname[i]+'$')
-    par_flat = param_chains.reshape(param_chains.shape[0]*param_chains.shape[1], param_chains.shape[2])
-    df = pd.DataFrame(par_flat, columns=parname_corner)
-    plotting.seaborn_corner(df, output_fig=rout_file+'_MCMC_triangle_seaborn.pdf',
-                            n_levels=30, cols=[('royalblue', 'k', 'grey', 'Blues')], 
-                            ci2d=[0.68, 0.95], gridsize=100,
-                            linewidth=2.0, alpha=(0.1, 0.3, 1.0), figsize=((Npar+1)*3,(Npar+1)*3))
-    plt.close("all")
-    
-    # Corner plot using corner
-    figure = corner.corner(par_flat,
-                           bins=Nbin_hist,
-                           color='k',
-                           smooth=1,
-                           labels=parname_corner,
-                           quantiles=(0.16, 0.84))
-    figure.savefig(rout_file+'_MCMC_triangle_corner.pdf')
-    plt.close("all")
-
-    
 #==================================================
 # Compute the constraint on L and F
 #==================================================
@@ -404,7 +178,7 @@ def get_global_prop(MC_eng, MC_model, Best_model, Dlum, rout_file,
         file.close()
 
     # Plot of histogram
-    plotting.seaborn_1d(F1_mc, output_fig=rout_file+'_MCMC_chain_histo_Flux.pdf',
+    plotting.seaborn_1d(F1_mc, output_fig=rout_file+'_Flux.pdf',
                         ci=0.68, truth=None,
                         best=None, label='Flux (ph s$^{-1}$ cm$^{-2}$)',
                         gridsize=100, alpha=(0.2, 0.4), 
@@ -482,13 +256,51 @@ def modelplot(data, cluster_test, par_best, param_chains, MC_eng, MC_model, conf
     ax3.plot(MC_eng,  MC_eng*0+2, linestyle='--', color='k')
     ax3.plot(MC_eng,  MC_eng*0-2, linestyle='--', color='k')
     ax3.set_xlim(xlim[0], xlim[1])
-    ax3.set_ylim(-3, 3)
+    ax3.set_ylim(-5, 5)
     ax3.set_xlabel('Energy (GeV)')
     ax3.set_ylabel('$\\chi$')
     ax3.set_xscale('log')
     
-    fig.savefig(cluster_test.output_dir+'/Ana_spectrum_'+cluster_test.name+'_MCMC_results.pdf')
+    fig.savefig(cluster_test.output_dir+'/Ana_MCMC_spectrum_fitplot.pdf')
     plt.close()
+
+    
+#==================================================
+# Get models from the parameter space
+#==================================================
+
+def get_mc_model(eng_mc, param_chains, cluster_test, Nmc=100):
+    """
+    Get models randomly sampled from the parameter space
+        
+    Parameters
+    ----------
+    - eng_mc (array): an array of energy
+    - param_chains (ndarray): array of chains parametes
+    - Nmc (int): number of models
+
+    Output
+    ------
+    MC_model (ndarray): Nmc x N_eng array
+
+    """
+
+    par_flat = param_chains.reshape(param_chains.shape[0]*param_chains.shape[1],
+                                    param_chains.shape[2])
+
+    #----- Remove negative values (should never happen but in case)
+    wneg = par_flat[:,0]>0
+    par_flat = par_flat[wneg]
+    
+    Nsample = len(par_flat[:,0])-1
+    
+    MC_model = np.zeros((Nmc, len(eng_mc)))
+    
+    for i in range(Nmc):
+        param_MC = par_flat[np.random.randint(0, high=Nsample), :] # randomly taken from chains
+        MC_model[i,:] = model_dNdEdSdt(cluster_test, eng_mc, param_MC)
+    
+    return MC_model
 
 
 #==================================================
@@ -674,18 +486,18 @@ def model_dNdEdSdt(cluster, energy, params):
 # MCMC: run the fit
 #==================================================
 
-def run_spectrum_constraint(cluster_test,
-                            spectrum_file,
-                            nwalkers=10,
-                            nsteps=1000,
-                            burnin=100,
-                            conf=68.0,
-                            Nmc=100,
-                            GaussLike=False,
-                            reset_mcmc=False,
-                            run_mcmc=True,
-                            Emin=50,
-                            Emax=10e3):
+def run_constraint(cluster_test,
+                   spectrum_file,
+                   nwalkers=10,
+                   nsteps=1000,
+                   burnin=100,
+                   conf=68.0,
+                   Nmc=100,
+                   GaussLike=False,
+                   reset_mcmc=False,
+                   run_mcmc=True,
+                   Emin=50,
+                   Emax=10e3):
     """
     Run the MCMC constraints to the spectrum
         
@@ -716,15 +528,22 @@ def run_spectrum_constraint(cluster_test,
                      cluster_test.spectrum_crp_model['Index']])
     
     parname = ['X_{CRp}', '\\alpha_{CRp}']
-    par_min = [0.0,                         2.0]
-    par_max = [5*cluster_test.X_crp_E['X'], 2*cluster_test.spectrum_crp_model['Index']]
+    par_min = [0.0,    2.0]
+    par_max = [np.inf, 5.0]
+
+    #========== Names
+    sampler_file   = cluster_test.output_dir+'/Ana_MCMC_spectrum_sampler.pkl'
+    chainstat_file = cluster_test.output_dir+'/Ana_MCMC_spectrum_chainstat.txt'
+    chainplot_file = cluster_test.output_dir+'/Ana_MCMC_spectrum'
+    global_file    = cluster_test.output_dir+'/Ana_MCMC_spectrum_globalprop.txt'
+
     
     #========== Start running MCMC definition and sampling
     #---------- Check if a MCMC sampler was already recorded
-    sampler_exist = os.path.exists(cluster_test.output_dir+'/Ana_spectrum_'+cluster_test.name+'_MCMC_sampler.pkl')
+    sampler_exist = os.path.exists(sampler_file)
     if sampler_exist:
-        sampler = load_object(cluster_test.output_dir+'/Ana_spectrum_'+cluster_test.name+'_MCMC_sampler.pkl')
-        print('    Existing sampler: '+cluster_test.output_dir+'/Ana_spectrum_'+cluster_test.name+'_MCMC_sampler.pkl')
+        sampler = mcmc_common.load_object(sampler_file)
+        print('    Existing sampler: '+sampler_file)
         
     #---------- Read the data
     data = read_data(spectrum_file)
@@ -733,21 +552,19 @@ def run_spectrum_constraint(cluster_test,
     ndim = len(par0)
     
     print('--- MCMC spectrum parameters: ')
-    print('    ndim       = '+str(ndim))
-    print('    nwalkers   = '+str(nwalkers))
-    print('    nsteps     = '+str(nsteps))
-    print('    burnin     = '+str(burnin))
-    print('    conf       = '+str(conf))
-    print('    reset_mcmc = '+str(reset_mcmc))
-    print('    Gaussian L = '+str(GaussLike))
+    print('    Ndim                = '+str(ndim))
+    print('    Nwalkers            = '+str(nwalkers))
+    print('    Nsteps              = '+str(nsteps))
+    print('    burnin              = '+str(burnin))
+    print('    conf                = '+str(conf))
+    print('    reset mcmc          = '+str(reset_mcmc))
+    print('    Gaussian likelihood = '+str(GaussLike))
 
     #---------- Defines the start
     if sampler_exist:
         if reset_mcmc:
             print('--- Reset MCMC even though sampler already exists')
             pos = [par0 + 1e-2*np.random.randn(ndim) for i in range(nwalkers)]
-            #pos = [np.random.uniform(par_min[i],par_max[i], nwalkers) for i in range(ndim)]
-            #pos = list(np.array(pos).T.reshape((nwalkers,ndim)))
             sampler.reset()
             sampler = emcee.EnsembleSampler(nwalkers, ndim, lnlike,
                                             args=[cluster_test, data, par_min, par_max, GaussLike])
@@ -757,8 +574,6 @@ def run_spectrum_constraint(cluster_test,
     else:
         print('--- No pre-existing sampler, start from scratch')
         pos = [par0 + 1e-2*np.random.randn(ndim) for i in range(nwalkers)]
-        #pos = [np.random.uniform(par_min[i],par_max[i], nwalkers) for i in range(ndim)]
-        #pos = list(np.array(pos).T.reshape((nwalkers,ndim)))
         sampler = emcee.EnsembleSampler(nwalkers, ndim, lnlike,
                                         args=[cluster_test, data, par_min, par_max, GaussLike])
         
@@ -768,32 +583,30 @@ def run_spectrum_constraint(cluster_test,
         sampler.run_mcmc(pos, nsteps)
 
     #---------- Save the MCMC after the run
-    save_object(sampler, cluster_test.output_dir+'/Ana_spectrum_'+cluster_test.name+'_MCMC_sampler.pkl')
+    mcmc_common.save_object(sampler, sampler_file)
 
     #---------- Burnin
     param_chains = sampler.chain[:, burnin:, :]
     lnL_chains = sampler.lnprobability[:, burnin:]
 
     #---------- Get the parameter statistics
-    par_best, par_percentile = chains_statistics(param_chains, lnL_chains,
-                                                 parname=parname, conf=conf, show=True,
-                                                 outfile=cluster_test.output_dir+'/Ana_spectrum_'+cluster_test.name+'_MCMC_chainstat.txt')
+    par_best, par_percentile = mcmc_common.chains_statistics(param_chains, lnL_chains,
+                                                             parname=parname, conf=conf, show=True,
+                                                             outfile=chainstat_file)
     
     #---------- Get the well-sampled models
-    #MC_eng     = np.logspace(np.log10(np.amin(data['e_ref'])/2),
-    #                         np.log10(np.amax(data['e_ref'])*2.0), 20)
-    MC_eng     = np.logspace(-1, 6, 50) # GeV
+    MC_eng     = np.logspace(-1, 5, 50) # GeV
     MC_model   = get_mc_model(MC_eng, param_chains, cluster_test, Nmc=Nmc)
     Best_model = model_dNdEdSdt(cluster_test, MC_eng, par_best)
 
     #---------- Plots and results
-    chainplots(param_chains, parname, cluster_test.output_dir+'/Ana_spectrum_'+cluster_test.name,
-               par_best=par_best, par_percentile=par_percentile, conf=conf,
-               par_min=par_min, par_max=par_max)
+    mcmc_common.chains_plots(param_chains, parname, chainplot_file,
+                             par_best=par_best, par_percentile=par_percentile, conf=conf,
+                             par_min=par_min, par_max=par_max)
     
     get_global_prop(MC_eng, MC_model, Best_model, cluster_test.D_lum.to_value('cm'),
-                    cluster_test.output_dir+'/Ana_spectrum_'+cluster_test.name,
+                    chainplot_file,
                     Emin=Emin, Emax=Emax, # GeV
-                    outfile=cluster_test.output_dir+'/Ana_spectrum_'+cluster_test.name+'_MCMC_globalprop.txt')
+                    outfile=global_file)
 
     modelplot(data, cluster_test, par_best, param_chains, MC_eng, MC_model, conf=conf)
