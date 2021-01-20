@@ -27,6 +27,8 @@ from scipy.interpolate import interp1d
 
 from kesacco.Tools import plotting_irf
 from kesacco.Tools import plotting_obsfile
+from kesacco.Tools import tools_imaging
+from kesacco.Tools import utilities
 
 import gammalib
 
@@ -726,6 +728,112 @@ def events_quicklook(evfile, outfile):
         print('')
         print('!!!!! Could not apply events_quicklook. Event file may be empty !!!!!')
 
+
+#==================================================
+# Quicklook of the skymap
+#==================================================
+
+def skymap_quicklook(output_file,
+                     evfile,
+                     setup_obs,
+                     compact_source,
+                     cluster,
+                     map_reso=0.01*u.deg,
+                     smoothing_FWHM=0.0*u.deg,
+                     bkgsubtract='NONE',
+                     silent=True,
+                     MapCenteredOnTarget=True,
+                     onregion=None,
+                     offregion=None):
+    """
+    Sky maps to show the data.
+    
+    Parameters
+    ----------
+    - output_dir (str): output directory
+    - evfile (str): eventfile (full name)
+    - setup_obs (ObsSetup object): object that contains
+    the properties of the observing setup
+    - compact_source (CompactSource object): object that contains
+    the properties of the compact_sources
+    - cluster (ClusterModel): object used for the cluster model
+    - map_reso (quantity): skymap resolution, homogeneous to deg
+    - smoothing_FWHM (quantity): apply smoothing to skymap
+    - bkgsubtract (bool): apply IRF background subtraction in skymap
+    - MapCenteredOnTarget (bool): center the map on the cluster (or pointing)
+    - onregion (list): list of on region each entry is [ra,dec,radius]
+    - offregion (list): list of off region to be overploted
+
+    Outputs
+    --------
+    - validation plot map
+    """
+    
+    #---------- Get the number of pixels
+    npix = utilities.npix_from_fov_def(setup_obs.rad[0], map_reso)
+    
+    #---------- Get the point sources
+    ps_name  = []
+    ps_ra    = []
+    ps_dec   = []
+    for i in range(len(compact_source.name)):
+        ps_name.append(compact_source.name[i])
+        ps_ra.append(compact_source.spatial[i]['param']['RA']['value'].to_value('deg'))
+        ps_dec.append(compact_source.spatial[i]['param']['DEC']['value'].to_value('deg'))
+    
+    #---------- Get the PSF at the considered energy
+    CTA_PSF = get_cta_psf(setup_obs.caldb[0], setup_obs.irf[0],
+                          setup_obs.emin[0].to_value('TeV'), setup_obs.emax[0].to_value('TeV'))
+    PSF_tot = np.sqrt(CTA_PSF**2 + smoothing_FWHM.to_value('deg')**2)
+
+    #---------- Choose map center
+    if MapCenteredOnTarget:
+        cntr_ra  = cluster.coord.icrs.ra.to_value('deg')
+        cntr_dec = cluster.coord.icrs.dec.to_value('deg')
+    else:
+        cntr_ra  = setup_obs.coord[0].icrs.ra.to_value('deg')
+        cntr_dec = setup_obs.coord[0].icrs.dec.to_value('deg') 
+    
+    #---------- Compute skymap
+    skymap = tools_imaging.skymap(evfile, output_file+'.fits',
+                                  npix, map_reso.to_value('deg'),
+                                  cntr_ra, cntr_dec,
+                                  emin=setup_obs.emin[0].to_value('TeV'),
+                                  emax=setup_obs.emax[0].to_value('TeV'),
+                                  caldb=setup_obs.caldb[0], irf=setup_obs.irf[0],
+                                  bkgsubtract=bkgsubtract,
+                                  roiradius=0.04, # Match best CTA PSF
+                                  inradius=cluster.theta500.to_value('deg'),
+                                  outradius=cluster.theta500.to_value('deg')*1.2,
+                                  iterations=3, threshold=3,
+                                  inexclusion='NONE')
+    if silent == False:
+        print('')
+        print(skymap)
+        print('')
+    
+    #---------- Plot
+    show_map(output_file+'.fits',
+             output_file+'.pdf',
+             smoothing_FWHM=smoothing_FWHM,
+             cluster_ra=cluster.coord.icrs.ra.to_value('deg'),
+             cluster_dec=cluster.coord.icrs.dec.to_value('deg'),
+             cluster_t500=cluster.theta500.to_value('deg'),
+             cluster_name=cluster.name,
+             ps_name=ps_name,
+             ps_ra=ps_ra,
+             ps_dec=ps_dec,
+             ptg_ra=setup_obs.coord[0].icrs.ra.to_value('deg'),
+             ptg_dec=setup_obs.coord[0].icrs.dec.to_value('deg'),
+             PSF=PSF_tot,
+             bartitle='Counts',
+             rangevalue=[None, None],
+             logscale=True,
+             significance=False,
+             cmap='magma',
+             onregion=onregion,
+             offregion=offregion)
+        
         
 #==================================================
 # Get the pointing patern from a file

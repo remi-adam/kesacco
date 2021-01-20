@@ -17,7 +17,6 @@ import gammalib
 import ctools
 
 from kesacco.Tools import plotting
-from kesacco       import clustpipe_sim_plot
 
 
 #==================================================
@@ -56,10 +55,12 @@ class CTAsim(object):
 
         #----- Check onoff/Edisp
         if not not self.silent and self.method_ana == 'ONOFF' and self.spec_edisp == False:
+            print('-----------------------------------------------------------------------------')
             print('WARNING: The events are generated without accounting for energy dispersion.  ')
             print('         The current analysis method is set to ONOFF, which necessarily      ')
             print('         accounts for energy dispersion and might thus leads to biases later.')
-                
+            print('-----------------------------------------------------------------------------')
+
         #----- Get the obs ID to run
         obsID = self._check_obsID(obsID)
         if not self.silent: print('----- ObsID to be observed: '+str(obsID))
@@ -99,7 +100,7 @@ class CTAsim(object):
         #obssim['rad']       =
         #obssim['tmin']      =
         #obssim['tmax']      =
-        #obssim['mjdref']    =
+        obssim['mjdref']     = self.time_mjdref
         #obssim['emin']      = 
         #obssim['emax']      = 
         #obssim['deadc']     = 
@@ -122,21 +123,21 @@ class CTAsim(object):
     # Quicklook
     #==================================================
 
-    def run_sim_quicklook(self, obsID=None,
+    def run_sim_quicklook(self,
+                          obsID=None,
+                          ShowObsDef=True,
                           ShowSkyModel=True,
                           ShowEvent=True,
-                          ShowObsDef=True,
                           bkgsubtract='NONE',
-                          smoothing_FWHM=0.03*u.deg,
+                          smoothing_FWHM=0.1*u.deg,
                           MapCenteredOnTarget=True):
         """
         Provide quicklook analysis of the simulation
         
         Parameters
         ----------
-        - obsID (str or str list): list of runs to be observed
+        - obsID (str or str list): list of runs to be quicklooked
         - ShowObsDef (bool): set to true to show the observation definition
-        - ShowCluster (bool): set to true to show the cluster model
         - ShowEvent (bool): set to true to show the event file quicklook
         - bkgsubtract (bool): apply IRF background subtraction in skymap
         - smoothing_FWHM (quantity): apply smoothing to skymap
@@ -171,16 +172,27 @@ class CTAsim(object):
         if ShowEvent:
             Nobs_done = 0
             for iobs in obsID:
-                clustpipe_sim_plot.main(self.output_dir,
-                                        self.cluster,
-                                        self.compact_source,
-                                        self.obs_setup.select_obs(iobs),
-                                        map_reso=self.cluster.map_reso,
-                                        bkgsubtract=bkgsubtract,
-                                        smoothing_FWHM=smoothing_FWHM,
-                                        silent=self.silent,
-                                        MapCenteredOnTarget=MapCenteredOnTarget)
-                
+                setup_obs = self.obs_setup.select_obs(iobs)
+
+                if os.path.exists(self.output_dir+'/Events'+setup_obs.obsid[0]+'.fits'):
+                    # Plot the events
+                    plotting.events_quicklook(self.output_dir+'/Events'+setup_obs.obsid[0]+'.fits',
+                                              self.output_dir+'/Events'+setup_obs.obsid[0]+'.pdf')
+        
+                    # Skymaps    
+                    plotting.skymap_quicklook(self.output_dir+'/Sim_Skymap'+setup_obs.obsid[0],
+                                              self.output_dir+'/Events'+setup_obs.obsid[0]+'.fits',
+                                              setup_obs, self.compact_source, self.cluster,
+                                              map_reso=self.cluster.map_reso,
+                                              smoothing_FWHM=smoothing_FWHM,
+                                              bkgsubtract=bkgsubtract,
+                                              silent=self.silent, MapCenteredOnTarget=MapCenteredOnTarget)
+                    
+                else:
+                    if not self.silent:
+                        print(self.output_dir+'/Events'+setup_obs.obsid[0]+'.fits does not exist')
+                        print('--> no quicklook available')
+    
                 # Information
                 Nobs_done += 1
                 if not self.silent: print('----- Quicklook '+str(Nobs_done)+'/'+

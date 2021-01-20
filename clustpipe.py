@@ -1,7 +1,7 @@
 """
 This file contains the ClusterPipe class. It is dedicated to the construction of a 
 ClusterPipe object, which defines how CTA observations of a cluster would proceed.
-These simulations of observations are then performed with a quicklook analysis 
+These simulations of observations are then performed and a quicklook analysis 
 is available. The class provides an analysis pipeline to reduce the events.
 
 """
@@ -48,7 +48,8 @@ class ClusterPipe(Common, CTAsim, CTAana):
     
     Methods
     ----------  
-    - See Common, CTAsim, and CTAana sub-classes
+    - See Common (clustpipe.common.py), CTAsim (clustpipe_sim.py), 
+    and CTAana (clustpipe_ana.py) sub-classes.
     
     """
     
@@ -129,6 +130,8 @@ class ClusterPipe(Common, CTAsim, CTAana):
         self.spec_emax     = 100*u.TeV
 
         #----- Time related
+        # Reference MJD
+        self.time_mjdref = 51544.5
         # Minimum time
         self.time_tmin = None
         # Maximum time
@@ -147,5 +150,4 @@ class ClusterPipe(Common, CTAsim, CTAana):
         self.mcmc_conf     = 68.0
         # Number of points for Monte Carlo resampling
         self.mcmc_Nmc      = 100
-        
         

@@ -13,7 +13,6 @@ import numpy as np
 import gammalib
 
 from kesacco.Tools import plotting
-from kesacco.clustpipe_sim_plot import skymap_quicklook
 
 
 #==================================================
@@ -90,11 +89,11 @@ def events_quicklook(cpipe, obsID,
                     offfile = cpipe.output_dir+'/Ana_OnOff_off.reg' #with single obsID
                 
                 if os.path.exists(offfile):
-                    offreg  = cpipe.load_onoff_region(offfile)
+                    offreg  = cpipe._load_onoff_region(offfile)
                 else:
                     offreg = None
                 if os.path.exists(onfile):
-                    onreg = cpipe.load_onoff_region(onfile)
+                    onreg = cpipe._load_onoff_region(onfile)
                 else:
                     onreg = None
             else:
@@ -106,13 +105,13 @@ def events_quicklook(cpipe, obsID,
                                       cpipe.output_dir+'/Ana_SelectedEvents'+
                                       cpipe.obs_setup.select_obs(iobs).obsid[0]+'.pdf')
             
-            skymap_quicklook(cpipe.output_dir+'/Ana_Skymap'+cpipe.obs_setup.select_obs(iobs).obsid[0],
-                             cpipe.output_dir+'/Ana_SelectedEvents'+
-                             cpipe.obs_setup.select_obs(iobs).obsid[0]+'.fits',
-                             cpipe.obs_setup.select_obs(iobs), cpipe.compact_source, cpipe.cluster,
-                             map_reso=cpipe.map_reso, smoothing_FWHM=smoothing_FWHM, bkgsubtract=bkgsubtract,
-                             silent=True, MapCenteredOnTarget=True,
-                             onregion=onreg,offregion=offreg)
+            plotting.skymap_quicklook(cpipe.output_dir+'/Ana_Skymap'+cpipe.obs_setup.select_obs(iobs).obsid[0],
+                                      cpipe.output_dir+'/Ana_SelectedEvents'+
+                                      cpipe.obs_setup.select_obs(iobs).obsid[0]+'.fits',
+                                      cpipe.obs_setup.select_obs(iobs), cpipe.compact_source, cpipe.cluster,
+                                      map_reso=cpipe.map_reso, smoothing_FWHM=smoothing_FWHM, bkgsubtract=bkgsubtract,
+                                      silent=True, MapCenteredOnTarget=True,
+                                      onregion=onreg,offregion=offreg)
 
 
 #==================================================
