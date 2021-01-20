@@ -145,22 +145,27 @@ def build_model_grid(cpipe,
                                            inmodel_usr=subdir+'/Model_Output_Cluster_'+exti+'.xml',
                                            outmap_usr=subdir+'/Model_Cube_Cluster_'+exti+'.fits')
     
-    #----- Build the grid
-    hdul_cl = fits.open(subdir+'/Model_Cube_Cluster_TMP_'+str(0)+'.fits')
-    header = hdul_cl[0].header
+    #----- Build the data
+    hdul = fits.open(cpipe.output_dir+'/Ana_Countscube.fits')
+    header = hdul[0].header
     header.remove('NAXIS3')
     header['NAXIS'] = 2
-    cntmap_cl = np.sum(hdul_cl[0].data, axis=0)
-    hdul_cl.close()
-    r_cl, p_cl, err_cl = radial_profile_cts(cntmap_cl,
-                                            [cpipe.cluster.coord.icrs.ra.to_value('deg'),
-                                             cpipe.cluster.coord.icrs.dec.to_value('deg')],
-                                            stddev=np.sqrt(cntmap_cl), header=header,
-                                            binsize=profile_reso.to_value('deg'),
-                                            stat='POISSON', counts2brightness=True)
+    cntmap = np.sum(hdul[0].data, axis=0)
+    hdul.close()
+    r_dat, p_dat, err_dat = radial_profile_cts(cntmap,
+                                               [cpipe.cluster.coord.icrs.ra.to_value('deg'),
+                                                cpipe.cluster.coord.icrs.dec.to_value('deg')],
+                                               stddev=np.sqrt(cntmap), header=header,
+                                               binsize=profile_reso.to_value('deg'),
+                                               stat='POISSON', counts2brightness=True)
+    tabdat = Table()
+    tabdat['radius']  = r_dat
+    tabdat['profile'] = p_dat
+    dat_hdu = fits.BinTableHDU(tabdat)
     
-    modgrid_bk = np.zeros((spatial_npt, len(p_cl)))
-    modgrid_cl = np.zeros((spatial_npt, len(p_cl)))
+    #----- Build the grid
+    modgrid_bk = np.zeros((spatial_npt, len(p_dat)))
+    modgrid_cl = np.zeros((spatial_npt, len(p_dat)))
     
     for imod in range(spatial_npt):
         exti = 'TMP_'+str(imod)
@@ -194,9 +199,6 @@ def build_model_grid(cpipe,
 
     grid_cl_hdu = fits.ImageHDU(modgrid_cl)
     grid_bk_hdu = fits.ImageHDU(modgrid_bk)
-    tabrad = Table()
-    tabrad['radius'] = r_bk
-    grid_rad_hdu = fits.BinTableHDU(tabrad)
     
     #----- Make the index table
     scal = Table()
@@ -207,7 +209,7 @@ def build_model_grid(cpipe,
     #----- Make and save HDUlist
     hdul = fits.HDUList()
     hdul.append(scal_hdu)
-    hdul.append(grid_rad_hdu)
+    hdul.append(dat_hdu)
     hdul.append(grid_cl_hdu)
     hdul.append(grid_bk_hdu)
     hdul.writeto(subdir+'/Grid_Sampling.fits', overwrite=True)
@@ -531,7 +533,7 @@ def model_profile(modgrid, params):
 #==================================================
 
 def run_profile_constraint(cluster_test,
-                           profile_file,
+                           input_file,
                            nwalkers=10,
                            nsteps=1000,
                            burnin=100,
@@ -565,7 +567,7 @@ def run_profile_constraint(cluster_test,
     matplotlib.rcParams.update(matplotlib.rcParamsDefault)
 
     #========== Read the data
-    data, modgrid = read_data(profile_file)
+    data, modgrid = read_data(input_file)
     
     #========== Guess parameter definition
     par0 = np.array([1.0, 1.0])
