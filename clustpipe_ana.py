@@ -1792,9 +1792,9 @@ class CTAana(object):
                     os.remove(subdir+'/Model_Output_Cluster_'+extij+'.xml')
 
         #===== MCMC fit with cluster parameters
-        mcmc_spectralimaging.run_constraint(self.cluster,
-                                            [self.output_dir+'/Ana_Countscube.fits',
+        mcmc_spectralimaging.run_constraint([self.output_dir+'/Ana_Countscube.fits',
                                              subdir+'/Grid_Sampling.fits'],
+                                            subdir,
                                             nwalkers=self.mcmc_nwalkers,
                                             nsteps=self.mcmc_nsteps,
                                             burnin=self.mcmc_burnin,

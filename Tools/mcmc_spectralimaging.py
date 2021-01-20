@@ -11,19 +11,25 @@ import copy
 import os
 import numpy as np
 from scipy.interpolate import interp1d
+from scipy.interpolate import interpn
+from scipy.ndimage.filters import gaussian_filter
 import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib import cm
 from matplotlib.gridspec import GridSpec
+from matplotlib.colors import SymLogNorm
+from matplotlib.backends.backend_pdf import PdfPages
 from astropy.io import fits
 from astropy.table import Table
 import astropy.units as u
+from astropy.wcs import WCS
 import seaborn as sns
 import pandas as pd
 import emcee
 import corner
 
 from minot.model_tools import trapz_loglog
+from minot.ClusterTools import map_tools
 from kesacco.Tools import plotting
 
 
@@ -75,7 +81,7 @@ def load_object(filename):
 #==================================================
 # Compute chain statistics
 #==================================================
-'''
+
 def chains_statistics(param_chains, lnL_chains, parname=None, conf=68.0, show=True,
                       outfile=None):
     """
@@ -139,45 +145,12 @@ def chains_statistics(param_chains, lnL_chains, parname=None, conf=68.0, show=Tr
         file.close() 
             
     return par_best, par_percentile
-'''
 
-#==================================================
-# Get models from the parameter space
-#==================================================
-'''
-def get_mc_model(modgrid, param_chains, Nmc=100):
-    """
-    Get models randomly sampled from the parameter space
-        
-    Parameters
-    ----------
-    - modgrid (array): grid of model
-    - param_chains (ndarray): array of chains parametes
-    - Nmc (int): number of models
 
-    Output
-    ------
-    MC_model (ndarray): Nmc x N_eng array
-
-    """
-
-    par_flat = param_chains.reshape(param_chains.shape[0]*param_chains.shape[1],
-                                    param_chains.shape[2])
-    
-    Nsample = len(par_flat[:,0])-1
-    
-    MC_model = np.zeros((Nmc, len(modgrid['models'][0,:])))
-    
-    for i in range(Nmc):
-        param_MC = par_flat[np.random.randint(0, high=Nsample), :] # randomly taken from chains
-        MC_model[i,:] = model_profile(modgrid, param_MC)
-    
-    return MC_model
-'''
 #==================================================
 # Plots related to the chains
 #==================================================
-'''
+
 def chainplots(param_chains, parname, rout_file,
                par_best=None, par_percentile=None, conf=68.0,
                par_min=None, par_max=None):
@@ -208,7 +181,7 @@ def chainplots(param_chains, parname, rout_file,
         if par_best is not None:
             par_besti = par_best[ipar]
         plotting.seaborn_1d(param_chains[:,:,ipar].flatten(),
-                            output_fig=rout_file+'_MCMC_chain_histo'+str(ipar)+'.pdf',
+                            output_fig=rout_file+'_histo'+str(ipar)+'.pdf',
                             ci=0.68, truth=None, best=par_besti,
                             label='$'+parname[ipar]+'$',
                             gridsize=100, alpha=(0.2, 0.4), 
@@ -225,7 +198,7 @@ def chainplots(param_chains, parname, rout_file,
         ax.set_xlim(0, len(param_chains[0,:,0]))
         ax.set_ylabel('$'+parname[i]+'$')
     axes[-1].set_xlabel("step number")
-    fig.savefig(rout_file+'_MCMC_chains.pdf')
+    fig.savefig(rout_file+'_chains.pdf')
     plt.close()
 
     # Corner plot using seaborn
@@ -233,7 +206,7 @@ def chainplots(param_chains, parname, rout_file,
     for i in range(Npar): parname_corner.append('$'+parname[i]+'$')
     par_flat = param_chains.reshape(param_chains.shape[0]*param_chains.shape[1], param_chains.shape[2])
     df = pd.DataFrame(par_flat, columns=parname_corner)
-    plotting.seaborn_corner(df, output_fig=rout_file+'_MCMC_triangle_seaborn.pdf',
+    plotting.seaborn_corner(df, output_fig=rout_file+'_triangle_seaborn.pdf',
                             n_levels=30, cols=[('royalblue', 'k', 'grey', 'Blues')], 
                             ci2d=[0.68, 0.95], gridsize=100,
                             linewidth=2.0, alpha=(0.1, 0.3, 1.0), figsize=((Npar+1)*3,(Npar+1)*3))
@@ -246,15 +219,59 @@ def chainplots(param_chains, parname, rout_file,
                            smooth=1,
                            labels=parname_corner,
                            quantiles=(0.16, 0.84))
-    figure.savefig(rout_file+'_MCMC_triangle_corner.pdf')
+    figure.savefig(rout_file+'_triangle_corner.pdf')
     plt.close("all")
-'''
+
+
+#==================================================
+# Get models from the parameter space
+#==================================================
+
+def get_mc_model(modgrid, param_chains, Nmc=100):
+    """
+    Get models randomly sampled from the parameter space
+        
+    Parameters
+    ----------
+    - modgrid (array): grid of model
+    - param_chains (ndarray): array of chains parametes
+    - Nmc (int): number of models
+
+    Output
+    ------
+    MC_model (ndarray): Nmc x N_eng array
+
+    """
+
+    par_flat = param_chains.reshape(param_chains.shape[0]*param_chains.shape[1],
+                                    param_chains.shape[2])
     
+    Nsample = len(par_flat[:,0])-1
+    
+    MC_model_background = np.zeros((Nmc, modgrid['xx_val'].shape[0],
+                                    modgrid['xx_val'].shape[1], modgrid['xx_val'].shape[2]))
+    MC_model_cluster = np.zeros((Nmc, modgrid['xx_val'].shape[0],
+                                 modgrid['xx_val'].shape[1], modgrid['xx_val'].shape[2]))
+    
+    for i in range(Nmc):
+        param_MC = par_flat[np.random.randint(0, high=Nsample), :] # randomly taken from chains
+        mods = model_specimg(modgrid, param_MC)
+        MC_model_cluster[i,:,:,:]    = mods['cluster']
+        MC_model_background[i,:,:,:] = mods['background']
+
+    MC_models = {'cluster':MC_model_cluster,
+                 'background':MC_model_background}
+    
+    return MC_models
+
+
 #==================================================
 # Plot the output fit model
 #==================================================
-'''
-def modelplot(cluster_test, data, modgrid, par_best, param_chains, MC_model, conf=68.0, Nmc=100):
+
+def modelplot(data, modbest, MC_model, header, Ebins, outdir,
+              conf=68.0, FWHM=0.1*u.deg,
+              theta=1*u.deg):
     """
     Plot the data versus model and constraints
         
@@ -266,65 +283,163 @@ def modelplot(cluster_test, data, modgrid, par_best, param_chains, MC_model, con
     Plots are saved
     """
     
-    #========== Extract relevant info    
-    bf_model = model_profile(modgrid, par_best)
-    MC_perc  = np.percentile(MC_model, [(100-conf)/2.0, 50, 100 - (100-conf)/2.0], axis=0)
-    radius = data['radius']
+    reso = header['CDELT2']
+    sigma_sm = (FWHM/(2*np.sqrt(2*np.log(2)))).to_value('deg')/reso
     
-    #========== Plot
-    fig = plt.figure(figsize=(8,6))
-    gs = GridSpec(2,1, height_ratios=[3,1], hspace=0)
-    ax1 = plt.subplot(gs[0])
-    ax3 = plt.subplot(gs[1])
-
-    xlim = [np.amin(data['radius'])/2.0, np.amax(data['radius'])*2.0]
-    rngyp = 1.2*np.nanmax(data['profile']+data['error'])
-    rngym = 0.5*np.nanmin((data['profile'])[data['profile'] > 0])
-    ylim = [rngym, rngyp]
-
-    ax1.plot(radius, bf_model,     ls='-', linewidth=2, color='k', label='Maximum likelihood model')
-    ax1.plot(radius, MC_perc[1,:], ls='--', linewidth=2, color='b', label='Median')
-    ax1.plot(radius, MC_perc[0,:], ls=':', linewidth=1, color='b')
-    ax1.plot(radius, MC_perc[2,:], ls=':', linewidth=1, color='b')
-    ax1.fill_between(radius, MC_perc[0,:], y2=MC_perc[2,:], alpha=0.2, color='blue', label=str(conf)+'% CL')
-    for i in range(Nmc):
-        ax1.plot(radius, MC_model[i,:], ls='-', linewidth=0.5, alpha=0.1, color='blue')
-
-    ax1.errorbar(data['radius'], data['profile'], yerr=data['error'],
-                 marker='o', elinewidth=2, color='red',
-                 markeredgecolor="black", markerfacecolor="red",
-                 ls ='', label='Data')
-    ax1.set_ylabel('Profile (deg$^{-2}$)')
-    ax1.set_xscale('log')
-    ax1.set_yscale('log')
-    ax1.set_xlim(xlim[0], xlim[1])
-    ax1.set_ylim(ylim[0], ylim[1])
-    ax1.set_xticks([])
-    ax1.legend()
+    #========== Data - model, stack
+    fig = plt.figure(0, figsize=(15, 4))
+    ax = plt.subplot(131, projection=WCS(header), slices=('x', 'y', 0))
+    plt.imshow(gaussian_filter(np.sum(data, axis=0), sigma=sigma_sm),
+               origin='lower', cmap='magma',norm=SymLogNorm(1))
+    cb = plt.colorbar()
+    plt.title('Data (counts)')
+    plt.xlabel('R.A.')
+    plt.ylabel('Dec.')
     
-    # Add extra unit axes
-    ax2 = ax1.twinx()
-    ax2.plot(radius, (bf_model*u.Unit('deg-2')).to_value('arcmin-2'), 'k-', alpha=0.0)
-    ax2.set_ylabel('Profile (arcmin$^{-2}$)')
-    ax2.set_yscale('log')
-    ax2.set_ylim((ylim[0]*u.Unit('deg-2')).to_value('arcmin-2'),
-                 (ylim[1]*u.Unit('deg-2')).to_value('arcmin-2'))
+    ax = plt.subplot(132, projection=WCS(header), slices=('x', 'y', 0))
+    plt.imshow(gaussian_filter(np.sum(modbest['cluster']+modbest['background'],axis=0), sigma=sigma_sm),
+               origin='lower', cmap='magma', vmin=cb.norm.vmin, vmax=cb.norm.vmax, norm=SymLogNorm(1))
+    plt.colorbar()
+    plt.title('Model (counts)')
+    plt.xlabel('R.A.')
+    plt.ylabel('Dec.')
     
-    # Residual plot
-    ax3.plot(data['radius'], (data['profile']-bf_model)/data['error'],
-             linestyle='', marker='o', color='k')
-    ax3.plot(radius,  radius*0, linestyle='-', color='k')
-    ax3.plot(radius,  radius*0+2, linestyle='--', color='k')
-    ax3.plot(radius,  radius*0-2, linestyle='--', color='k')
-    ax3.set_xlim(xlim[0], xlim[1])
-    ax3.set_ylim(-3, 3)
-    ax3.set_xlabel('Radius (deg)')
-    ax3.set_ylabel('$\\chi$')
-    ax3.set_xscale('log')
+    ax = plt.subplot(133, projection=WCS(header), slices=('x', 'y', 0))
+    plt.imshow(gaussian_filter(np.sum(data-(modbest['cluster']+modbest['background']), axis=0), sigma=sigma_sm),
+               origin='lower', cmap='RdBu')
+    plt.colorbar()
+    plt.title('Residual (counts)')
+    plt.xlabel('R.A.')
+    plt.ylabel('Dec.')
     
-    fig.savefig(cluster_test.output_dir+'/Ana_ResmapCluster_profile_MCMC_results.pdf')
+    plt.savefig(outdir+'/MCMC_MapResidual.pdf')
     plt.close()
-'''
+
+    #========== Data - model, for all energy bins
+    pdf_pages = PdfPages(outdir+'/MCMC_MapSliceResidual.pdf')
+    
+    for i in range(len(Ebins)):
+        fig = plt.figure(0, figsize=(15, 4))
+        ax = plt.subplot(131, projection=WCS(header), slices=('x', 'y', i))
+        plt.imshow(gaussian_filter(data[i,:,:], sigma=sigma_sm),
+                   origin='lower', cmap='magma', norm=SymLogNorm(1))
+        cb = plt.colorbar()
+        plt.title('Data (counts) - E=['+'{:.1f}'.format(Ebins[i][0]*1e-6)+', '+'{:.1f}'.format(Ebins[i][1]*1e-6)+'] GeV')
+        plt.xlabel('R.A.')
+        plt.ylabel('Dec.')
+        
+        ax = plt.subplot(132, projection=WCS(header), slices=('x', 'y', i))
+        plt.imshow(gaussian_filter((modbest['cluster']+modbest['background'])[i,:,:], sigma=sigma_sm),
+                   origin='lower', cmap='magma',vmin=cb.norm.vmin, vmax=cb.norm.vmax, norm=SymLogNorm(1))
+        plt.colorbar()
+        plt.title('Model (counts) - E=['+'{:.1f}'.format(Ebins[i][0]*1e-6)+', '+'{:.1f}'.format(Ebins[i][1]*1e-6)+'] GeV')
+        plt.xlabel('R.A.')
+        plt.ylabel('Dec.')
+        
+        ax = plt.subplot(133, projection=WCS(header), slices=('x', 'y', 0))
+        plt.imshow(gaussian_filter((data-(modbest['cluster']+modbest['background']))[i,:,:], sigma=sigma_sm),
+                   origin='lower', cmap='RdBu')
+        plt.colorbar()
+        plt.title('Residual (counts) - E=['+'{:.1f}'.format(Ebins[i][0]*1e-6)+', '+'{:.1f}'.format(Ebins[i][1]*1e-6)+'] GeV')
+        plt.xlabel('R.A.')
+        plt.ylabel('Dec.')
+
+        pdf_pages.savefig(fig)
+        plt.close()
+
+    pdf_pages.close()
+    
+    #========== Spectrum within theta
+    #----- Compute a mask
+    header2 = copy.copy(header)
+    header2['NAXIS'] = 2
+    del header2['NAXIS3']
+    ra_map, dec_map = map_tools.get_radec_map(header2)
+    radmap = map_tools.greatcircle(ra_map, dec_map, np.median(ra_map), np.median(dec_map))
+    radmapgrid = np.tile(radmap, (len(Ebins),1,1))    
+    mask = radmapgrid*0 + 1
+    mask[radmapgrid > theta.to_value('deg')] = 0
+
+    #----- Get the bins
+    Emean = 1e-6*(Ebins['E_MIN']+Ebins['E_MAX'])/2
+    binsteps = 1e-6*np.append(Ebins['E_MIN'],Ebins['E_MAX'][-1])
+
+    #----- Get the model and data
+    data_spec       = np.sum(np.sum(mask*data, axis=1), axis=1)
+    cluster_spec    = np.sum(np.sum(mask*modbest['cluster'], axis=1), axis=1)
+    background_spec = np.sum(np.sum(mask*modbest['background'], axis=1), axis=1)
+    
+    #----- Get the MC
+    cluster_mc_spec    = np.zeros((MC_model['cluster'].shape[0], len(Ebins)))
+    background_mc_spec = np.zeros((MC_model['cluster'].shape[0], len(Ebins)))
+    tot_mc_spec        = np.zeros((MC_model['cluster'].shape[0], len(Ebins)))
+
+    for i in range(MC_model['cluster'].shape[0]):
+        cluster_mci_spec    = np.sum(np.sum(mask*MC_model['cluster'][i,:,:,:], axis=1), axis=1)
+        background_mci_spec = np.sum(np.sum(mask*MC_model['background'][i,:,:,:], axis=1), axis=1)
+        cluster_mc_spec[i, :]    = cluster_mci_spec
+        background_mc_spec[i, :] = background_mci_spec
+        tot_mc_spec[i, :]        = background_mci_spec + cluster_mci_spec
+
+    cluster_up_spec    = np.percentile(cluster_mc_spec, (100-conf)/2.0, axis=0)
+    cluster_lo_spec    = np.percentile(cluster_mc_spec, 100 - (100-conf)/2.0, axis=0)
+    background_up_spec = np.percentile(background_mc_spec, (100-conf)/2.0, axis=0)
+    background_lo_spec = np.percentile(background_mc_spec, 100 - (100-conf)/2.0, axis=0)
+    tot_up_spec        = np.percentile(tot_mc_spec, (100-conf)/2.0, axis=0)
+    tot_lo_spec        = np.percentile(tot_mc_spec, 100 - (100-conf)/2.0, axis=0)
+    
+    #----- Figure
+    fig = plt.figure(1, figsize=(8, 6))
+    frame1 = fig.add_axes((.1,.3,.8,.6))
+    
+    plt.errorbar(Emean, data_spec, yerr=np.sqrt(data_spec),
+                 xerr=[Emean-Ebins['E_MIN'], Ebins['E_MAX']-Emean],fmt='ko', capsize=0, linewidth=2, zorder=2, label='Data')
+    plt.step(binsteps, np.append(cluster_spec,cluster_spec[-1]),
+             where='post', color='blue', linewidth=2, label='Cluster model')
+    plt.step(binsteps, np.append(background_spec, background_spec[-1]),
+             where='post', color='red', linewidth=2, label='Background model')
+    plt.step(binsteps, np.append(cluster_spec+background_spec, (cluster_spec+background_spec)[-1]),
+             where='post', color='green', linewidth=2, label='Total model')
+
+    plt.step(binsteps, np.append(cluster_up_spec, cluster_up_spec[-1]),
+             where='post', color='blue', linewidth=1, linestyle='--')
+    plt.step(binsteps, np.append(cluster_lo_spec, cluster_lo_spec[-1]),
+             where='post', color='blue', linewidth=1, linestyle='--')
+    plt.step(binsteps, np.append(background_up_spec, background_up_spec[-1]),
+             where='post', color='red', linewidth=1, linestyle='--')
+    plt.step(binsteps, np.append(background_lo_spec, background_lo_spec[-1]),
+             where='post', color='red', linewidth=1, linestyle='--')
+    plt.step(binsteps, np.append(tot_lo_spec, tot_lo_spec[-1]),
+             where='post', color='green', linewidth=1, linestyle='--')
+    plt.step(binsteps, np.append(tot_up_spec, tot_up_spec[-1]),
+             where='post', color='green', linewidth=1, linestyle='--')
+    plt.fill_between(Emean, cluster_up_spec, cluster_lo_spec, alpha=0.3, color='blue')
+    plt.fill_between(Emean, background_up_spec, background_lo_spec, alpha=0.3, color='red')
+    plt.fill_between(Emean, tot_up_spec, tot_lo_spec, alpha=0.3, color='green')
+    
+    plt.ylabel('Counts')
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.xlim(np.amin(binsteps), np.amax(binsteps))
+    ax = plt.gca()
+    ax.set_xticklabels([])
+    plt.legend()
+    plt.title('Spectrum within $\\theta = $'+str(theta))
+
+    frame2 = fig.add_axes((.1,.1,.8,.2))        
+    plt.plot(Emean, (data_spec-cluster_spec-background_spec)/np.sqrt(data_spec), marker='o', color='k', linestyle='')
+    plt.axhline(0, color='0.5', linestyle='-')
+    plt.axhline(-3, color='0.5', linestyle='--')
+    plt.axhline(+3, color='0.5', linestyle='--')
+    plt.xlabel('Energy (GeV)')
+    plt.ylabel('Residual ($\\Delta N /\sqrt{N}$)')
+    plt.xscale('log')
+    plt.xlim(np.amin(binsteps), np.amax(binsteps))
+    plt.ylim(-5, 5)
+
+    plt.savefig(outdir+'/MCMC_SpectrumResidual.pdf')
+    plt.close()
+    
 
 #==================================================
 # Read the data
@@ -346,7 +461,9 @@ def read_data(input_files):
     
     # Get measured data
     hdu = fits.open(input_files[0])
-    data = hdu[1].data
+    data = hdu[0].data
+    header = hdu[0].header
+    Ebins = hdu[2].data
     hdu.close()
     
     # Get expected
@@ -356,16 +473,37 @@ def read_data(input_files):
     models_cl  = hdu[3].data
     models_bk  = hdu[4].data
     hdu.close()
+
+    gridshape = models_cl.shape
     
     # Check that the grid is the same, as expected
     if data.shape != models_cl[0,0,:,:,:].shape:
         print('!!!!! WARNING: it is possible that we have a problem with the grid !!!!!')
-
+        
     # Extract and fill model_grid
-    modgrid = {'spa_idx':sample_spa['spatial_idx'],
-               'spa_val':sample_spa['spatial_val'],
-               'spe_idx':sample_spe['spectral_idx'],
+    x_val = np.linspace(0, gridshape[4]-1, gridshape[4])  # pixel 1d value along RA
+    y_val = np.linspace(0, gridshape[3]-1, gridshape[3])  # pixel 1d value along Dec
+    e_val = np.linspace(0, gridshape[2]-1, gridshape[2])  # pixel 1d value along energy
+
+    ee_val, yy_val, xx_val = np.meshgrid(e_val, y_val, x_val, indexing='ij') # 3D gids
+    
+    xxf_val = xx_val.flatten() # 3D grid flattened
+    yyf_val = yy_val.flatten()
+    eef_val = ee_val.flatten()
+    
+    modgrid = {'header':header,
+               'Ebins':Ebins,
+               'x_val':x_val,
+               'y_val':y_val,
+               'e_val':e_val,
                'spe_val':sample_spe['spectral_val'],
+               'spa_val':sample_spa['spatial_val'],
+               'xx_val':xx_val,
+               'yy_val':yy_val,
+               'ee_val':ee_val,
+               'xxf_val':xxf_val,
+               'yyf_val':yyf_val,
+               'eef_val':eef_val,               
                'models_cl':models_cl,
                'models_bk':models_bk}
     
@@ -437,27 +575,18 @@ def lnlike(params, data, modgrid, par_min, par_max, gauss=True):
         import pdb
         pdb.set_trace()
         
-    test_model = model_profile(modgrid, params)
+    test_model = model_specimg(modgrid, params)
     
     #---------- Compute the Gaussian likelihood
     # Gaussian likelihood
     if gauss:
-        chi2 = (data['profile'] - test_model)**2 / data['error']**2
+        chi2 = (data - test_model['cluster'] - test_model['background'])**2 / np.sqrt(test_model['cluster'])**2
         lnL = -0.5*np.nansum(chi2)
 
-    # Likelihood taking into account the background counts
-    else:
-        area = np.pi*data['rmax']**2 - np.pi*data['rmin']**2
-        
-        # Poisson with Bkg
-        L_i1 = (test_model + data['bkg'])*area
-        L_i2 = (data['profile'] + data['bkg'])*area * np.log(L_i1)
-        lnL  = -np.nansum(L_i1 - L_i2)
-
-        # Poisson without Bkg
-        #L_i1 = test_model*area
-        #L_i2 = data['profile']*area * np.log(L_i1)
-        #lnL  = -np.nansum(L_i1 - L_i2)
+    # Poisson with Bkg
+    else:        
+        L_i = test_model['cluster']+test_model['background'] - data*np.log(test_model['cluster']+test_model['background'])
+        lnL  = -np.nansum(L_i)
         
     # In case of NaN, goes to infinity
     if np.isnan(lnL):
@@ -484,16 +613,23 @@ def model_specimg(modgrid, params):
     - output_model (array): the output model in units of the input expected
     '''
 
-    xxf = xx.flatten()
-    yyf = yy.flatten()
-    eef = ee.flatten()
-
     # Interpolate for flatten grid of parameters
-    outf = interpn((x,y,e,p1,p2), modgrid['model'], (xxf, yyf, eef, params[1], params[2]))
+    outf_cl = interpn((modgrid['spa_val'], modgrid['spe_val'],
+                       modgrid['e_val'], modgrid['y_val'], modgrid['x_val']),
+                      modgrid['models_cl'],
+                      (params[1], params[2], modgrid['eef_val'], modgrid['yyf_val'], modgrid['xxf_val']))
+
+    outf_bk = interpn((modgrid['spa_val'], modgrid['spe_val'],
+                       modgrid['e_val'], modgrid['y_val'], modgrid['x_val']),
+                      modgrid['models_bk'],
+                      (params[1], params[2], modgrid['eef_val'], modgrid['yyf_val'], modgrid['xxf_val']))
+
     # Reshape according to xx
-    out = np.reshape(outf, xx.shape)
-    # Add normalization parameter
-    output_model = params[0]*out
+    out_cl = np.reshape(outf_cl, modgrid['xx_val'].shape)
+    out_bk = np.reshape(outf_bk, modgrid['xx_val'].shape)
+    
+    # Add normalization parameter and save
+    output_model = {'cluster':params[0]*out_cl, 'background':out_bk}
     
     return output_model
 
@@ -502,8 +638,8 @@ def model_specimg(modgrid, params):
 # MCMC: run the fit
 #==================================================
 
-def run_constraint(cluster_test,
-                   input_files,
+def run_constraint(input_files,
+                   subdir,
                    nwalkers=10,
                    nsteps=1000,
                    burnin=100,
@@ -517,8 +653,8 @@ def run_constraint(cluster_test,
         
     Parameters
     ----------
-    - cluster_test (minot object): a cluster to be used when sampling parameters of model
     - input_file (str): full path to the data and expected model
+    - subdir (str): subdirectory of spectral imaging, full path
     - nwalkers (int): number of emcee wlakers
     - nsteps (int): number of emcee MCMC steps
     - burnin (int): number of point to remove assuming it is burnin
@@ -545,17 +681,13 @@ def run_constraint(cluster_test,
     par0 = np.array([1.0, np.mean(modgrid['spa_val']), np.mean(modgrid['spe_val'])])
     par_min = [0,      np.amin(modgrid['spa_val']), np.amin(modgrid['spe_val'])]
     par_max = [np.inf, np.amax(modgrid['spa_val']), np.amax(modgrid['spe_val'])]
-
-    import pdb
-    pdb.set_trace()
-
     
     #========== Start running MCMC definition and sampling    
     #---------- Check if a MCMC sampler was already recorded
-    sampler_exist = os.path.exists(cluster_test.output_dir+'/Ana_ResmapCluster_profile_MCMC_sampler.pkl')
+    sampler_exist = os.path.exists(subdir+'/MCMC_sampler.pkl')
     if sampler_exist:
-        sampler = load_object(cluster_test.output_dir+'/Ana_ResmapCluster_profile_MCMC_sampler.pkl')
-        print('    Existing sampler: '+cluster_test.output_dir+'/Ana_ResmapCluster_profile_MCMC_sampler.pkl')
+        sampler = load_object(subdir+'/MCMC_sampler.pkl')
+        print('    Existing sampler: '+subdir+'/MCMC_sampler.pkl')
     
     #---------- MCMC parameters
     ndim = len(par0)
@@ -574,8 +706,6 @@ def run_constraint(cluster_test,
         if reset_mcmc:
             print('--- Reset MCMC even though sampler already exists')
             pos = [par0 + 1e-2*np.random.randn(ndim) for i in range(nwalkers)]
-            #pos = [np.random.uniform(par_min[i],par_max[i], nwalkers) for i in range(ndim)]
-            #pos = list(np.array(pos).T.reshape((nwalkers,ndim)))
             sampler.reset()
             sampler = emcee.EnsembleSampler(nwalkers, ndim, lnlike,
                                             args=[data, modgrid, par_min, par_max, GaussLike])
@@ -585,8 +715,6 @@ def run_constraint(cluster_test,
     else:
         print('--- No pre-existing sampler, start from scratch')
         pos = [par0 + 1e-2*np.random.randn(ndim) for i in range(nwalkers)]
-        #pos = [np.random.uniform(par_min[i],par_max[i], nwalkers) for i in range(ndim)]
-        #pos = list(np.array(pos).T.reshape((nwalkers,ndim)))
         sampler = emcee.EnsembleSampler(nwalkers, ndim, lnlike,
                                         args=[data, modgrid, par_min, par_max, GaussLike])
         
@@ -596,7 +724,7 @@ def run_constraint(cluster_test,
         sampler.run_mcmc(pos, nsteps)
 
     #---------- Save the MCMC after the run
-    save_object(sampler, cluster_test.output_dir+'/Ana_ResmapCluster_profile_MCMC_sampler.pkl')
+    save_object(sampler, subdir+'/MCMC_sampler.pkl')
 
     #---------- Burnin
     param_chains = sampler.chain[:, burnin:, :]
@@ -605,15 +733,16 @@ def run_constraint(cluster_test,
     #---------- Get the parameter statistics
     par_best, par_percentile = chains_statistics(param_chains, lnL_chains,
                                                  parname=parname, conf=conf, show=True,
-                                                 outfile=cluster_test.output_dir+'/Ana_ResmapCluster_profile_MCMC_chainstat.txt')
-
+                                                 outfile=subdir+'/MCMC_chainstat.txt')
+    
     #---------- Get the well-sampled models
     MC_model   = get_mc_model(modgrid, param_chains, Nmc=Nmc)
-    Best_model = model_profile(modgrid, par_best)
+    Best_model = model_specimg(modgrid, par_best)
 
     #---------- Plots and results
-    chainplots(param_chains, parname, cluster_test.output_dir+'/Ana_ResmapCluster_profile',
+    chainplots(param_chains, parname, subdir+'/MCMC_chainplot',
                par_best=par_best, par_percentile=par_percentile, conf=conf,
                par_min=par_min, par_max=par_max)
-
-    modelplot(cluster_test, data, modgrid, par_best, param_chains, MC_model, conf=conf)
+    
+    modelplot(data, Best_model, MC_model, modgrid['header'], modgrid['Ebins'], subdir,
+              conf=conf, FWHM=0.1*u.deg, theta=1.0*u.deg)
