@@ -23,6 +23,7 @@ from astropy.io import fits
 from astropy.table import Table
 import astropy.units as u
 from astropy.wcs import WCS
+from astropy.coordinates.sky_coordinate import SkyCoord
 import emcee
 import ctools
 import gammalib
@@ -264,7 +265,7 @@ def get_mc_model(modgrid, param_chains, Nmc=100):
 
 def modelplot(data, modbest, MC_model, header, Ebins, outdir,
               conf=68.0, FWHM=0.1*u.deg,
-              theta=1*u.deg):
+              theta=1*u.deg, coord=None, profile_reso=0.05*u.deg):
     """
     Plot the data versus model and constraints
         
@@ -365,11 +366,12 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     background_spec = np.sum(np.sum(mask*modbest['background'], axis=1), axis=1)
     
     #----- Get the MC
-    cluster_mc_spec    = np.zeros((MC_model['cluster'].shape[0], len(Ebins)))
-    background_mc_spec = np.zeros((MC_model['cluster'].shape[0], len(Ebins)))
-    tot_mc_spec        = np.zeros((MC_model['cluster'].shape[0], len(Ebins)))
+    Nmc = MC_model['cluster'].shape[0]
+    cluster_mc_spec    = np.zeros((Nmc, len(Ebins)))
+    background_mc_spec = np.zeros((Nmc, len(Ebins)))
+    tot_mc_spec        = np.zeros((Nmc, len(Ebins)))
 
-    for i in range(MC_model['cluster'].shape[0]):
+    for i in range(Nmc):
         cluster_mci_spec    = np.sum(np.sum(mask*MC_model['cluster'][i,:,:,:], axis=1), axis=1)
         background_mci_spec = np.sum(np.sum(mask*MC_model['background'][i,:,:,:], axis=1), axis=1)
         cluster_mc_spec[i, :]    = cluster_mci_spec
@@ -395,7 +397,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     plt.step(binsteps, np.append(background_spec, background_spec[-1]),
              where='post', color='red', linewidth=2, label='Background model')
     plt.step(binsteps, np.append(cluster_spec+background_spec, (cluster_spec+background_spec)[-1]),
-             where='post', color='green', linewidth=2, label='Total model')
+             where='post', color='grey', linewidth=2, label='Total model')
 
     plt.step(binsteps, np.append(cluster_up_spec, cluster_up_spec[-1]),
              where='post', color='blue', linewidth=1, linestyle='--')
@@ -406,12 +408,12 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     plt.step(binsteps, np.append(background_lo_spec, background_lo_spec[-1]),
              where='post', color='red', linewidth=1, linestyle='--')
     plt.step(binsteps, np.append(tot_lo_spec, tot_lo_spec[-1]),
-             where='post', color='green', linewidth=1, linestyle='--')
+             where='post', color='grey', linewidth=1, linestyle='--')
     plt.step(binsteps, np.append(tot_up_spec, tot_up_spec[-1]),
-             where='post', color='green', linewidth=1, linestyle='--')
+             where='post', color='grey', linewidth=1, linestyle='--')
     plt.fill_between(Emean, cluster_up_spec, cluster_lo_spec, alpha=0.3, color='blue')
     plt.fill_between(Emean, background_up_spec, background_lo_spec, alpha=0.3, color='red')
-    plt.fill_between(Emean, tot_up_spec, tot_lo_spec, alpha=0.3, color='green')
+    plt.fill_between(Emean, tot_up_spec, tot_lo_spec, alpha=0.3, color='grey')
     
     plt.ylabel('Counts')
     plt.xscale('log')
@@ -436,8 +438,157 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
 
     plt.savefig(outdir+'/MCMC_SpectrumResidual.pdf')
     plt.close()
-    
 
+    #========== Profile
+    # If coord not given, assume at the center
+    if coord is None:
+        coord = SkyCoord(np.median(ra_map)*u.deg, np.median(dec_map)*u.deg, frame='icrs')
+        
+    cntmap_data = np.sum(data, axis=0)
+    r_dat, p_dat, err_dat = map_tools.radial_profile_cts(cntmap_data,
+                                                         [coord.icrs.ra.to_value('deg'),
+                                                          coord.icrs.dec.to_value('deg')],
+                                                         stddev=np.sqrt(cntmap_data), header=header2,
+                                                         binsize=profile_reso.to_value('deg'),
+                                                         stat='POISSON', counts2brightness=True)
+    cntmap_cl = np.sum(modbest['cluster'],axis=0)
+    r_cl, p_cl, err_cl = map_tools.radial_profile_cts(cntmap_cl,
+                                                      [coord.icrs.ra.to_value('deg'),
+                                                       coord.icrs.dec.to_value('deg')],
+                                                      stddev=np.sqrt(cntmap_cl), header=header2,
+                                                      binsize=profile_reso.to_value('deg'),
+                                                      stat='POISSON', counts2brightness=True)
+    cntmap_bk = np.sum(modbest['background'],axis=0)
+    r_bk, p_bk, err_bk = map_tools.radial_profile_cts(cntmap_bk,
+                                                      [coord.icrs.ra.to_value('deg'),
+                                                       coord.icrs.dec.to_value('deg')],
+                                                      stddev=np.sqrt(cntmap_bk), header=header2,
+                                                      binsize=profile_reso.to_value('deg'),
+                                                      stat='POISSON', counts2brightness=True)
+
+    fig = plt.figure(figsize=(8,6))
+    gs = GridSpec(2,1, height_ratios=[3,1], hspace=0)
+    ax1 = plt.subplot(gs[0])
+    ax3 = plt.subplot(gs[1])
+
+    xlim = [np.amin(r_dat)/2.0, np.amax(r_dat)*2.0]
+    rngyp = 1.2*np.nanmax(p_dat-p_bk)
+    rngym = 0.5*np.nanmin((p_dat-p_bk)[p_dat-p_bk > 0])
+    ylim = [rngym, rngyp]
+
+    ax1.plot(r_dat, p_cl, ls='-', linewidth=2, color='k', label='Maximum likelihood model')
+    ax1.errorbar(r_dat, p_dat-p_bk, yerr=err_dat,
+                 marker='o', elinewidth=2, color='red',
+                 markeredgecolor="black", markerfacecolor="red",
+                 ls ='', label='Data')
+    ax1.set_ylabel('Profile (deg$^{-2}$)')
+    ax1.set_xscale('log')
+    ax1.set_yscale('log')
+    ax1.set_xlim(xlim[0], xlim[1])
+    ax1.set_ylim(ylim[0], ylim[1])
+    ax1.set_xticks([])
+    ax1.legend()
+    
+    # Add extra unit axes
+    ax2 = ax1.twinx()
+    ax2.plot(r_dat, (p_cl*u.Unit('deg-2')).to_value('arcmin-2'), 'k-', alpha=0.0)
+    ax2.set_ylabel('Profile (arcmin$^{-2}$)')
+    ax2.set_yscale('log')
+    ax2.set_ylim((ylim[0]*u.Unit('deg-2')).to_value('arcmin-2'),
+                 (ylim[1]*u.Unit('deg-2')).to_value('arcmin-2'))
+    
+    # Residual plot
+    ax3.plot(r_dat, (p_dat-p_cl-p_bk)/err_dat,linestyle='', marker='o', color='k')
+    ax3.plot(r_dat,  r_dat*0, linestyle='-', color='k')
+    ax3.plot(r_dat,  r_dat*0+2, linestyle='--', color='k')
+    ax3.plot(r_dat,  r_dat*0-2, linestyle='--', color='k')
+    ax3.set_xlim(xlim[0], xlim[1])
+    ax3.set_ylim(-5, 5)
+    ax3.set_xlabel('Radius (deg)')
+    ax3.set_ylabel('$\\chi$')
+    ax3.set_xscale('log')
+    
+    fig.savefig(outdir+'/MCMC_Profile_bkgsub.pdf')
+    plt.close()
+
+    #========== Profile, for all energy bins
+    pdf_pages = PdfPages(outdir+'/MCMC_ProfileSlice_bkgsub.pdf')
+    
+    for i in range(len(Ebins)):
+        Ebinprint = '{:.1f}'.format(Ebins[i][0]*1e-6)+', '+'{:.1f}'.format(Ebins[i][1]*1e-6)
+
+        cntmap_data = data[i,:,:]
+        r_dat, p_dat, err_dat = map_tools.radial_profile_cts(cntmap_data,
+                                                             [coord.icrs.ra.to_value('deg'),
+                                                              coord.icrs.dec.to_value('deg')],
+                                                             stddev=np.sqrt(cntmap_data), header=header2,
+                                                             binsize=profile_reso.to_value('deg'),
+                                                             stat='POISSON', counts2brightness=True)
+        cntmap_cl = modbest['cluster'][i,:,:]
+        r_cl, p_cl, err_cl = map_tools.radial_profile_cts(cntmap_cl,
+                                                          [coord.icrs.ra.to_value('deg'),
+                                                           coord.icrs.dec.to_value('deg')],
+                                                          stddev=np.sqrt(cntmap_cl), header=header2,
+                                                          binsize=profile_reso.to_value('deg'),
+                                                          stat='POISSON', counts2brightness=True)
+        cntmap_bk = modbest['background'][i,:,:]
+        r_bk, p_bk, err_bk = map_tools.radial_profile_cts(cntmap_bk,
+                                                          [coord.icrs.ra.to_value('deg'),
+                                                           coord.icrs.dec.to_value('deg')],
+                                                          stddev=np.sqrt(cntmap_bk), header=header2,
+                                                          binsize=profile_reso.to_value('deg'),
+                                                          stat='POISSON', counts2brightness=True)
+
+        fig = plt.figure(figsize=(8,6))
+        gs = GridSpec(2,1, height_ratios=[3,1], hspace=0)
+        ax1 = plt.subplot(gs[0])
+        ax3 = plt.subplot(gs[1])
+        
+        xlim = [np.amin(r_dat)/2.0, np.amax(r_dat)*2.0]
+        rngyp = 1.2*np.nanmax(p_dat)
+        rngym = 0.5*np.nanmin((p_dat)[p_dat > 0])
+        ylim = [rngym, rngyp]
+        
+        ax1.plot(r_dat, p_cl+p_bk, ls='-', linewidth=2, color='k', label='Maximum likelihood model')
+        ax1.errorbar(r_dat, p_dat, yerr=err_dat,
+                     marker='o', elinewidth=2, color='red',
+                     markeredgecolor="black", markerfacecolor="red",
+                     ls ='', label='Data')
+        ax1.set_ylabel('Profile (deg$^{-2}$)')
+        ax1.set_xscale('log')
+        ax1.set_yscale('log')
+        ax1.set_xlim(xlim[0], xlim[1])
+        ax1.set_ylim(ylim[0], ylim[1])
+        ax1.set_xticks([])
+        ax1.legend()
+        ax1.set_title('E=['+Ebinprint+'] GeV')
+
+        
+        # Add extra unit axes
+        ax2 = ax1.twinx()
+        ax2.plot(r_dat, (p_cl*u.Unit('deg-2')).to_value('arcmin-2'), 'k-', alpha=0.0)
+        ax2.set_ylabel('Profile (arcmin$^{-2}$)')
+        ax2.set_yscale('log')
+        ax2.set_ylim((ylim[0]*u.Unit('deg-2')).to_value('arcmin-2'),
+                     (ylim[1]*u.Unit('deg-2')).to_value('arcmin-2'))
+        
+        # Residual plot
+        ax3.plot(r_dat, (p_dat-p_bk-p_cl)/err_dat,linestyle='', marker='o', color='k')
+        ax3.plot(r_dat,  r_dat*0, linestyle='-', color='k')
+        ax3.plot(r_dat,  r_dat*0+2, linestyle='--', color='k')
+        ax3.plot(r_dat,  r_dat*0-2, linestyle='--', color='k')
+        ax3.set_xlim(xlim[0], xlim[1])
+        ax3.set_ylim(-5, 5)
+        ax3.set_xlabel('Radius (deg)')
+        ax3.set_ylabel('$\\chi$')
+        ax3.set_xscale('log')
+        
+        pdf_pages.savefig(fig)
+        plt.close()
+
+    pdf_pages.close()
+
+    
 #==================================================
 # Read the data
 #==================================================
@@ -467,8 +618,8 @@ def read_data(input_files):
     hdu = fits.open(input_files[1])
     sample_spa = hdu[1].data
     sample_spe = hdu[2].data
-    models_cl  = hdu[3].data
-    models_bk  = hdu[4].data
+    models_bk  = hdu[3].data
+    models_cl  = hdu[4].data
     hdu.close()
 
     gridshape = models_cl.shape
@@ -582,10 +733,9 @@ def lnlike(params, data, modgrid, par_min, par_max, gauss=True):
 
     # Poisson with Bkg
     else:        
-
         L_i1 = test_model['cluster']+test_model['background']
         L_i2 = data*np.log(test_model['cluster']+test_model['background'])
-        lnL  = -np.nansum(L_i1 - Li2)
+        lnL  = -np.nansum(L_i1 - L_i2)
         
     # In case of NaN, goes to infinity
     if np.isnan(lnL):
@@ -676,7 +826,7 @@ def run_constraint(input_files,
     
     #========== Guess parameter definition
     # Normalization, scaling profile \propto profile_input^eta, CRp index
-    parname = ['X_{CRp}/X_{CRp, input}', '\\eta_{CRp}', '\\alpha_{CRp}'] 
+    parname = ['X_{CRp}/X_{CRp,0}', '\\eta_{CRp}', '\\alpha_{CRp}'] 
     par0 = np.array([1.0, np.mean(modgrid['spa_val']), np.mean(modgrid['spe_val'])])
     par_min = [0,      np.amin(modgrid['spa_val']), np.amin(modgrid['spe_val'])]
     par_max = [np.inf, np.amax(modgrid['spa_val']), np.amax(modgrid['spe_val'])]

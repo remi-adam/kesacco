@@ -31,7 +31,7 @@ from kesacco.Tools import build_ctools_model
 from kesacco.Tools import make_cluster_template
 from kesacco.Tools import mcmc_spectrum
 from kesacco.Tools import mcmc_profile
-from kesacco.Tools import mcmc_spectralimaging
+from kesacco.Tools import mcmc_spectralimaging1
 from kesacco       import clustpipe_ana_plot
 
 from minot.ClusterTools.map_tools import radial_profile_cts
@@ -1496,8 +1496,8 @@ class CTAana(object):
         cluster_test  = copy.deepcopy(self.cluster)
         cluster_test.output_dir = self.output_dir
         
-        mcmc_profile.run_profile_constraint(cluster_test,
-                                            profile_files,
+        mcmc_profile.run_profile_constraint(subdir+'/Grid_Sampling.fits',
+                                            subdir,
                                             nwalkers=self.mcmc_nwalkers,
                                             nsteps=self.mcmc_nsteps,
                                             burnin=self.mcmc_burnin,
@@ -1512,7 +1512,7 @@ class CTAana(object):
     # Compute SpectroImaging constraints
     #==================================================
     
-    def run_ana_spectralimaging1_mcmc(self,
+    def run_ana_mcmc_spectralimaging1(self,
                                       reset_modelgrid=True,
                                       reset_mcmc=True, run_mcmc=True,
                                       GaussLike=False,
@@ -1610,25 +1610,25 @@ class CTAana(object):
         
         #===== Build the model grid
         if reset_modelgrid:
-            mcmc_spectralimaging.build_model_grid(self,
-                                                  subdir,
-                                                  rad, prof_ini,
-                                                  spatial_value, spatial_idx,
-                                                  spectral_value, spectral_idx,
-                                                  includeIC=includeIC, rm_tmp=rm_tmp)
-                    
+            mcmc_spectralimaging1.build_model_grid(self,
+                                                   subdir,
+                                                   rad, prof_ini,
+                                                   spatial_value, spatial_idx,
+                                                   spectral_value, spectral_idx,
+                                                   includeIC=includeIC, rm_tmp=rm_tmp)
+            
         #===== MCMC fit with cluster parameters
-        mcmc_spectralimaging.run_constraint([self.output_dir+'/Ana_Countscube.fits',
-                                             subdir+'/Grid_Sampling.fits'],
-                                            subdir,
-                                            nwalkers=self.mcmc_nwalkers,
-                                            nsteps=self.mcmc_nsteps,
-                                            burnin=self.mcmc_burnin,
-                                            conf=self.mcmc_conf,
-                                            Nmc=self.mcmc_Nmc,
-                                            GaussLike=GaussLike,
-                                            reset_mcmc=reset_mcmc,
-                                            run_mcmc=run_mcmc)
+        mcmc_spectralimaging1.run_constraint([self.output_dir+'/Ana_Countscube.fits',
+                                              subdir+'/Grid_Sampling.fits'],
+                                             subdir,
+                                             nwalkers=self.mcmc_nwalkers,
+                                             nsteps=self.mcmc_nsteps,
+                                             burnin=self.mcmc_burnin,
+                                             conf=self.mcmc_conf,
+                                             Nmc=self.mcmc_Nmc,
+                                             GaussLike=GaussLike,
+                                             reset_mcmc=reset_mcmc,
+                                             run_mcmc=run_mcmc)
         
 
     #==================================================

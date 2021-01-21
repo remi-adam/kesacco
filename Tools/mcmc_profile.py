@@ -28,6 +28,7 @@ import gammalib
 from minot.model_tools import trapz_loglog
 from minot.ClusterTools.map_tools import radial_profile_cts
 from kesacco.Tools import plotting
+from kesacco.Tools import mcmc_common
 from kesacco.Tools import make_cluster_template
 from kesacco.Tools import cubemaking
 
@@ -159,8 +160,11 @@ def build_model_grid(cpipe,
                                                binsize=profile_reso.to_value('deg'),
                                                stat='POISSON', counts2brightness=True)
     tabdat = Table()
-    tabdat['radius']  = r_dat
-    tabdat['profile'] = p_dat
+    tabdat['radius']      = r_dat
+    tabdat['radius_min']  = r_dat - profile_reso.to_value('deg')/2.0
+    tabdat['radius_max']  = r_dat + profile_reso.to_value('deg')/2.0
+    tabdat['profile']     = p_dat
+    
     dat_hdu = fits.BinTableHDU(tabdat)
     
     #----- Build the grid
@@ -259,20 +263,26 @@ def get_mc_model(modgrid, param_chains, Nmc=100):
     
     Nsample = len(par_flat[:,0])-1
     
-    MC_model = np.zeros((Nmc, len(modgrid['models'][0,:])))
+    MC_model_background = np.zeros((Nmc, len(modgrid['radius'])))
+    MC_model_cluster = np.zeros((Nmc, len(modgrid['radius'])))
     
     for i in range(Nmc):
         param_MC = par_flat[np.random.randint(0, high=Nsample), :] # randomly taken from chains
-        MC_model[i,:] = model_profile(modgrid, param_MC)
+        models = model_profile(modgrid, param_MC)
+        MC_model_cluster[i,:]    = models['cluster']
+        MC_model_background[i,:] = models['background']
+
+    MC_models = {'cluster':MC_model_cluster,
+                 'background':MC_model_background}
     
-    return MC_model
+    return MC_models
 
     
 #==================================================
 # Plot the output fit model
 #==================================================
 
-def modelplot(cluster_test, data, modgrid, par_best, param_chains, MC_model, conf=68.0, Nmc=100):
+def modelplot(data, Best_model, MC_model, subdir, conf=68.0):
     """
     Plot the data versus model and constraints
         
@@ -284,10 +294,16 @@ def modelplot(cluster_test, data, modgrid, par_best, param_chains, MC_model, con
     Plots are saved
     """
     
-    #========== Extract relevant info    
-    bf_model = model_profile(modgrid, par_best)
-    MC_perc  = np.percentile(MC_model, [(100-conf)/2.0, 50, 100 - (100-conf)/2.0], axis=0)
+    #========== Extract relevant info
+    Nmc = MC_model['cluster'].shape[0]
     radius = data['radius']
+    area = np.pi*(data['radius_max']**2-data['radius_min']**2)
+    MC_perc_cl  = np.percentile(MC_model['cluster'],
+                                [(100-conf)/2.0, 50, 100 - (100-conf)/2.0], axis=0)
+    MC_perc_bk  = np.percentile(MC_model['background'],
+                                [(100-conf)/2.0, 50, 100 - (100-conf)/2.0], axis=0)
+    MC_perc_tot = np.percentile(MC_model['background']+MC_model['cluster'],
+                                [(100-conf)/2.0, 50, 100 - (100-conf)/2.0], axis=0)
     
     #========== Plot
     fig = plt.figure(figsize=(8,6))
@@ -296,19 +312,19 @@ def modelplot(cluster_test, data, modgrid, par_best, param_chains, MC_model, con
     ax3 = plt.subplot(gs[1])
 
     xlim = [np.amin(data['radius'])/2.0, np.amax(data['radius'])*2.0]
-    rngyp = 1.2*np.nanmax(data['profile']+data['error'])
-    rngym = 0.5*np.nanmin((data['profile'])[data['profile'] > 0])
+    rngyp = 1.2*np.nanmax(data['profile']-Best_model['background'])
+    rngym = 0.5*np.nanmin((data['profile']-Best_model['background'])[data['profile']-Best_model['background'] > 0])
     ylim = [rngym, rngyp]
 
-    ax1.plot(radius, bf_model,     ls='-', linewidth=2, color='k', label='Maximum likelihood model')
-    ax1.plot(radius, MC_perc[1,:], ls='--', linewidth=2, color='b', label='Median')
-    ax1.plot(radius, MC_perc[0,:], ls=':', linewidth=1, color='b')
-    ax1.plot(radius, MC_perc[2,:], ls=':', linewidth=1, color='b')
-    ax1.fill_between(radius, MC_perc[0,:], y2=MC_perc[2,:], alpha=0.2, color='blue', label=str(conf)+'% CL')
+    ax1.plot(radius, Best_model['cluster'],     ls='-', linewidth=2, color='k', label='Maximum likelihood model')
+    ax1.plot(radius, MC_perc_cl[1,:], ls='--', linewidth=2, color='b', label='Median')
+    ax1.plot(radius, MC_perc_cl[0,:], ls=':', linewidth=1, color='b')
+    ax1.plot(radius, MC_perc_cl[2,:], ls=':', linewidth=1, color='b')
+    ax1.fill_between(radius, MC_perc_cl[0,:], y2=MC_perc_cl[2,:], alpha=0.2, color='blue', label=str(conf)+'% CL')
     for i in range(Nmc):
-        ax1.plot(radius, MC_model[i,:], ls='-', linewidth=0.5, alpha=0.1, color='blue')
+        ax1.plot(radius, MC_model['cluster'][i,:], ls='-', linewidth=0.5, alpha=0.1, color='blue')
 
-    ax1.errorbar(data['radius'], data['profile'], yerr=data['error'],
+    ax1.errorbar(data['radius'], data['profile']-Best_model['background'], yerr=(area*data['profile'])**0.5/area,
                  marker='o', elinewidth=2, color='red',
                  markeredgecolor="black", markerfacecolor="red",
                  ls ='', label='Data')
@@ -322,25 +338,96 @@ def modelplot(cluster_test, data, modgrid, par_best, param_chains, MC_model, con
     
     # Add extra unit axes
     ax2 = ax1.twinx()
-    ax2.plot(radius, (bf_model*u.Unit('deg-2')).to_value('arcmin-2'), 'k-', alpha=0.0)
+    ax2.plot(radius, (Best_model['cluster']*u.Unit('deg-2')).to_value('arcmin-2'), 'k-', alpha=0.0)
     ax2.set_ylabel('Profile (arcmin$^{-2}$)')
     ax2.set_yscale('log')
     ax2.set_ylim((ylim[0]*u.Unit('deg-2')).to_value('arcmin-2'),
                  (ylim[1]*u.Unit('deg-2')).to_value('arcmin-2'))
     
     # Residual plot
-    ax3.plot(data['radius'], (data['profile']-bf_model)/data['error'],
+    ax3.plot(data['radius'], (data['profile']-Best_model['background']-Best_model['cluster'])/((area*data['profile'])**0.5/area),
              linestyle='', marker='o', color='k')
     ax3.plot(radius,  radius*0, linestyle='-', color='k')
     ax3.plot(radius,  radius*0+2, linestyle='--', color='k')
     ax3.plot(radius,  radius*0-2, linestyle='--', color='k')
     ax3.set_xlim(xlim[0], xlim[1])
-    ax3.set_ylim(-3, 3)
+    ax3.set_ylim(-5, 5)
     ax3.set_xlabel('Radius (deg)')
     ax3.set_ylabel('$\\chi$')
     ax3.set_xscale('log')
     
-    fig.savefig(cluster_test.output_dir+'/Ana_ResmapCluster_profile_MCMC_results.pdf')
+    fig.savefig(subdir+'/MCMC_fit_results_bkgsub.pdf')
+    plt.close()
+
+    #========== Plot
+    fig = plt.figure(figsize=(8,6))
+    gs = GridSpec(2,1, height_ratios=[3,1], hspace=0)
+    ax1 = plt.subplot(gs[0])
+    ax3 = plt.subplot(gs[1])
+
+    xlim = [np.amin(data['radius'])/2.0, np.amax(data['radius'])*2.0]
+    rngyp = 1.2*np.nanmax(data['profile'])
+    rngym = 0.5*np.nanmin((data['profile'])[data['profile'] > 0])
+    ylim = [rngym, rngyp]
+
+    ax1.plot(radius, Best_model['cluster']+Best_model['background'],
+             ls='-', linewidth=2, color='k', label='Maximum likelihood model')
+    ax1.plot(radius, MC_perc_cl[1,:], ls='--', linewidth=2, color='b', label='Median (cluster)')
+    ax1.plot(radius, MC_perc_cl[0,:], ls=':', linewidth=1, color='b')
+    ax1.plot(radius, MC_perc_cl[2,:], ls=':', linewidth=1, color='b')
+    ax1.fill_between(radius, MC_perc_cl[0,:], y2=MC_perc_cl[2,:], alpha=0.2, color='blue')
+
+    ax1.plot(radius, MC_perc_bk[1,:], ls='--', linewidth=2, color='g', label='Median (background)')
+    ax1.plot(radius, MC_perc_bk[0,:], ls=':', linewidth=1, color='g')
+    ax1.plot(radius, MC_perc_bk[2,:], ls=':', linewidth=1, color='g')
+    ax1.fill_between(radius, MC_perc_bk[0,:], y2=MC_perc_bk[2,:], alpha=0.2, color='green')
+
+    ax1.plot(radius, MC_perc_tot[1,:], ls='--', linewidth=2, color='grey', label='Median (Total)')
+    ax1.plot(radius, MC_perc_tot[0,:], ls=':', linewidth=1, color='grey')
+    ax1.plot(radius, MC_perc_tot[2,:], ls=':', linewidth=1, color='grey')
+    ax1.fill_between(radius, MC_perc_tot[0,:], y2=MC_perc_tot[2,:], alpha=0.2, color='grey', label=str(conf)+'% CL')
+    for i in range(Nmc):
+        ax1.plot(radius, MC_model['cluster'][i,:], ls='-', linewidth=0.5, alpha=0.1, color='blue')
+
+    for i in range(Nmc):
+        ax1.plot(radius, MC_model['background'][i,:], ls='-', linewidth=0.5, alpha=0.1, color='green')
+
+    for i in range(Nmc):
+        ax1.plot(radius, MC_model['background'][i,:]+MC_model['cluster'][i,:], ls='-', linewidth=0.5, alpha=0.1, color='grey')
+        
+    ax1.errorbar(data['radius'], data['profile'], yerr=(area*data['profile'])**0.5/area,
+                 marker='o', elinewidth=2, color='red',
+                 markeredgecolor="black", markerfacecolor="red",
+                 ls ='', label='Data')
+    ax1.set_ylabel('Profile (deg$^{-2}$)')
+    ax1.set_xscale('log')
+    ax1.set_yscale('log')
+    ax1.set_xlim(xlim[0], xlim[1])
+    ax1.set_ylim(ylim[0], ylim[1])
+    ax1.set_xticks([])
+    ax1.legend()
+    
+    # Add extra unit axes
+    ax2 = ax1.twinx()
+    ax2.plot(radius, ((Best_model['cluster']+Best_model['background'])*u.Unit('deg-2')).to_value('arcmin-2'), 'k-', alpha=0.0)
+    ax2.set_ylabel('Profile (arcmin$^{-2}$)')
+    ax2.set_yscale('log')
+    ax2.set_ylim((ylim[0]*u.Unit('deg-2')).to_value('arcmin-2'),
+                 (ylim[1]*u.Unit('deg-2')).to_value('arcmin-2'))
+    
+    # Residual plot
+    ax3.plot(data['radius'], (data['profile']-Best_model['background']-Best_model['cluster'])/((area*data['profile'])**0.5/area),
+             linestyle='', marker='o', color='k')
+    ax3.plot(radius,  radius*0, linestyle='-', color='k')
+    ax3.plot(radius,  radius*0+2, linestyle='--', color='k')
+    ax3.plot(radius,  radius*0-2, linestyle='--', color='k')
+    ax3.set_xlim(xlim[0], xlim[1])
+    ax3.set_ylim(-5, 5)
+    ax3.set_xlabel('Radius (deg)')
+    ax3.set_ylabel('$\\chi$')
+    ax3.set_xscale('log')
+    
+    fig.savefig(subdir+'/MCMC_fit_results_bkginc.pdf')
     plt.close()
 
 
@@ -348,7 +435,7 @@ def modelplot(cluster_test, data, modgrid, par_best, param_chains, MC_model, con
 # Read the data
 #==================================================
 
-def read_data(prof_files):
+def read_data(input_file):
     """
     Read the data to extract the necessary information
     
@@ -362,50 +449,22 @@ def read_data(prof_files):
 
     """
 
-    # Get measured data
-    hdu = fits.open(prof_files[0])
-    measured = hdu[1].data
-    hdu.close()
+    hdul = fits.open(input_file)
 
-    # Get expected
-    hdu = fits.open(prof_files[1])
-    sampling = hdu[1].data
-    models   = hdu[2].data
-    hdu.close()
-    
-    # Check that the radius is the same, as expected
-    if np.sum(measured['radius'] - models['radius']) > 0:
-        print('!!!!! WARNING: it is possible that we have a problem with radius !!!!!')
-    if len(models['radius'])-len(measured['radius']) != 0:
-        print('!!!!! WARNING: it is possible that we have a problem with radius !!!!!')
-    
-    # Extract quantities and fill data
-    data = Table()
-    
-    radius      = measured['radius']*u.deg
-    profile     = measured['profile']*u.deg**-2
-    error       = measured['error']*u.deg**-2
-    bkg_error   = measured['bkg_error']*u.deg**-2
-    bkg_profile = measured['bkg_profile']*u.deg**-2
-    radius_min  = measured['radius_min']*u.deg
-    radius_max  = measured['radius_max']*u.deg
-    
-    data['radius']   = radius.to_value('deg')
-    data['profile']  = profile.to_value('deg-2')
-    data['error']    = error.to_value('deg-2')
-    data['bkg']      = bkg_profile.to_value('deg-2')
-    data['rmin']     = radius_min.to_value('deg')
-    data['rmax']     = radius_max.to_value('deg')
+    modgrid = {'spa_val':hdul[1].data['value'],
+               'radius':hdul[2].data['radius'],
+               'radius_min':hdul[2].data['radius_min'],
+               'radius_max':hdul[2].data['radius_max'],
+               'models_cl':hdul[3].data,
+               'models_bk':hdul[4].data}
 
-    # Extract and fill model_grid
-    model_list = []
-    for i in range(len(sampling['index'])):
-        model_list.append(models['profile'+str(i)])
-    
-    modgrid = {'sampling':sampling,            # information about the scaling used for the model
-               'radius':models['radius'],      # radius correspondign for the models
-               'models':np.array(model_list)}  # models grid (vs radius and scaling)
-    
+    data = {'radius':hdul[2].data['radius'],
+            'radius_min':hdul[2].data['radius_min'],
+            'radius_max':hdul[2].data['radius_max'],
+            'profile':hdul[2].data['profile']}
+
+    hdul.close()
+ 
     return data, modgrid
 
     
@@ -479,22 +538,17 @@ def lnlike(params, data, modgrid, par_min, par_max, gauss=True):
     #---------- Compute the Gaussian likelihood
     # Gaussian likelihood
     if gauss:
-        chi2 = (data['profile'] - test_model)**2 / data['error']**2
+        chi2 = (data['profile']-test_model['cluster']-test_model['background'])**2/np.sqrt(test_model['cluster'])**2
         lnL = -0.5*np.nansum(chi2)
 
     # Likelihood taking into account the background counts
     else:
-        area = np.pi*data['rmax']**2 - np.pi*data['rmin']**2
+        area = np.pi*data['radius_max']**2 - np.pi*data['radius_min']**2
         
         # Poisson with Bkg
-        L_i1 = (test_model + data['bkg'])*area
-        L_i2 = (data['profile'] + data['bkg'])*area * np.log(L_i1)
+        L_i1 = (test_model['cluster']+test_model['background'])*area
+        L_i2 = data['profile']*area * np.log(L_i1)
         lnL  = -np.nansum(L_i1 - L_i2)
-
-        # Poisson without Bkg
-        #L_i1 = test_model*area
-        #L_i2 = data['profile']*area * np.log(L_i1)
-        #lnL  = -np.nansum(L_i1 - L_i2)
         
     # In case of NaN, goes to infinity
     if np.isnan(lnL):
@@ -521,9 +575,13 @@ def model_profile(modgrid, params):
     - output_model (array): the output model in units of the input expected
     '''
     
-    f = interp1d(modgrid['sampling']['value'], modgrid['models'].T, axis=1)
+    f_cl = interp1d(modgrid['spa_val'], modgrid['models_cl'], axis=0)
+    f_bk = interp1d(modgrid['spa_val'], modgrid['models_bk'], axis=0)
 
-    output_model = params[0] * f(params[1])
+    output_model_cl = params[0] * f_cl(params[1])
+    output_model_bk = f_bk(params[1])
+
+    output_model = {'cluster':output_model_cl, 'background':output_model_bk}
     
     return output_model
 
@@ -532,8 +590,8 @@ def model_profile(modgrid, params):
 # MCMC: run the fit
 #==================================================
 
-def run_profile_constraint(cluster_test,
-                           input_file,
+def run_profile_constraint(input_file,
+                           subdir,
                            nwalkers=10,
                            nsteps=1000,
                            burnin=100,
@@ -547,8 +605,8 @@ def run_profile_constraint(cluster_test,
         
     Parameters
     ----------
-    - cluster_test (minot object): a cluster to be used when sampling parameters of model
-    - profile_file (str): full path to the profile data and expected model
+    - input_file (str): full path to the data and expected model
+    - subdir (str): subdirectory of spectral imaging, full path
     - nwalkers (int): number of emcee wlakers
     - nsteps (int): number of emcee MCMC steps
     - burnin (int): number of point to remove assuming it is burnin
@@ -570,37 +628,40 @@ def run_profile_constraint(cluster_test,
     data, modgrid = read_data(input_file)
     
     #========== Guess parameter definition
-    par0 = np.array([1.0, 1.0])
-    parname = ['X_{CRp}/X_{CRp, input}', '\\eta_{CRp}'] # Normalization and scaling prof \propto prof_input^eta
-    par_min = [0,      np.amin(modgrid['sampling']['value'])]
-    par_max = [np.inf, np.amax(modgrid['sampling']['value'])]
-    
+    parname = ['X_{CRp}/X_{CRp,0}', '\\eta_{CRp}'] # Normalization and scaling prof \propto prof_input^eta
+    par0 = np.array([1.0, np.mean(modgrid['spa_val'])])
+    par_min = [0,      np.amin(modgrid['spa_val'])]
+    par_max = [np.inf, np.amax(modgrid['spa_val'])]
+
+    #========== Names
+    sampler_file   = subdir+'/MCMC_sampler.pkl'
+    chainstat_file = subdir+'/MCMC_chainstat.txt'
+    chainplot_file = subdir+'/MCMC_chainplot'
+
     #========== Start running MCMC definition and sampling    
     #---------- Check if a MCMC sampler was already recorded
-    sampler_exist = os.path.exists(cluster_test.output_dir+'/Ana_ResmapCluster_profile_MCMC_sampler.pkl')
+    sampler_exist = os.path.exists(sampler_file)
     if sampler_exist:
-        sampler = load_object(cluster_test.output_dir+'/Ana_ResmapCluster_profile_MCMC_sampler.pkl')
-        print('    Existing sampler: '+cluster_test.output_dir+'/Ana_ResmapCluster_profile_MCMC_sampler.pkl')
+        sampler = mcmc_common.load_object(sampler_file)
+        print('    Existing sampler: '+sampler_file)
     
     #---------- MCMC parameters
     ndim = len(par0)
     
     print('--- MCMC profile parameters: ')
-    print('    ndim       = '+str(ndim))
-    print('    nwalkers   = '+str(nwalkers))
-    print('    nsteps     = '+str(nsteps))
-    print('    burnin     = '+str(burnin))
-    print('    conf       = '+str(conf))
-    print('    reset_mcmc = '+str(reset_mcmc))
-    print('    Gaussian L = '+str(GaussLike))
+    print('    ndim                = '+str(ndim))
+    print('    nwalkers            = '+str(nwalkers))
+    print('    nsteps              = '+str(nsteps))
+    print('    burnin              = '+str(burnin))
+    print('    conf                = '+str(conf))
+    print('    reset_mcmc          = '+str(reset_mcmc))
+    print('    Gaussian likelihood = '+str(GaussLike))
 
     #---------- Defines the start
     if sampler_exist:
         if reset_mcmc:
             print('--- Reset MCMC even though sampler already exists')
             pos = [par0 + 1e-2*np.random.randn(ndim) for i in range(nwalkers)]
-            #pos = [np.random.uniform(par_min[i],par_max[i], nwalkers) for i in range(ndim)]
-            #pos = list(np.array(pos).T.reshape((nwalkers,ndim)))
             sampler.reset()
             sampler = emcee.EnsembleSampler(nwalkers, ndim, lnlike,
                                             args=[data, modgrid, par_min, par_max, GaussLike])
@@ -610,8 +671,6 @@ def run_profile_constraint(cluster_test,
     else:
         print('--- No pre-existing sampler, start from scratch')
         pos = [par0 + 1e-2*np.random.randn(ndim) for i in range(nwalkers)]
-        #pos = [np.random.uniform(par_min[i],par_max[i], nwalkers) for i in range(ndim)]
-        #pos = list(np.array(pos).T.reshape((nwalkers,ndim)))
         sampler = emcee.EnsembleSampler(nwalkers, ndim, lnlike,
                                         args=[data, modgrid, par_min, par_max, GaussLike])
         
@@ -621,24 +680,24 @@ def run_profile_constraint(cluster_test,
         sampler.run_mcmc(pos, nsteps)
 
     #---------- Save the MCMC after the run
-    save_object(sampler, cluster_test.output_dir+'/Ana_ResmapCluster_profile_MCMC_sampler.pkl')
+    mcmc_common.save_object(sampler, sampler_file)
 
     #---------- Burnin
     param_chains = sampler.chain[:, burnin:, :]
     lnL_chains = sampler.lnprobability[:, burnin:]
     
     #---------- Get the parameter statistics
-    par_best, par_percentile = chains_statistics(param_chains, lnL_chains,
+    par_best, par_percentile = mcmc_common.chains_statistics(param_chains, lnL_chains,
                                                  parname=parname, conf=conf, show=True,
-                                                 outfile=cluster_test.output_dir+'/Ana_ResmapCluster_profile_MCMC_chainstat.txt')
+                                                 outfile=chainstat_file)
 
     #---------- Get the well-sampled models
     MC_model   = get_mc_model(modgrid, param_chains, Nmc=Nmc)
     Best_model = model_profile(modgrid, par_best)
 
     #---------- Plots and results
-    chainplots(param_chains, parname, cluster_test.output_dir+'/Ana_ResmapCluster_profile',
-               par_best=par_best, par_percentile=par_percentile, conf=conf,
-               par_min=par_min, par_max=par_max)
-
-    modelplot(cluster_test, data, modgrid, par_best, param_chains, MC_model, conf=conf)
+    mcmc_common.chains_plots(param_chains, parname, chainplot_file,
+                             par_best=par_best, par_percentile=par_percentile, conf=conf,
+                             par_min=par_min, par_max=par_max)
+    
+    modelplot(data, Best_model, MC_model, subdir, conf=conf)
