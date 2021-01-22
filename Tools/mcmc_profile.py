@@ -345,7 +345,8 @@ def modelplot(data, Best_model, MC_model, subdir, conf=68.0):
                  (ylim[1]*u.Unit('deg-2')).to_value('arcmin-2'))
     
     # Residual plot
-    ax3.plot(data['radius'], (data['profile']-Best_model['background']-Best_model['cluster'])/((area*data['profile'])**0.5/area),
+    resi = data['profile']-Best_model['background']-Best_model['cluster']
+    ax3.plot(data['radius'], resi/((area*data['profile'])**0.5/area),
              linestyle='', marker='o', color='k')
     ax3.plot(radius,  radius*0, linestyle='-', color='k')
     ax3.plot(radius,  radius*0+2, linestyle='--', color='k')
@@ -385,7 +386,8 @@ def modelplot(data, Best_model, MC_model, subdir, conf=68.0):
     ax1.plot(radius, MC_perc_tot[1,:], ls='--', linewidth=2, color='grey', label='Median (Total)')
     ax1.plot(radius, MC_perc_tot[0,:], ls=':', linewidth=1, color='grey')
     ax1.plot(radius, MC_perc_tot[2,:], ls=':', linewidth=1, color='grey')
-    ax1.fill_between(radius, MC_perc_tot[0,:], y2=MC_perc_tot[2,:], alpha=0.2, color='grey', label=str(conf)+'% CL')
+    ax1.fill_between(radius, MC_perc_tot[0,:], y2=MC_perc_tot[2,:],
+                     alpha=0.2, color='grey', label=str(conf)+'% CL')
     for i in range(Nmc):
         ax1.plot(radius, MC_model['cluster'][i,:], ls='-', linewidth=0.5, alpha=0.1, color='blue')
 
@@ -393,7 +395,8 @@ def modelplot(data, Best_model, MC_model, subdir, conf=68.0):
         ax1.plot(radius, MC_model['background'][i,:], ls='-', linewidth=0.5, alpha=0.1, color='green')
 
     for i in range(Nmc):
-        ax1.plot(radius, MC_model['background'][i,:]+MC_model['cluster'][i,:], ls='-', linewidth=0.5, alpha=0.1, color='grey')
+        ax1.plot(radius, MC_model['background'][i,:]+MC_model['cluster'][i,:],
+                 ls='-', linewidth=0.5, alpha=0.1, color='grey')
         
     ax1.errorbar(data['radius'], data['profile'], yerr=(area*data['profile'])**0.5/area,
                  marker='o', elinewidth=2, color='red',
@@ -409,14 +412,16 @@ def modelplot(data, Best_model, MC_model, subdir, conf=68.0):
     
     # Add extra unit axes
     ax2 = ax1.twinx()
-    ax2.plot(radius, ((Best_model['cluster']+Best_model['background'])*u.Unit('deg-2')).to_value('arcmin-2'), 'k-', alpha=0.0)
+    ax2.plot(radius, ((Best_model['cluster']+Best_model['background'])*u.Unit('deg-2')).to_value('arcmin-2'),
+             'k-', alpha=0.0)
     ax2.set_ylabel('Profile (arcmin$^{-2}$)')
     ax2.set_yscale('log')
     ax2.set_ylim((ylim[0]*u.Unit('deg-2')).to_value('arcmin-2'),
                  (ylim[1]*u.Unit('deg-2')).to_value('arcmin-2'))
     
     # Residual plot
-    ax3.plot(data['radius'], (data['profile']-Best_model['background']-Best_model['cluster'])/((area*data['profile'])**0.5/area),
+    resi = data['profile']-Best_model['background']-Best_model['cluster']
+    ax3.plot(data['radius'], resi/((area*data['profile'])**0.5/area),
              linestyle='', marker='o', color='k')
     ax3.plot(radius,  radius*0, linestyle='-', color='k')
     ax3.plot(radius,  radius*0+2, linestyle='--', color='k')
@@ -538,14 +543,13 @@ def lnlike(params, data, modgrid, par_min, par_max, gauss=True):
     #---------- Compute the Gaussian likelihood
     # Gaussian likelihood
     if gauss:
-        chi2 = (data['profile']-test_model['cluster']-test_model['background'])**2/np.sqrt(test_model['cluster'])**2
+        resi = data['profile']-test_model['cluster']-test_model['background']
+        chi2 = resi**2/np.sqrt(test_model['cluster'])**2
         lnL = -0.5*np.nansum(chi2)
 
     # Likelihood taking into account the background counts
     else:
         area = np.pi*data['radius_max']**2 - np.pi*data['radius_min']**2
-        
-        # Poisson with Bkg
         L_i1 = (test_model['cluster']+test_model['background'])*area
         L_i2 = data['profile']*area * np.log(L_i1)
         lnL  = -np.nansum(L_i1 - L_i2)

@@ -1087,6 +1087,8 @@ class CTAana(object):
                                                 silent=self.silent)
                     except ZeroDivisionError:
                         print(srcname+' spectrum not computed due to ZeroDivisionError')
+                    except ValueError:
+                        print(srcname+' spectrum not computed due to ValueError.')
 
                 #----- Compute butterfly
                 if do_Butterfly:
@@ -1512,20 +1514,27 @@ class CTAana(object):
     # Compute SpectroImaging constraints
     #==================================================
     
-    def run_ana_mcmc_spectralimaging1(self,
-                                      reset_modelgrid=True,
-                                      reset_mcmc=True, run_mcmc=True,
-                                      GaussLike=False,
-                                      spatial_range=[0.0,2.0],
-                                      spatial_npt=11,
-                                      spectral_range=[2.0,3.0],
-                                      spectral_npt=11,
-                                      includeIC=False,
-                                      rm_tmp=False):
+    def run_ana_mcmc_spectralimaging(self,
+                                     reset_modelgrid=True,
+                                     reset_mcmc=True, run_mcmc=True,
+                                     GaussLike=False,
+                                     spatial_range=[0.0,2.0],
+                                     spatial_npt=11,
+                                     spectral_range=[2.0,3.0],
+                                     spectral_npt=11,
+                                     includeIC=False,
+                                     bkg_marginalize=True,
+                                     bkg_spectral_npt=11,
+                                     bkg_spectral_range=[-0.5,0.5],
+                                     ps_spectral_npt=11,
+                                     ps_spectral_range=[-0.5,0.5],
+                                     rm_tmp=False):
         """
         Perform a spectral-imaging analysis to constrain the cluster 
-        spectrum and profile simulteneously, but marginalizing over the background
-        that is fixed to the interpolated maximum likelihood value corresponding to 
+        spectrum and profile simulteneously.
+        Depending on the keyword bkg_marginalize, the background will be 
+        fit together in the MCMC, or marginalized over and fixed to 
+        the interpolated maximum likelihood value corresponding to 
         the tested cluster model.
         
         Parameters
@@ -1535,8 +1544,18 @@ class CTAana(object):
         - run_mcmc (bool): run the MCMC sampling?
         - GaussLike (bool): use guassian likelihood or true L scan
         - spatial_scaling_npt (int): number of point for the scaling parameter
-        - spatial_scaling_range (list of): input profile scaling range
+        - spatial_scaling_range (list of min/max): input profile scaling range
         - includeIC (bool): include inverse Compton in the model?
+        - bkg_marginalize (bool): if true, each cluster model used when computing the grid
+        is fitted to the data (ctools maximum likelihood) and marginalized over in the MCMC
+        fit. Otherwise, a grid is also build for the background and fir together with the 
+        cluster in the MCMC.
+        - bkg_spectral_npt (int): number of point to sample the background spectrum
+        - bkg_spectral_range (list of min/max): min and max value to add to the background
+        spectrum, i.e. [default+min, default+max]
+        - ps_spectral_npt (int): number of point to sample the point source spectrum
+        - ps_spectral_range (list of min/max): min and max value to add to the point sources
+        spectra, i.e. [default+min, default+max]
         - rm_tmp (bool): remove temporary templates?
         
         Outputs files
@@ -1550,11 +1569,19 @@ class CTAana(object):
             print('')
             print('======================================================')
             print('      Starting the MCMC spectral imaging analysis     ')
+            if bkg_marginalize:
+                print('      (using background marginalization)          ')
+            else:
+                print('      (including the background in the grid model)')
             print('======================================================')
             print('')
             
         #===== Create the subdirectory
-        subdir = self.output_dir+'/Ana_MCMC_SpecImg1'
+        if bkg_marginalize:
+            extra = '1'
+        else:            
+            extra = '2'
+        subdir = self.output_dir+'/Ana_MCMC_SpecImg'+extra
         if not os.path.exists(subdir): os.mkdir(subdir)
         
         #===== Param checks
@@ -1564,13 +1591,13 @@ class CTAana(object):
 
         if self.method_stack is not True:
             self.method_stack  = True
-            print('run_ana_spectralimaging1_mcmc requires method_stack=True. --> Change applied')
+            print('run_ana_spectralimaging_mcmc requires method_stack=True. --> Change applied')
         if self.method_binned is not True:
             self.method_binned  = True
-            print('run_ana_spectralimaging1_mcmc requires method_binned=True. --> Change applied')
+            print('run_ana_spectralimaging_mcmc requires method_binned=True. --> Change applied')
         if self.method_ana != '3D':
             self.method_ana  = '3D'
-            print('run_ana_spectralimaging1_mcmc requires method_ana="3D". --> Change applied')            
+            print('run_ana_spectralimaging_mcmc requires method_ana="3D". --> Change applied')            
         
         #===== Get the initial CRp profile
         rad      = np.logspace(-1,5,10000)*u.kpc
@@ -1584,9 +1611,14 @@ class CTAana(object):
         
         #===== Define the sampling values
         spatial_value  = np.linspace(spatial_range[0],spatial_range[1],spatial_npt)
-        spectral_value = np.linspace(spectral_range[0],spectral_range[1],spectral_npt)
         spatial_idx    = np.linspace(0, spatial_npt-1, spatial_npt, dtype=np.int)
+        spectral_value = np.linspace(spectral_range[0],spectral_range[1],spectral_npt)
         spectral_idx   = np.linspace(0, spectral_npt-1, spectral_npt, dtype=np.int)
+
+        bk_spectral_value = np.linspace(bkg_spectral_range[0],bkg_spectral_range[1], bkg_spectral_npt)
+        bk_spectral_idx   = np.linspace(0, bkg_spectral_npt-1, bkg_spectral_npt, dtype=np.int)
+        ps_spectral_value = np.linspace(ps_spectral_range[0],ps_spectral_range[1],ps_spectral_npt)
+        ps_spectral_idx   = np.linspace(0, ps_spectral_npt-1, ps_spectral_npt, dtype=np.int)
 
         #===== Check that parameters are fine
         if reset_modelgrid is False:
@@ -1597,7 +1629,7 @@ class CTAana(object):
             cluster_previous = listpar[0]
             spatial_value_previous = listpar[1]
             spectral_value_previous = listpar[2]
-            
+
             prof_previous = cluster_previous._get_generic_profile(rad, cluster_previous.density_crp_model)
             if not (prof_previous.value == prof_ini.value).all():
                 raise ValueError('reset_modelgrid=False, but the cluster object has changed since last run')
@@ -1610,25 +1642,48 @@ class CTAana(object):
         
         #===== Build the model grid
         if reset_modelgrid:
-            mcmc_spectralimaging1.build_model_grid(self,
-                                                   subdir,
-                                                   rad, prof_ini,
-                                                   spatial_value, spatial_idx,
-                                                   spectral_value, spectral_idx,
-                                                   includeIC=includeIC, rm_tmp=rm_tmp)
-            
+            if bkg_marginalize:
+                mcmc_spectralimaging1.build_model_grid(self,
+                                                       subdir,
+                                                       rad, prof_ini,
+                                                       spatial_value, spatial_idx,
+                                                       spectral_value, spectral_idx,
+                                                       includeIC=includeIC, rm_tmp=rm_tmp)
+            else:
+                mcmc_spectralimaging2.build_model_grid(self,
+                                                       subdir,
+                                                       rad, prof_ini,
+                                                       spatial_value, spatial_idx,
+                                                       spectral_value, spectral_idx,
+                                                       bkg_spectral_value, bkg_spectral_idx,
+                                                       ps_spectral_value, ps_spectral_idx,
+                                                       includeIC=includeIC, rm_tmp=rm_tmp)
+                
         #===== MCMC fit with cluster parameters
-        mcmc_spectralimaging1.run_constraint([self.output_dir+'/Ana_Countscube.fits',
-                                              subdir+'/Grid_Sampling.fits'],
-                                             subdir,
-                                             nwalkers=self.mcmc_nwalkers,
-                                             nsteps=self.mcmc_nsteps,
-                                             burnin=self.mcmc_burnin,
-                                             conf=self.mcmc_conf,
-                                             Nmc=self.mcmc_Nmc,
-                                             GaussLike=GaussLike,
-                                             reset_mcmc=reset_mcmc,
-                                             run_mcmc=run_mcmc)
+        if bkg_marginalize:
+            mcmc_spectralimaging1.run_constraint([self.output_dir+'/Ana_Countscube.fits',
+                                                  subdir+'/Grid_Sampling.fits'],
+                                                 subdir,
+                                                 nwalkers=self.mcmc_nwalkers,
+                                                 nsteps=self.mcmc_nsteps,
+                                                 burnin=self.mcmc_burnin,
+                                                 conf=self.mcmc_conf,
+                                                 Nmc=self.mcmc_Nmc,
+                                                 GaussLike=GaussLike,
+                                                 reset_mcmc=reset_mcmc,
+                                                 run_mcmc=run_mcmc)
+        else:
+            mcmc_spectralimaging2.run_constraint([self.output_dir+'/Ana_Countscube.fits',
+                                                  subdir+'/Grid_Sampling.fits'],
+                                                 subdir,
+                                                 nwalkers=self.mcmc_nwalkers,
+                                                 nsteps=self.mcmc_nsteps,
+                                                 burnin=self.mcmc_burnin,
+                                                 conf=self.mcmc_conf,
+                                                 Nmc=self.mcmc_Nmc,
+                                                 GaussLike=GaussLike,
+                                                 reset_mcmc=reset_mcmc,
+                                                 run_mcmc=run_mcmc)
         
 
     #==================================================
