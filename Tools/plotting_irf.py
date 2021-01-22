@@ -108,7 +108,7 @@ def plot_aeff(sub, aeff, emin=None, emax=None, tmin=None, tmax=None,
         image.append(row)
 
     # Plot image
-    c    = sub.imshow(image, extent=[emin,emax,tmin,tmax], aspect=0.5, vmin=1e6, vmax=5e10, norm=LogNorm())
+    c    = sub.imshow(image, extent=[emin,emax,tmin,tmax], aspect=0.5, norm=LogNorm(vmin=1e6, vmax=5e10))
     cbar = plt.colorbar(c, orientation='horizontal', shrink=0.8)
     cbar.set_label('cm$^2$')
 
@@ -470,8 +470,7 @@ def plot_bkg(sub, bkg, emin=None, emax=None, tmin=None, tmax=None,
         image.append(row)
 
     # Plot image
-    c    = sub.imshow(image, extent=[emin,emax,tmin,tmax], aspect=0.5,
-                      vmin=1e-12, vmax=1, norm=LogNorm())
+    c    = sub.imshow(image, extent=[emin,emax,tmin,tmax], aspect=0.5, norm=LogNorm(vmin=1e-12, vmax=1))
     cbar = plt.colorbar(c, orientation='horizontal', shrink=0.8)
     cbar.set_label('s$^{-1}$ MeV$^{-1}$ sr$^{-1}$')
 

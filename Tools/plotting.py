@@ -388,7 +388,7 @@ def show_map(mapfile, outfile,
         ax = plt.subplot(111, projection=wcs_map)
 
         if logscale :
-            plt.imshow(image, origin='lower', cmap=cmap, norm=SymLogNorm(1), vmin=vmin, vmax=vmax)
+            plt.imshow(image, origin='lower', cmap=cmap, norm=SymLogNorm(1, vmin=vmin, vmax=vmax, base=10))
         else:
             plt.imshow(image, origin='lower', cmap=cmap, vmin=vmin, vmax=vmax)
             
