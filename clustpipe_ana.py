@@ -32,6 +32,7 @@ from kesacco.Tools import make_cluster_template
 from kesacco.Tools import mcmc_spectrum
 from kesacco.Tools import mcmc_profile
 from kesacco.Tools import mcmc_spectralimaging1
+from kesacco.Tools import mcmc_spectralimaging2
 from kesacco       import clustpipe_ana_plot
 
 from minot.ClusterTools.map_tools import radial_profile_cts
@@ -1655,10 +1656,10 @@ class CTAana(object):
                                                        rad, prof_ini,
                                                        spatial_value, spatial_idx,
                                                        spectral_value, spectral_idx,
-                                                       bkg_spectral_value, bkg_spectral_idx,
+                                                       bk_spectral_value, bk_spectral_idx,
                                                        ps_spectral_value, ps_spectral_idx,
                                                        includeIC=includeIC, rm_tmp=rm_tmp)
-                
+        
         #===== MCMC fit with cluster parameters
         if bkg_marginalize:
             mcmc_spectralimaging1.run_constraint([self.output_dir+'/Ana_Countscube.fits',

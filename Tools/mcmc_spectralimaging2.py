@@ -59,6 +59,23 @@ def build_model_grid(cpipe,
         
     Parameters
     ----------
+    - cpipe (kesacco object): a kesacco object
+    - subdir (str): full path to the working subdirectory
+    - rad (np array): the radius array for the 3d profile sampling
+    - prof_ini (np array): the initial cluster profile to be rescaled
+    - spatial_value (np array): the spatial rescaling values
+    - spatial_idx (np array): the index corresponding to spatial_value
+    - spectral_value (np array): the spectral rescaling values
+    - spectral_idx (np array): the spectral corresponding to spectral_value
+    - bkg_spectral_value (np array): the spectral rescaling values for the background
+    - bkg_spectral_idx (np array): the spectral corresponding to spectral_value 
+    for the background
+    - ps_spectral_value (np array): the spectral rescaling values for the 
+    point sources
+    - ps_spectral_idx (np array): the spectral corresponding to spectral_value 
+    for the point source
+    - includeIC (bool): include inverse Compton in the model
+    - rm_tmp (bool): remove temporary files
 
     Output
     ------
@@ -92,11 +109,11 @@ def build_model_grid(cpipe,
             
             # Cluster model
             make_cluster_template.make_map(cluster_tmp,
-                                           subdir+'/Model_Map_'+extij+'.fits',
+                                           subdir+'/Model_Cluster_Map_'+extij+'.fits',
                                            Egmin=cpipe.obs_setup.get_emin(),Egmax=cpipe.obs_setup.get_emax(),
                                            includeIC=includeIC)
             make_cluster_template.make_spectrum(cluster_tmp,
-                                                subdir+'/Model_Spectrum_'+extij+'.txt',
+                                                subdir+'/Model_Cluster_Spectrum_'+extij+'.txt',
                                                 energy=np.logspace(-1,5,1000)*u.GeV,
                                                 includeIC=includeIC)
 
@@ -105,9 +122,9 @@ def build_model_grid(cpipe,
             clencounter = 0
             for i in range(len(model_tot)):
                 if model_tot[i].name() == cluster_tmp.name:
-                    spefn = subdir+'/Model_Spectrum_'+extij+'.txt'
+                    spefn = subdir+'/Model_Cluster_Spectrum_'+extij+'.txt'
                     model_tot[i].spectral().filename(spefn)
-                    spafn = subdir+'/Model_Map_'+extij+'.fits'
+                    spafn = subdir+'/Model_Cluster_Map_'+extij+'.fits'
                     model_tot[i].spatial(gammalib.GModelSpatialDiffuseMap(spafn))
                     clencounter += 1
             if clencounter != 1:
@@ -132,10 +149,10 @@ def build_model_grid(cpipe,
                                             edisp=cpipe.spec_edisp,
                                             stack=cpipe.method_stack,
                                             silent=True,
-                                            logfile=subdir+'/Model_Cube_Cluster_log_'+extij+'.txt',
+                                            logfile=subdir+'/Model_Cluster_Cube_log_'+extij+'.txt',
                                             inmodel_usr=subdir+'/Model_Cluster_'+extij+'.xml',
-                                            outmap_usr=subdir+'/Model_Cube_Cluster_'+extij+'.fits')
-
+                                            outmap_usr=subdir+'/Model_Cluster_Cube_'+extij+'.fits')
+    
     #===== Loop over all background models to be tested
     for jmod in range(bkg_spectral_npt):
         print('--- Building background template '+str(1+jmod)+'/'+str(bkg_spectral_npt))
@@ -145,17 +162,13 @@ def build_model_grid(cpipe,
         extij = 'TMP_'+str(jmod)
 
         #---------- xml model
-        '''
         model_tot = gammalib.GModels(cpipe.output_dir+'/Ana_Model_Input_Stack.xml')
         bkencounter = 0
         for i in range(len(model_tot)):
-            if model_tot[i].name() == cluster_tmp.name:
-                spefn = subdir+'/Model_Spectrum_'+extij+'.txt'
-                model_tot[i].spectral().filename(spefn)
-                spafn = subdir+'/Model_Map_'+extij+'.fits'
-                model_tot[i].spatial(gammalib.GModelSpatialDiffuseMap(spafn))
+            if model_tot[i].name() == 'BackgroundModel':
+                model_tot[i].spectral().index(model_tot[i].spectral().index() + spectral_j)
                 bkencounter += 1
-        '''
+                
         if bkencounter != 1:
             raise ValueError('No background encountered in the input stack model')
         model_tot.save(subdir+'/Model_Background_'+extij+'.xml')
@@ -178,100 +191,129 @@ def build_model_grid(cpipe,
                                         edisp=cpipe.spec_edisp,
                                         stack=cpipe.method_stack,
                                         silent=True,
-                                        logfile=subdir+'/Model_Cube_Background_log_'+extij+'.txt',
+                                        logfile=subdir+'/Model_Background_Cube_log_'+extij+'.txt',
                                         inmodel_usr=subdir+'/Model_Background_'+extij+'.xml',
-                                        outmap_usr=subdir+'/Model_Cube_Background_'+extij+'.fits')
-        
+                                        outmap_usr=subdir+'/Model_Background_Cube_'+extij+'.fits')
+    
     #===== Loop over all point source models to be tested
     for ips in range(len(cpipe.compact_source.name)):
         print('------ Point source '+cpipe.compact_source.name[ips])
         for jmod in range(ps_spectral_npt):
-            print('--- Building background template '+str(1+jmod)+'/'+str(bkg_spectral_npt))
+            print('--- Building point source template '+str(1+jmod)+'/'+str(bkg_spectral_npt))
             
             #---------- Indexing
             spectral_j   = ps_spectral_value[jmod]
             extij = 'TMP_'+str(jmod)
 
-        #---------- xml model
-        '''
-        model_tot = gammalib.GModels(cpipe.output_dir+'/Ana_Model_Input_Stack.xml')
-        psencounter = 0
-        for i in range(len(model_tot)):
-            if model_tot[i].name() == cluster_tmp.name:
-                spefn = subdir+'/Model_Spectrum_'+extij+'.txt'
-                model_tot[i].spectral().filename(spefn)
-                spafn = subdir+'/Model_Map_'+extij+'.fits'
-                model_tot[i].spatial(gammalib.GModelSpatialDiffuseMap(spafn))
-                psencounter += 1
-        '''
-        if psencounter != 1:
-            raise ValueError('No point source encountered in the input stack model')
-        model_tot.save(subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml')
-        
-        # Remove Cluster and background
-        cpipe._rm_source_xml(subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
-                             subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
-                             cpipe.cluster.name)
-        
-        cpipe._rm_source_xml(subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
-                             subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
-                             'BackgroundModel')
-        
-        #---------- Compute the 3D background cube            
-        modcube = cubemaking.model_cube(cpipe.output_dir,
-                                        cpipe.map_reso, cpipe.map_coord, cpipe.map_fov,
-                                        cpipe.spec_emin, cpipe.spec_emax, cpipe.spec_enumbins,
-                                        cpipe.spec_ebinalg,
-                                        edisp=cpipe.spec_edisp,
-                                        stack=cpipe.method_stack,
-                                        silent=True,
-                                        logfile=subdir+'/Model_Cube_Background_log_'+extij+'.txt',
-                                        inmodel_usr=subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
-                                        outmap_usr=subdir+'/Model_Cube_'+cpipe.compact_source.name[ips]+'_'+extij+'.fits')
+            #---------- xml model
+            model_tot = gammalib.GModels(cpipe.output_dir+'/Ana_Model_Input_Stack.xml')
+            psencounter = 0
+            for i in range(len(model_tot)):
+                if model_tot[i].name() == cpipe.compact_source.name[ips]:
+                    model_tot[i].spectral().index(model_tot[i].spectral().index() + spectral_j)
+                    psencounter += 1
 
-    ########################################################################
-    ########################################################################
-    ########################################################################
+            if psencounter != 1:
+                raise ValueError('No point source encountered in the input stack model')
+            model_tot.save(subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml')
+        
+            # Remove Cluster and background
+            cpipe._rm_source_xml(subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
+                                 subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
+                                 cpipe.cluster.name)
+            
+            cpipe._rm_source_xml(subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
+                                 subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
+                                 'BackgroundModel')
+
+            for jps in range(len(cpipe.compact_source.name)):
+                if jps != ips:
+                    cpipe._rm_source_xml(subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
+                                         subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
+                                         cpipe.compact_source.name[jps])
+            
+            #---------- Compute the 3D background cube            
+            modcube = cubemaking.model_cube(cpipe.output_dir,
+                                            cpipe.map_reso, cpipe.map_coord, cpipe.map_fov,
+                                            cpipe.spec_emin, cpipe.spec_emax, cpipe.spec_enumbins,
+                                            cpipe.spec_ebinalg,
+                                            edisp=cpipe.spec_edisp,
+                                            stack=cpipe.method_stack,
+                                            silent=True,
+                                            logfile=subdir+'/Model_'+cpipe.compact_source.name[ips]+'_Cube_log_'+extij+'.txt',
+                                            inmodel_usr=subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
+                                            outmap_usr=subdir+'/Model_'+cpipe.compact_source.name[ips]+'_Cube_'+extij+'.fits')
     
     #===== Build the grid
-    hdul = fits.open(subdir+'/Model_Cube_TMP_'+str(0)+'_'+str(0)+'.fits')
-    cnt0 = hdul[0].data
+    # Get the grid info
+    hdul = fits.open(subdir+'/Model_Cluster_Cube_TMP_'+str(0)+'_'+str(0)+'.fits')
+    head = hdul[0].header
     hdul.close()
-    modgrid_bk = np.zeros((spatial_npt, spectral_npt,
-                           cnt0.shape[0], cnt0.shape[1], cnt0.shape[2]))
-    modgrid_cl = np.zeros((spatial_npt, spectral_npt,
-                           cnt0.shape[0], cnt0.shape[1], cnt0.shape[2]))
     
+    Npixx = head['NAXIS1']
+    Npixy = head['NAXIS2']
+    NpixE = head['NAXIS3']
+
+    # Build the cluster grid
+    modgrid_cl = np.zeros((spatial_npt, spectral_npt, NpixE, Npixy, Npixx))
     for imod in range(spatial_npt):
         for jmod in range(spectral_npt):
             extij = 'TMP_'+str(imod)+'_'+str(jmod)
+            hdul = fits.open(subdir+'/Model_Cluster_Cube_'+extij+'.fits')
+            modgrid_cl[imod,jmod,:,:,:] = hdul[0].data
+            hdul.close()
+    grid_cl_hdu = fits.ImageHDU(modgrid_cl)
             
-            hdul1 = fits.open(subdir+'/Model_Cube_'+extij+'.fits')
-            hdul2 = fits.open(subdir+'/Model_Cube_Cluster_'+extij+'.fits')
-            modgrid_bk[imod,jmod,:,:,:] = hdul2[0].data
-            modgrid_cl[imod,jmod,:,:,:] = hdul1[0].data - hdul2[0].data
-            hdul1.close()
-            hdul2.close()
-            
+    # Build the background grid
+    modgrid_bk = np.zeros((bkg_spectral_npt, NpixE, Npixy, Npixx))
+    for jmod in range(bkg_spectral_npt):
+        extij = 'TMP_'+str(jmod)
+        hdul = fits.open(subdir+'/Model_Background_Cube_'+extij+'.fits')
+        modgrid_bk[jmod,:,:,:] = hdul[0].data
+        hdul.close()
+    grid_bk_hdu = fits.ImageHDU(modgrid_bk)
+
+    # Build the background grid
+    gridlist_ps_hdu = []
+    for ips in range(len(cpipe.compact_source.name)):
+        modgrid_ps = np.zeros((ps_spectral_npt, NpixE, Npixy, Npixx))
+        for jmod in range(ps_spectral_npt):
+            extij = 'TMP_'+str(jmod)
+            hdul = fits.open(subdir+'/Model_'+cpipe.compact_source.name[ips]+'_Cube_'+extij+'.fits')
+            modgrid_ps[jmod,:,:,:] = hdul[0].data
+            hdul.close()
+            grid_ps_hdu = fits.ImageHDU(modgrid_ps)
+        gridlist_ps_hdu.append(grid_ps_hdu)
+
     #===== Save in a table
     scal_spa = Table()
     scal_spa['spatial_idx'] = spatial_idx
     scal_spa['spatial_val'] = spatial_value
     scal_spa_hdu = fits.BinTableHDU(scal_spa)
-    
-    scal_spe = Table()        
+    scal_spe = Table()
     scal_spe['spectral_idx'] = spectral_idx
     scal_spe['spectral_val'] = spectral_value
     scal_spe_hdu = fits.BinTableHDU(scal_spe)
-    
-    grid_cl_hdu = fits.ImageHDU(modgrid_cl)
-    grid_bk_hdu = fits.ImageHDU(modgrid_bk)
+
+    bk_scal_spe = Table()
+    bk_scal_spe['bk_spectral_idx'] = bkg_spectral_idx
+    bk_scal_spe['bk_spectral_val'] = bkg_spectral_value
+    bk_scal_spe_hdu = fits.BinTableHDU(bk_scal_spe)
+
+    ps_scal_spe = Table()
+    ps_scal_spe['ps_spectral_idx'] = ps_spectral_idx
+    ps_scal_spe['ps_spectral_val'] = ps_spectral_value
+    ps_scal_spe_hdu = fits.BinTableHDU(ps_scal_spe)
     
     hdul = fits.HDUList()
     hdul.append(scal_spa_hdu)
     hdul.append(scal_spe_hdu)
-    hdul.append(grid_bk_hdu)
     hdul.append(grid_cl_hdu)
+    hdul.append(bk_scal_spe_hdu)
+    hdul.append(grid_bk_hdu)
+    hdul.append(ps_scal_spe_hdu)
+    for ips in range(len(cpipe.compact_source.name)):
+        hdul.append(gridlist_ps_hdu[ips])
     hdul.writeto(subdir+'/Grid_Sampling.fits', overwrite=True)
 
     #===== Save the properties of the last computation run
@@ -280,21 +322,11 @@ def build_model_grid(cpipe,
     
     #===== remove TMP files
     if rm_tmp:
-        for imod in range(spatial_scaling_npt):
-            for jmod in range(spectral_slope_npt):
-                extij = 'TMP_'+str(imod)+'_'+str(jmod)
-                os.remove(subdir+'/Model_Map_'+extij+'.fits')
-                os.remove(subdir+'/Model_Spectrum_'+extij+'.txt')
-                os.remove(subdir+'/Model_Cube_'+extij+'.fits')
-                os.remove(subdir+'/Model_Cube_log_'+extij+'.txt')
-                os.remove(subdir+'/Model_Cube_Cluster_'+extij+'.fits')
-                os.remove(subdir+'/Model_Cube_Cluster_log_'+extij+'.txt')
-                os.remove(subdir+'/Model_Input_'+extij+'.xml')
-                os.remove(subdir+'/Model_Output_'+extij+'.xml')
-                os.remove(subdir+'/Model_Output_log_'+extij+'.txt')
-                os.remove(subdir+'/Model_Output_Cluster_'+extij+'.xml')
+        tmp_list = glob.glob(subdir+"/Model_*")
+        for fi in tmp_list:
+            os.remove(fi)
 
-
+            
 #==================================================
 # Get models from the parameter space
 #==================================================
@@ -320,19 +352,30 @@ def get_mc_model(modgrid, param_chains, Nmc=100):
     
     Nsample = len(par_flat[:,0])-1
     
-    MC_model_background = np.zeros((Nmc, modgrid['xx_val'].shape[0],
-                                    modgrid['xx_val'].shape[1], modgrid['xx_val'].shape[2]))
     MC_model_cluster = np.zeros((Nmc, modgrid['xx_val'].shape[0],
                                  modgrid['xx_val'].shape[1], modgrid['xx_val'].shape[2]))
+    MC_model_background = np.zeros((Nmc, modgrid['xx_val'].shape[0],
+                                    modgrid['xx_val'].shape[1], modgrid['xx_val'].shape[2]))
+    MC_model_ps = []
+    for ips in range(len(modgrid['models_ps_list'])):
+        MC_model_ps.append(np.zeros((Nmc, modgrid['xx_val'].shape[0],
+                                     modgrid['xx_val'].shape[1], modgrid['xx_val'].shape[2])))
+    MC_model_total = np.zeros((Nmc, modgrid['xx_val'].shape[0],
+                               modgrid['xx_val'].shape[1], modgrid['xx_val'].shape[2]))
     
     for i in range(Nmc):
         param_MC = par_flat[np.random.randint(0, high=Nsample), :] # randomly taken from chains
         mods = model_specimg(modgrid, param_MC)
         MC_model_cluster[i,:,:,:]    = mods['cluster']
         MC_model_background[i,:,:,:] = mods['background']
+        for ips in range(len(modgrid['models_ps_list'])):
+            MC_model_ps[ips][i,:,:,:] = mods['point_sources'][ips]
+        MC_model_total[i,:,:,:] = mods['total']
 
     MC_models = {'cluster':MC_model_cluster,
-                 'background':MC_model_background}
+                 'background':MC_model_background,
+                 'point_sources':MC_model_ps,
+                 'total':MC_model_total}
     
     return MC_models
 
@@ -713,8 +756,8 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
 
     plt.savefig(outdir+'/MCMC_SpectrumResidual.pdf')
     plt.close()
-
     
+
 #==================================================
 # Read the data
 #==================================================
@@ -740,12 +783,19 @@ def read_data(input_files):
     Ebins = hdu[2].data
     hdu.close()
     
-    # Get expected
-    hdu = fits.open(input_files[1])
-    sample_spa = hdu[1].data
-    sample_spe = hdu[2].data
-    models_bk  = hdu[3].data
-    models_cl  = hdu[4].data
+    # Get expected    
+    hdul = fits.open(input_files[1])
+    Nps = len(hdul)-7 # 7=1(primary)+3(cl)+2(bk)+1(ps index)
+    
+    sample_spa    = hdul[1].data
+    sample_spe    = hdul[2].data
+    models_cl     = hdul[3].data
+    bk_sample_spe = hdul[4].data
+    models_bk     = hdul[5].data
+    ps_sample_spe = hdul[6].data
+    models_ps_list = []
+    for ips in range(Nps):
+        models_ps_list.append(hdul[7+ips].data)
     hdu.close()
 
     gridshape = models_cl.shape
@@ -767,23 +817,26 @@ def read_data(input_files):
     
     modgrid = {'header':header,
                'Ebins':Ebins,
-               'x_val':x_val,
-               'y_val':y_val,
-               'e_val':e_val,
+               'x_val':x_val, # x pixel indexing
+               'y_val':y_val, # y pixel indexing
+               'e_val':e_val, # e pixel indexing
                'spe_val':sample_spe['spectral_val'],
                'spa_val':sample_spa['spatial_val'],
-               'xx_val':xx_val,
-               'yy_val':yy_val,
-               'ee_val':ee_val,
-               'xxf_val':xxf_val,
-               'yyf_val':yyf_val,
-               'eef_val':eef_val,               
+               'bk_spe_val':bk_sample_spe['bk_spectral_val'],
+               'ps_spe_val':ps_sample_spe['ps_spectral_val'],
+               'xx_val':xx_val, # x pixel 3d grid
+               'yy_val':yy_val, # y pixel 3d grid
+               'ee_val':ee_val, # e pixel 3d grid
+               'xxf_val':xxf_val, # x pixel 3d grid flattened
+               'yyf_val':yyf_val, # y pixel 3d grid flattened
+               'eef_val':eef_val, # e pixel 3d grid flattened
                'models_cl':models_cl,
-               'models_bk':models_bk}
+               'models_bk':models_bk,
+               'models_ps_list':models_ps_list}
     
     return data, modgrid
 
-    
+
 #==================================================
 # MCMC: Defines log prior
 #==================================================
@@ -848,19 +901,19 @@ def lnlike(params, data, modgrid, par_min, par_max, gauss=True):
     if params[0] <= 0: # should never happen, but it does, so debug when so
         import pdb
         pdb.set_trace()
-        
+
     test_model = model_specimg(modgrid, params)
     
     #---------- Compute the Gaussian likelihood
     # Gaussian likelihood
     if gauss:
-        chi2 = (data - test_model['cluster']-test_model['background'])**2/np.sqrt(test_model['cluster'])**2
+        chi2 = (data - test_model['total'])**2/np.sqrt(test_model['total'])**2
         lnL = -0.5*np.nansum(chi2)
 
     # Poisson with Bkg
     else:        
-        L_i1 = test_model['cluster']+test_model['background']
-        L_i2 = data*np.log(test_model['cluster']+test_model['background'])
+        L_i1 = test_model['total']
+        L_i2 = data*np.log(test_model['total'])
         lnL  = -np.nansum(L_i1 - L_i2)
         
     # In case of NaN, goes to infinity
@@ -888,24 +941,38 @@ def model_specimg(modgrid, params):
     - output_model (array): the output model in units of the input expected
     '''
 
-    # Interpolate for flatten grid of parameters
+    # 0, 1, 2 -> cluster
+    # 3, 4    -> Norm, spec bkg
+    # 5, 6    -> Norm, spec ps1
+    # 7, 8    -> Norm, spec ps2
+    # ...
+
+    # Cluster component
     outf_cl = interpn((modgrid['spa_val'], modgrid['spe_val'],
                        modgrid['e_val'], modgrid['y_val'], modgrid['x_val']),
                       modgrid['models_cl'],
                       (params[1], params[2], modgrid['eef_val'], modgrid['yyf_val'], modgrid['xxf_val']))
-
-    outf_bk = interpn((modgrid['spa_val'], modgrid['spe_val'],
-                       modgrid['e_val'], modgrid['y_val'], modgrid['x_val']),
-                      modgrid['models_bk'],
-                      (params[1], params[2], modgrid['eef_val'], modgrid['yyf_val'], modgrid['xxf_val']))
-
-    # Reshape according to xx
     out_cl = np.reshape(outf_cl, modgrid['xx_val'].shape)
-    out_bk = np.reshape(outf_bk, modgrid['xx_val'].shape)
+    out_cl = params[0]*out_cl
     
+    # Background component
+    f_bk = interp1d(modgrid['bk_spe_val'], modgrid['models_bk'], axis=0)
+    out_bk = params[3] * f_bk(params[4])
+    
+    # Point sources component
+    out_ps = []
+    for ips in range(len(modgrid['models_ps_list'])):
+        f_ps = interp1d(modgrid['ps_spe_val'], modgrid['models_ps_list'][ips], axis=0)
+        out_ps.append(params[5+ips*2] * f_ps(params[6+ips*2]))
+        
     # Add normalization parameter and save
-    output_model = {'cluster':params[0]*out_cl, 'background':out_bk}
-    
+    tot_ps = out_cl*0
+    for ips in range(len(modgrid['models_ps_list'])):
+        tot_ps = tot_ps + out_ps[ips]
+    total = out_cl + out_bk + tot_ps
+
+    output_model = {'cluster':out_cl, 'background':out_bk, 'point_sources':out_ps, 'total':total}
+
     return output_model
 
 
@@ -952,16 +1019,28 @@ def run_constraint(input_files,
     
     #========== Guess parameter definition
     # Normalization, scaling profile \propto profile_input^eta, CRp index
-    parname = ['X_{CRp}/X_{CRp,0}', '\\eta_{CRp}', '\\alpha_{CRp}'] 
-    par0 = np.array([1.0, np.mean(modgrid['spa_val']), np.mean(modgrid['spe_val'])])
-    par_min = [0,      np.amin(modgrid['spa_val']), np.amin(modgrid['spe_val'])]
-    par_max = [np.inf, np.amax(modgrid['spa_val']), np.amax(modgrid['spe_val'])]
+    parname = ['X_{CRp}/X_{CRp,0}', '\\eta_{CRp}', '\\alpha_{CRp}', 'A_{bkg}', '\\alpha_{bkg}']    
+    par0 = np.array([1.0, np.mean(modgrid['spa_val']), np.mean(modgrid['spe_val']),
+                     1.0, np.mean(modgrid['bk_spe_val'])])
+    par_min = [0,      np.amin(modgrid['spa_val']), np.amin(modgrid['spe_val']),
+               0.0, np.amin(modgrid['bk_spe_val'])]
+    par_max = [np.inf, np.amax(modgrid['spa_val']), np.amax(modgrid['spe_val']),
+               np.inf, np.amax(modgrid['bk_spe_val'])]
+    for i in range(len(modgrid['models_ps_list'])):
+        parname.append('A_{ps,'+str(i+1)+'}')
+        parname.append('\\alpha_{ps,'+str(i+1)+'}')
+        par0 = np.append(par0, 1.0)
+        par0 = np.append(par0, np.mean(modgrid['ps_spe_val']))
+        par_min.append(0.0)
+        par_min.append(np.amin(modgrid['ps_spe_val']))
+        par_max.append(np.inf)
+        par_max.append(np.amax(modgrid['ps_spe_val']))
 
     #========== Names
     sampler_file   = subdir+'/MCMC_sampler.pkl'
     chainstat_file = subdir+'/MCMC_chainstat.txt'
     chainplot_file = subdir+'/MCMC_chainplot'
-
+    
     #========== Start running MCMC definition and sampling    
     #---------- Check if a MCMC sampler was already recorded
     sampler_exist = os.path.exists(sampler_file)
@@ -971,6 +1050,11 @@ def run_constraint(input_files,
     
     #---------- MCMC parameters
     ndim = len(par0)
+    if nwalkers < 2*ndim:
+        print('nwalkers should be at least twice the number of parameters.')
+        print('nwalkers --> '+str(ndim*2))
+        print('')
+        nwalkers = ndim*2
     
     print('--- MCMC profile parameters: ')
     print('    ndim                = '+str(ndim))
@@ -997,7 +1081,7 @@ def run_constraint(input_files,
         pos = [par0 + 1e-2*np.random.randn(ndim) for i in range(nwalkers)]
         sampler = emcee.EnsembleSampler(nwalkers, ndim, lnlike,
                                         args=[data, modgrid, par_min, par_max, GaussLike])
-        
+
     #---------- Run the MCMC
     if run_mcmc:
         print('--- Runing '+str(nsteps)+' MCMC steps')
@@ -1023,6 +1107,9 @@ def run_constraint(input_files,
     mcmc_common.chains_plots(param_chains, parname, chainplot_file,
                              par_best=par_best, par_percentile=par_percentile, conf=conf,
                              par_min=par_min, par_max=par_max)
+
+    import pdb
+    pdb.set_trace()
     
     modelplot(data, Best_model, MC_model, modgrid['header'], modgrid['Ebins'], subdir,
               conf=conf, FWHM=0.1*u.deg, theta=1.0*u.deg)

@@ -51,15 +51,27 @@ def build_model_grid(cpipe,
                      includeIC=False,
                      rm_tmp=False):
     """
-    Build a grid of models for the cluster and background
-        
+    Build a grid of models for the cluster and background. The 
+    background model is obtained using the likelihood best fit
+    according to the given tested cluster model.
+    
     Parameters
     ----------
-    - subdir (str): full path to the working directory
-    - test_cluster (minot object): a cluster used for model computation
+    - cpipe (kesacco object): a kesacco object
+    - subdir (str): full path to the working subdirectory
+    - rad (np array): the radius array for the 3d profile sampling
+    - prof_ini (np array): the initial cluster profile to be rescaled
+    - spatial_value (np array): the spatial rescaling values
+    - spatial_idx (np array): the index corresponding to spatial_value
+    - spectral_value (np array): the spectral rescaling values
+    - spectral_idx (np array): the spectral corresponding to spectral_value
+    - includeIC (bool): include inverse Compton in the model
+    - rm_tmp (bool): remove temporary files
 
     Output
     ------
+    - All temporary file (e.g. cluster templates, likelihood fit models, ...)
+    and the Grid_Sampling.fits file
     
     """
     
@@ -94,7 +106,7 @@ def build_model_grid(cpipe,
                                                 subdir+'/Model_Spectrum_'+extij+'.txt',
                                                 energy=np.logspace(-1,5,1000)*u.GeV,
                                                 includeIC=includeIC)
-
+            
             # xml model
             model_tot = gammalib.GModels(cpipe.output_dir+'/Ana_Model_Input_Stack.xml')
             clencounter = 0
@@ -777,7 +789,8 @@ def lnlike(params, data, modgrid, par_min, par_max, gauss=True):
     #---------- Compute the Gaussian likelihood
     # Gaussian likelihood
     if gauss:
-        chi2 = (data - test_model['cluster']-test_model['background'])**2/np.sqrt(test_model['cluster'])**2
+        sigma = np.sqrt(test_model['cluster']+test_model['background'])
+        chi2 = (data - test_model['cluster']-test_model['background'])**2/sigma**2
         lnL = -0.5*np.nansum(chi2)
 
     # Poisson with Bkg
