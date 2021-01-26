@@ -79,7 +79,9 @@ def build_model_grid(cpipe,
 
     Output
     ------
-    
+    - All temporary file (e.g. cluster templates, likelihood fit models, ...)
+    and the Grid_Sampling.fits file
+
     """
     
     # Save the cluster model before modification
@@ -343,7 +345,7 @@ def get_mc_model(modgrid, param_chains, Nmc=100):
 
     Output
     ------
-    MC_model (ndarray): Nmc x N_eng array
+    - MC_model (ndarray): Nmc x N_eng array
 
     """
 
@@ -392,14 +394,24 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
         
     Parameters
     ----------
-
+    - data (dict): data file
+    - modbest (dict): best fit model
+    - MC_model (dict): Monte Carlo models computed with get_mc_model
+    - header (str): map header
+    - Ebins (ndarray): Energy bins 
+    - outdir (str): path to output directory
+    - conf (float): confidence limit used in plots
+    - FWHM (quantity): smoothing FWHM
+    - theta (quantity): angle used for spectral extraction
+    - coord (SkyCoord): coordinates of the cluster
+    - profile_reso (quantity): bin used for profile extraction
+    
     Output
     ------
     Plots are saved
+    
     """
-
-    import pdb
-
+    
     #----- Get needed information
     reso = header['CDELT2']
     sigma_sm = (FWHM/(2*np.sqrt(2*np.log(2)))).to_value('deg')/reso
@@ -415,7 +427,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
 
     radmap = map_tools.greatcircle(ra_map, dec_map,
                                    coord.ra.to_value('deg'), coord.dec.to_value('deg'))
-
+    
     #========== Data - model, stack
     fig = plt.figure(0, figsize=(18, 4))
     ax = plt.subplot(131, projection=proj)
@@ -427,29 +439,30 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     plt.ylabel('Dec.')
     
     ax = plt.subplot(132, projection=proj)
-    plt.imshow(gaussian_filter(np.sum(modbest['cluster']+modbest['background'],axis=0), sigma=sigma_sm),
+    plt.imshow(gaussian_filter(np.sum(modbest['total'],axis=0), sigma=sigma_sm),
                origin='lower', cmap='magma', norm=SymLogNorm(1, base=10, vmin=cb.norm.vmin, vmax=cb.norm.vmax))
     plt.colorbar()
     plt.title('Model (counts)')
     plt.xlabel('R.A.')
     plt.ylabel('Dec.')
-    vmin0 = np.amin(gaussian_filter(np.sum(data-(modbest['cluster']+modbest['background']), axis=0),
-                                    sigma=sigma_sm))
-    vmax0 = np.amax(gaussian_filter(np.sum(data-(modbest['cluster']+modbest['background']), axis=0),
-                                    sigma=sigma_sm))
-    vmm = np.amax([np.abs(vmin0), np.abs(vmax0)])   
+    vmin0 = np.amin(gaussian_filter(np.sum(data-modbest['total'], axis=0),sigma=sigma_sm))
+    vmax0 = np.amax(gaussian_filter(np.sum(data-modbest['total'], axis=0),sigma=sigma_sm))
+    vmm = np.amax([np.abs(vmin0), np.abs(vmax0)])
     ax = plt.subplot(133, projection=proj)
-    plt.imshow(gaussian_filter(np.sum(data-(modbest['cluster']+modbest['background']), axis=0), sigma=sigma_sm),
+    plt.imshow(gaussian_filter(np.sum(data-modbest['total'], axis=0), sigma=sigma_sm),
                origin='lower', cmap='RdBu', vmin=-vmm, vmax=vmm)
     plt.colorbar()
-    cont = ax.contour(2*sigma_sm*np.sqrt(np.pi)*gaussian_filter(np.sum(data-(modbest['cluster']+modbest['background']), axis=0), sigma=sigma_sm) / np.sqrt(gaussian_filter(np.sum((modbest['cluster']+modbest['background']), axis=0), sigma=sigma_sm)), levels=np.array([-9,-7,-5,-3,3,5,7,9]), colors='black')
+    filt1 = gaussian_filter(np.sum(data-modbest['total'], axis=0), sigma=sigma_sm)
+    filt2 = np.sqrt(gaussian_filter(np.sum(modbest['total'], axis=0), sigma=sigma_sm))
+    snr   = 2*sigma_sm*np.sqrt(np.pi) * filt1 / filt2
+    cont = ax.contour(snr, levels=np.array([-9,-7,-5,-3,3,5,7,9]), colors='black')
     plt.title('Residual (counts)')
     plt.xlabel('R.A.')
     plt.ylabel('Dec.')
     
     plt.savefig(outdir+'/MCMC_MapResidual.pdf')
     plt.close()
-
+    
     #========== Data - model, for all energy bins
     pdf_pages = PdfPages(outdir+'/MCMC_MapSliceResidual.pdf')
     
@@ -466,20 +479,23 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
         plt.ylabel('Dec.')
         
         ax = plt.subplot(132, projection=proj)
-        plt.imshow(gaussian_filter((modbest['cluster']+modbest['background'])[i,:,:], sigma=sigma_sm),
+        plt.imshow(gaussian_filter(modbest['total'][i,:,:], sigma=sigma_sm),
                    origin='lower', cmap='magma', norm=SymLogNorm(1, base=10,vmin=cb.norm.vmin, vmax=cb.norm.vmax))
         plt.colorbar()
         plt.title('Model (counts) - E=['+Ebinprint+'] GeV')
         plt.xlabel('R.A.')
         plt.ylabel('Dec.')
 
-        vmin0 = np.amin(gaussian_filter((data-(modbest['cluster']+modbest['background']))[i,:,:], sigma=sigma_sm))
-        vmax0 = np.amax(gaussian_filter((data-(modbest['cluster']+modbest['background']))[i,:,:], sigma=sigma_sm))
+        vmin0 = np.amin(gaussian_filter((data-modbest['total'])[i,:,:], sigma=sigma_sm))
+        vmax0 = np.amax(gaussian_filter((data-modbest['total'])[i,:,:], sigma=sigma_sm))
         vmm = np.amax([np.abs(vmin0), np.abs(vmax0)])
         ax = plt.subplot(133, projection=proj)
-        plt.imshow(gaussian_filter((data-(modbest['cluster']+modbest['background']))[i,:,:], sigma=sigma_sm),
+        plt.imshow(gaussian_filter((data-modbest['total'])[i,:,:], sigma=sigma_sm),
                    origin='lower', cmap='RdBu', vmin=-vmm, vmax=vmm)
-        cont = ax.contour(2*sigma_sm*np.sqrt(np.pi)*gaussian_filter((data-(modbest['cluster']+modbest['background']))[i,:,:], sigma=sigma_sm) / np.sqrt(gaussian_filter((modbest['cluster']+modbest['background'])[i,:,:], sigma=sigma_sm)), levels=np.array([-9,-7,-5,-3,3,5,7,9]), colors='black')
+        filt1 = gaussian_filter((data-modbest['total'])[i,:,:], sigma=sigma_sm)
+        filt2 = np.sqrt(gaussian_filter(modbest['total'][i,:,:], sigma=sigma_sm))
+        snr   = 2*sigma_sm*np.sqrt(np.pi) * filt1 / filt2
+        cont = ax.contour(snr, levels=np.array([-9,-7,-5,-3,3,5,7,9]), colors='black')
         plt.colorbar()
         plt.title('Residual (counts) - E=['+Ebinprint+'] GeV')
         plt.xlabel('R.A.')
@@ -494,7 +510,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     # If coord not given, assume at the center
     cntmap_data = np.sum(data, axis=0)
     cntmap_cl = np.sum(modbest['cluster'],axis=0)
-    cntmap_bk = np.sum(modbest['background'],axis=0)
+    cntmap_bk = np.sum(modbest['total']-modbest['cluster'],axis=0)
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -564,7 +580,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     
     fig.savefig(outdir+'/MCMC_Profile_bkgsub.pdf')
     plt.close()
-
+    
     #========== Profile, for all energy bins
     pdf_pages = PdfPages(outdir+'/MCMC_ProfileSlice_bkgsub.pdf')
     
@@ -573,7 +589,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
 
         cntmap_data = data[i,:,:]
         cntmap_cl = modbest['cluster'][i,:,:]
-        cntmap_bk = modbest['background'][i,:,:]
+        cntmap_bk = (modbest['total']-modbest['cluster'])[i,:,:]
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -648,7 +664,6 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
 
     pdf_pages.close()
 
-
     #========== Spectrum within theta
     #----- Compute a mask
     radmapgrid = np.tile(radmap, (len(Ebins),1,1))    
@@ -658,11 +673,11 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     #----- Get the bins
     Emean = 1e-6*(Ebins['E_MIN']+Ebins['E_MAX'])/2
     binsteps = 1e-6*np.append(Ebins['E_MIN'],Ebins['E_MAX'][-1])
-
+    
     #----- Get the model and data
     data_spec       = np.sum(np.sum(mask*data, axis=1), axis=1)
     cluster_spec    = np.sum(np.sum(mask*modbest['cluster'], axis=1), axis=1)
-    background_spec = np.sum(np.sum(mask*modbest['background'], axis=1), axis=1)
+    background_spec = np.sum(np.sum(mask*(modbest['total']-modbest['cluster']), axis=1), axis=1)
     
     #----- Get the MC
     Nmc = MC_model['cluster'].shape[0]
@@ -672,7 +687,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
 
     for i in range(Nmc):
         cluster_mci_spec    = np.sum(np.sum(mask*MC_model['cluster'][i,:,:,:], axis=1), axis=1)
-        background_mci_spec = np.sum(np.sum(mask*MC_model['background'][i,:,:,:], axis=1), axis=1)
+        background_mci_spec = np.sum(np.sum(mask*(MC_model['total']-MC_model['cluster'])[i,:,:,:], axis=1), axis=1)
         cluster_mc_spec[i, :]    = cluster_mci_spec
         background_mc_spec[i, :] = background_mci_spec
         tot_mc_spec[i, :]        = background_mci_spec + cluster_mci_spec
@@ -693,7 +708,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     plt.step(binsteps, np.append(cluster_spec,cluster_spec[-1]),
              where='post', color='blue', linewidth=2, label='Cluster model')
     plt.step(binsteps, np.append(background_spec, background_spec[-1]),
-             where='post', color='red', linewidth=2, label='Background model')
+             where='post', color='red', linewidth=2, label='Bkg+PS model')
     plt.step(binsteps, np.append(cluster_spec+background_spec, (cluster_spec+background_spec)[-1]),
              where='post', color='grey', linewidth=2, label='Total model')
     plt.ylabel('Counts')
@@ -756,8 +771,8 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
 
     plt.savefig(outdir+'/MCMC_SpectrumResidual.pdf')
     plt.close()
-    
 
+    
 #==================================================
 # Read the data
 #==================================================
@@ -768,11 +783,13 @@ def read_data(input_files):
     
     Parameters
     ----------
-    - specfile (str): file where the data is stored
+    - input_files (str list): file where the data is stored
+    and file where the grid model is stored
 
     Output
     ------
-    - data (Table): Table containing the data
+    - data (ndarray): table containing the data
+    - modgrid (dict): grid model to be interpolated
 
     """
     
@@ -989,7 +1006,11 @@ def run_constraint(input_files,
                    Nmc=100,
                    GaussLike=False,
                    reset_mcmc=False,
-                   run_mcmc=True):
+                   run_mcmc=True,
+                   FWHM=0.1*u.deg,
+                   theta=1.0*u.deg,
+                   coord=None,
+                   profile_reso=0.05*u.deg):
     """
     Run the MCMC spectral imaging constraints
         
@@ -1004,7 +1025,11 @@ def run_constraint(input_files,
     - Nmc (int): number of monte carlo point when resampling the chains
     - GaussLike (bool): use gaussian approximation of the likelihood
     - reset_mcmc (bool): reset the existing MCMC chains?
-    - run_mcmc (bool): run the MCMC sampling?                            
+    - run_mcmc (bool): run the MCMC sampling?
+    - FWHM (quantity): size of the FWHM to be used for smoothing
+    - theta (quantity): containment angle for plots
+    - coord (SkyCoord): source coordinates for extraction
+    - profile_reso (quantity): bin size for profile
 
     Output
     ------
@@ -1104,12 +1129,9 @@ def run_constraint(input_files,
     Best_model = model_specimg(modgrid, par_best)
 
     #---------- Plots and results
-    mcmc_common.chains_plots(param_chains, parname, chainplot_file,
-                             par_best=par_best, par_percentile=par_percentile, conf=conf,
-                             par_min=par_min, par_max=par_max)
-
-    import pdb
-    pdb.set_trace()
+    #mcmc_common.chains_plots(param_chains, parname, chainplot_file,
+    #                         par_best=par_best, par_percentile=par_percentile, conf=conf,
+    #                         par_min=par_min, par_max=par_max)
     
     modelplot(data, Best_model, MC_model, modgrid['header'], modgrid['Ebins'], subdir,
-              conf=conf, FWHM=0.1*u.deg, theta=1.0*u.deg)
+              conf=conf, FWHM=FWHM, theta=theta, coord=coord, profile_reso=profile_reso)

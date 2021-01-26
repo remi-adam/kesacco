@@ -246,7 +246,7 @@ def get_mc_model(modgrid, param_chains, Nmc=100):
 
     Output
     ------
-    MC_model (ndarray): Nmc x N_eng array
+    - MC_model (ndarray): Nmc x N_eng array
 
     """
 
@@ -284,13 +284,23 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
         
     Parameters
     ----------
-
+    - data (dict): data file
+    - modbest (dict): best fit model
+    - MC_model (dict): Monte Carlo models computed with get_mc_model
+    - header (str): map header
+    - Ebins (ndarray): Energy bins 
+    - outdir (str): path to output directory
+    - conf (float): confidence limit used in plots
+    - FWHM (quantity): smoothing FWHM
+    - theta (quantity): angle used for spectral extraction
+    - coord (SkyCoord): coordinates of the cluster
+    - profile_reso (quantity): bin used for profile extraction
+    
     Output
     ------
     Plots are saved
+    
     """
-
-    import pdb
 
     #----- Get needed information
     reso = header['CDELT2']
@@ -334,7 +344,10 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     plt.imshow(gaussian_filter(np.sum(data-(modbest['cluster']+modbest['background']), axis=0), sigma=sigma_sm),
                origin='lower', cmap='RdBu', vmin=-vmm, vmax=vmm)
     plt.colorbar()
-    cont = ax.contour(2*sigma_sm*np.sqrt(np.pi)*gaussian_filter(np.sum(data-(modbest['cluster']+modbest['background']), axis=0), sigma=sigma_sm) / np.sqrt(gaussian_filter(np.sum((modbest['cluster']+modbest['background']), axis=0), sigma=sigma_sm)), levels=np.array([-9,-7,-5,-3,3,5,7,9]), colors='black')
+    filt1 = gaussian_filter(np.sum(data-(modbest['cluster']+modbest['background']), axis=0), sigma=sigma_sm)
+    filt2 = np.sqrt(gaussian_filter(np.sum((modbest['cluster']+modbest['background']), axis=0), sigma=sigma_sm))
+    snr   = 2*sigma_sm*np.sqrt(np.pi) * filt1 / filt2
+    cont = ax.contour(snr, levels=np.array([-9,-7,-5,-3,3,5,7,9]), colors='black')
     plt.title('Residual (counts)')
     plt.xlabel('R.A.')
     plt.ylabel('Dec.')
@@ -371,7 +384,10 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
         ax = plt.subplot(133, projection=proj)
         plt.imshow(gaussian_filter((data-(modbest['cluster']+modbest['background']))[i,:,:], sigma=sigma_sm),
                    origin='lower', cmap='RdBu', vmin=-vmm, vmax=vmm)
-        cont = ax.contour(2*sigma_sm*np.sqrt(np.pi)*gaussian_filter((data-(modbest['cluster']+modbest['background']))[i,:,:], sigma=sigma_sm) / np.sqrt(gaussian_filter((modbest['cluster']+modbest['background'])[i,:,:], sigma=sigma_sm)), levels=np.array([-9,-7,-5,-3,3,5,7,9]), colors='black')
+        filt1 = gaussian_filter((data-(modbest['cluster']+modbest['background']))[i,:,:], sigma=sigma_sm)
+        filt2 = np.sqrt(gaussian_filter((modbest['cluster']+modbest['background'])[i,:,:], sigma=sigma_sm))
+        snr   = 2*sigma_sm*np.sqrt(np.pi) * filt1 / filt2
+        cont = ax.contour(snr, levels=np.array([-9,-7,-5,-3,3,5,7,9]), colors='black')
         plt.colorbar()
         plt.title('Residual (counts) - E=['+Ebinprint+'] GeV')
         plt.xlabel('R.A.')
@@ -660,11 +676,13 @@ def read_data(input_files):
     
     Parameters
     ----------
-    - specfile (str): file where the data is stored
+    - input_files (str list): file where the data is stored
+    and file where the grid model is stored
 
     Output
     ------
-    - data (Table): Table containing the data
+    - data (ndarray): table containing the data
+    - modgrid (dict): grid model to be interpolated
 
     """
     
@@ -858,7 +876,11 @@ def run_constraint(input_files,
                    Nmc=100,
                    GaussLike=False,
                    reset_mcmc=False,
-                   run_mcmc=True):
+                   run_mcmc=True,
+                   FWHM=0.1*u.deg,
+                   theta=1.0*u.deg,
+                   coord=None,
+                   profile_reso=0.05*u.deg):
     """
     Run the MCMC spectral imaging constraints
         
@@ -873,7 +895,11 @@ def run_constraint(input_files,
     - Nmc (int): number of monte carlo point when resampling the chains
     - GaussLike (bool): use gaussian approximation of the likelihood
     - reset_mcmc (bool): reset the existing MCMC chains?
-    - run_mcmc (bool): run the MCMC sampling?                            
+    - run_mcmc (bool): run the MCMC sampling?  
+    - FWHM (quantity): size of the FWHM to be used for smoothing
+    - theta (quantity): containment angle for plots
+    - coord (SkyCoord): source coordinates for extraction
+    - profile_reso (quantity): bin size for profile
 
     Output
     ------
@@ -961,4 +987,5 @@ def run_constraint(input_files,
                              par_min=par_min, par_max=par_max)
     
     modelplot(data, Best_model, MC_model, modgrid['header'], modgrid['Ebins'], subdir,
-              conf=conf, FWHM=0.1*u.deg, theta=1.0*u.deg)
+              conf=conf, FWHM=FWHM, theta=theta, coord=coord, profile_reso=profile_reso)
+    

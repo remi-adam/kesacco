@@ -1529,7 +1529,11 @@ class CTAana(object):
                                      bkg_spectral_range=[-0.5,0.5],
                                      ps_spectral_npt=11,
                                      ps_spectral_range=[-0.5,0.5],
-                                     rm_tmp=False):
+                                     rm_tmp=False,
+                                     FWHM=0.1*u.deg,
+                                     theta=1.0*u.deg,
+                                     coord=None,
+                                     profile_reso=0.05*u.deg):
         """
         Perform a spectral-imaging analysis to constrain the cluster 
         spectrum and profile simulteneously.
@@ -1558,7 +1562,11 @@ class CTAana(object):
         - ps_spectral_range (list of min/max): min and max value to add to the point sources
         spectra, i.e. [default+min, default+max]
         - rm_tmp (bool): remove temporary templates?
-        
+        - FWHM (quantity): size of the FWHM to be used for smoothing (plot)
+        - theta (quantity): containment angle for plots
+        - coord (SkyCoord): source coordinates for extraction (plot)
+        - profile_reso (quantity): bin size for profile (plot)
+
         Outputs files
         -------------
         - Results are saved in a dedicated subdirectory named Ana_MCMC_SpecImg1
@@ -1599,7 +1607,11 @@ class CTAana(object):
         if self.method_ana != '3D':
             self.method_ana  = '3D'
             print('run_ana_spectralimaging_mcmc requires method_ana="3D". --> Change applied')            
-        
+
+        # By default the cluster coordinates are used
+        if coord is None:
+            coord = self.cluster.coord
+            
         #===== Get the initial CRp profile
         rad      = np.logspace(-1,5,10000)*u.kpc
         prof_ini = self.cluster._get_generic_profile(rad, self.cluster.density_crp_model)
@@ -1672,7 +1684,11 @@ class CTAana(object):
                                                  Nmc=self.mcmc_Nmc,
                                                  GaussLike=GaussLike,
                                                  reset_mcmc=reset_mcmc,
-                                                 run_mcmc=run_mcmc)
+                                                 run_mcmc=run_mcmc,
+                                                 FWHM=FWHM,
+                                                 theta=theta,
+                                                 coord=coord,
+                                                 profile_reso=profile_reso)
         else:
             mcmc_spectralimaging2.run_constraint([self.output_dir+'/Ana_Countscube.fits',
                                                   subdir+'/Grid_Sampling.fits'],
@@ -1684,8 +1700,12 @@ class CTAana(object):
                                                  Nmc=self.mcmc_Nmc,
                                                  GaussLike=GaussLike,
                                                  reset_mcmc=reset_mcmc,
-                                                 run_mcmc=run_mcmc)
-        
+                                                 run_mcmc=run_mcmc,
+                                                 FWHM=FWHM,
+                                                 theta=theta,
+                                                 coord=coord,
+                                                 profile_reso=profile_reso)
+            
 
     #==================================================
     # Run the plotting tools

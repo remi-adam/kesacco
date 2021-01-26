@@ -216,4 +216,3 @@ def chains_plots(param_chains,
                            quantiles=(0.16, 0.84))
     figure.savefig(rout_file+'_triangle_corner.pdf')
     plt.close("all")
-
