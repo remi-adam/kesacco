@@ -505,36 +505,38 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
         plt.close()
 
     pdf_pages.close()
-
+    
     #========== Profile
-    # If coord not given, assume at the center
     cntmap_data = np.sum(data, axis=0)
-    cntmap_cl = np.sum(modbest['cluster'],axis=0)
-    cntmap_bk = np.sum(modbest['total']-modbest['cluster'],axis=0)
+    cntmap_tot  = np.sum(modbest['total'], axis=0)
+    cntmap_cl   = np.sum(modbest['cluster'], axis=0)
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         r_dat, p_dat, err_dat = map_tools.radial_profile_cts(cntmap_data,
                                                              [coord.icrs.ra.to_value('deg'),
                                                               coord.icrs.dec.to_value('deg')],
-                                                             stddev=np.sqrt(cntmap_cl+cntmap_bk),
+                                                             stddev=np.sqrt(cntmap_tot),
                                                              header=header,
                                                              binsize=profile_reso.to_value('deg'),
-                                                             stat='POISSON', counts2brightness=True)
+                                                             stat='POISSON', counts2brightness=True,
+                                                             residual=True)
+        r_tot, p_tot, err_tot = map_tools.radial_profile_cts(cntmap_tot,
+                                                             [coord.icrs.ra.to_value('deg'),
+                                                              coord.icrs.dec.to_value('deg')],
+                                                             stddev=np.sqrt(cntmap_tot),
+                                                             header=header,
+                                                             binsize=profile_reso.to_value('deg'),
+                                                             stat='POISSON', counts2brightness=True,
+                                                             residual=True)
         r_cl, p_cl, err_cl = map_tools.radial_profile_cts(cntmap_cl,
                                                           [coord.icrs.ra.to_value('deg'),
                                                            coord.icrs.dec.to_value('deg')],
                                                           stddev=np.sqrt(cntmap_cl),
                                                           header=header,
                                                           binsize=profile_reso.to_value('deg'),
-                                                          stat='POISSON', counts2brightness=True)
-        r_bk, p_bk, err_bk = map_tools.radial_profile_cts(cntmap_bk,
-                                                          [coord.icrs.ra.to_value('deg'),
-                                                           coord.icrs.dec.to_value('deg')],
-                                                          stddev=np.sqrt(cntmap_bk),
-                                                          header=header,
-                                                          binsize=profile_reso.to_value('deg'),
-                                                          stat='POISSON', counts2brightness=True)
+                                                          stat='POISSON', counts2brightness=True,
+                                                          residual=True)
 
     fig = plt.figure(figsize=(8,6))
     gs = GridSpec(2,1, height_ratios=[3,1], hspace=0)
@@ -542,14 +544,14 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     ax3 = plt.subplot(gs[1])
 
     xlim = [np.amin(r_dat)/2.0, np.amax(r_dat)*2.0]
-    rngyp = 1.2*np.nanmax(p_dat-p_bk+3*err_dat)
-    rngym = 0.5*np.nanmin((p_dat-p_bk)[p_dat-p_bk > 0])
+    rngyp = 1.2*np.nanmax(p_dat-(p_tot-p_cl)+3*err_dat)
+    rngym = 0.5*np.nanmin((p_dat-(p_tot-p_cl))[p_dat-(p_tot-p_cl) > 0])
     ylim = [rngym, rngyp]
 
-    ax1.plot(r_dat, p_cl, ls='-', linewidth=2, color='k', label='Maximum likelihood model')
-    ax1.errorbar(r_dat, p_dat-p_bk, yerr=err_dat,
-                 marker='o', elinewidth=2, color='red',
-                 markeredgecolor="black", markerfacecolor="red",
+    ax1.plot(r_dat, p_cl, ls='-', linewidth=2, color='blue', label='Cluster model')
+    ax1.errorbar(r_dat, p_dat-(p_tot-p_cl), yerr=err_tot,
+                 marker='o', elinewidth=2, color='k',
+                 markeredgecolor="black", markerfacecolor="k",
                  ls ='', label='Data')
     ax1.set_ylabel('Profile (deg$^{-2}$)')
     ax1.set_xscale('log')
@@ -568,7 +570,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
                  (ylim[1]*u.Unit('deg-2')).to_value('arcmin-2'))
     
     # Residual plot
-    ax3.plot(r_dat, (p_dat-p_cl-p_bk)/err_dat,linestyle='', marker='o', color='k')
+    ax3.plot(r_dat, (p_dat-p_tot)/err_tot,linestyle='', marker='o', color='k')
     ax3.plot(r_dat,  r_dat*0, linestyle='-', color='k')
     ax3.plot(r_dat,  r_dat*0+2, linestyle='--', color='k')
     ax3.plot(r_dat,  r_dat*0-2, linestyle='--', color='k')
@@ -580,55 +582,164 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     
     fig.savefig(outdir+'/MCMC_Profile_bkgsub.pdf')
     plt.close()
+
+    #========== Profile
+    cntmap_data = np.sum(data, axis=0)
+    cntmap_tot  = np.sum(modbest['total'], axis=0)
+    cntmap_cl   = np.sum(modbest['cluster'], axis=0)
+    cntmap_bk   = np.sum(modbest['background'], axis=0)
+    cntmap_ps   = []
+    for ips in range(len(modbest['point_sources'])):
+        cntmap_ps.append(np.sum(modbest['point_sources'][ips], axis=0))
     
-    #========== Profile, for all energy bins
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        r_dat, p_dat, err_dat = map_tools.radial_profile_cts(cntmap_data,
+                                                             [coord.icrs.ra.to_value('deg'),
+                                                              coord.icrs.dec.to_value('deg')],
+                                                             stddev=np.sqrt(cntmap_tot),
+                                                             header=header,
+                                                             binsize=profile_reso.to_value('deg'),
+                                                             stat='POISSON', counts2brightness=True,
+                                                             residual=True)
+        r_tot, p_tot, err_tot = map_tools.radial_profile_cts(cntmap_tot,
+                                                             [coord.icrs.ra.to_value('deg'),
+                                                              coord.icrs.dec.to_value('deg')],
+                                                             stddev=np.sqrt(cntmap_tot),
+                                                             header=header,
+                                                             binsize=profile_reso.to_value('deg'),
+                                                             stat='POISSON', counts2brightness=True,
+                                                             residual=True)
+        r_cl, p_cl, err_cl = map_tools.radial_profile_cts(cntmap_cl,
+                                                          [coord.icrs.ra.to_value('deg'),
+                                                           coord.icrs.dec.to_value('deg')],
+                                                          stddev=np.sqrt(cntmap_tot),
+                                                          header=header,
+                                                          binsize=profile_reso.to_value('deg'),
+                                                          stat='POISSON', counts2brightness=True,
+                                                          residual=True)
+        r_bk, p_bk, err_bk = map_tools.radial_profile_cts(cntmap_bk,
+                                                          [coord.icrs.ra.to_value('deg'),
+                                                           coord.icrs.dec.to_value('deg')],
+                                                          stddev=np.sqrt(cntmap_tot),
+                                                          header=header,
+                                                          binsize=profile_reso.to_value('deg'),
+                                                          stat='POISSON', counts2brightness=True,
+                                                          residual=True)
+        p_ps = []
+        for ips in range(len(modbest['point_sources'])):
+            r_psi, p_psi, err_psi = map_tools.radial_profile_cts(cntmap_ps[ips],
+                                                                 [coord.icrs.ra.to_value('deg'),
+                                                                  coord.icrs.dec.to_value('deg')],
+                                                                 stddev=np.sqrt(cntmap_tot),
+                                                                 header=header,
+                                                                 binsize=profile_reso.to_value('deg'),
+                                                                 stat='POISSON', counts2brightness=True,
+                                                                 residual=True)
+            p_ps.append(p_psi)
+                  
+    fig = plt.figure(figsize=(8,6))
+    gs = GridSpec(2,1, height_ratios=[3,1], hspace=0)
+    ax1 = plt.subplot(gs[0])
+    ax3 = plt.subplot(gs[1])
+
+    xlim = [np.amin(r_dat)/2.0, np.amax(r_dat)*2.0]
+    rngyp = 1.2*np.nanmax(p_dat+3*err_tot)
+    rngym = 0.5*np.nanmin((p_dat)[p_dat > 0])
+    ylim = [rngym, rngyp]
+
+    ax1.plot(r_dat, p_cl, ls='-', linewidth=2, color='blue', label='Cluster model')
+    ax1.plot(r_dat, p_bk, ls='-', linewidth=2, color='red', label='Background model')
+    for ips in range(len(p_ps)):
+        if ips == 0:
+            ax1.plot(r_dat, p_ps[ips], ls='-', linewidth=2, color='green', label='Point source model')
+        else:
+            ax1.plot(r_dat, p_ps[ips], ls='-', linewidth=2, color='green')
+    ax1.errorbar(r_dat, p_dat, yerr=err_tot,
+                 marker='o', elinewidth=2, color='k',
+                 markeredgecolor="black", markerfacecolor="k",
+                 ls ='', label='Data')
+    ax1.set_ylabel('Profile (deg$^{-2}$)')
+    ax1.set_xscale('log')
+    ax1.set_yscale('log')
+    ax1.set_xlim(xlim[0], xlim[1])
+    ax1.set_ylim(ylim[0], ylim[1])
+    ax1.set_xticks([])
+    ax1.legend()
+    
+    # Add extra unit axes
+    ax2 = ax1.twinx()
+    ax2.plot(r_dat, (p_cl*u.Unit('deg-2')).to_value('arcmin-2'), 'k-', alpha=0.0)
+    ax2.set_ylabel('Profile (arcmin$^{-2}$)')
+    ax2.set_yscale('log')
+    ax2.set_ylim((ylim[0]*u.Unit('deg-2')).to_value('arcmin-2'),
+                 (ylim[1]*u.Unit('deg-2')).to_value('arcmin-2'))
+    
+    # Residual plot
+    ax3.plot(r_dat, (p_dat-p_tot)/err_tot,linestyle='', marker='o', color='k')
+    ax3.plot(r_dat,  r_dat*0, linestyle='-', color='k')
+    ax3.plot(r_dat,  r_dat*0+2, linestyle='--', color='k')
+    ax3.plot(r_dat,  r_dat*0-2, linestyle='--', color='k')
+    ax3.set_xlim(xlim[0], xlim[1])
+    ax3.set_ylim(-5, 5)
+    ax3.set_xlabel('Radius (deg)')
+    ax3.set_ylabel('$\\chi$')
+    ax3.set_xscale('log')
+    
+    fig.savefig(outdir+'/MCMC_Profile_bkginc.pdf')
+    plt.close()
+    
+    #========== Profile, for all energy bins - no bk
     pdf_pages = PdfPages(outdir+'/MCMC_ProfileSlice_bkgsub.pdf')
     
     for i in range(len(Ebins)):
         Ebinprint = '{:.1f}'.format(Ebins[i][0]*1e-6)+', '+'{:.1f}'.format(Ebins[i][1]*1e-6)
 
         cntmap_data = data[i,:,:]
-        cntmap_cl = modbest['cluster'][i,:,:]
-        cntmap_bk = (modbest['total']-modbest['cluster'])[i,:,:]
+        cntmap_tot  = modbest['total'][i,:,:]
+        cntmap_cl   = modbest['cluster'][i,:,:]
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             r_dat, p_dat, err_dat = map_tools.radial_profile_cts(cntmap_data,
                                                                  [coord.icrs.ra.to_value('deg'),
                                                                   coord.icrs.dec.to_value('deg')],
-                                                                 stddev=np.sqrt(cntmap_cl+cntmap_bk),
+                                                                 stddev=np.sqrt(cntmap_tot),
                                                                  header=header,
                                                                  binsize=profile_reso.to_value('deg'),
-                                                                 stat='POISSON', counts2brightness=True)
+                                                                 stat='POISSON', counts2brightness=True,
+                                                                 residual=True)
+            r_tot, p_tot, err_tot = map_tools.radial_profile_cts(cntmap_tot,
+                                                                 [coord.icrs.ra.to_value('deg'),
+                                                                  coord.icrs.dec.to_value('deg')],
+                                                                 stddev=np.sqrt(cntmap_tot),
+                                                                 header=header,
+                                                                 binsize=profile_reso.to_value('deg'),
+                                                                 stat='POISSON', counts2brightness=True,
+                                                                 residual=True)
             r_cl, p_cl, err_cl = map_tools.radial_profile_cts(cntmap_cl,
                                                               [coord.icrs.ra.to_value('deg'),
                                                                coord.icrs.dec.to_value('deg')],
                                                               stddev=np.sqrt(cntmap_cl),
                                                               header=header,
                                                               binsize=profile_reso.to_value('deg'),
-                                                              stat='POISSON', counts2brightness=True)
-            r_bk, p_bk, err_bk = map_tools.radial_profile_cts(cntmap_bk,
-                                                              [coord.icrs.ra.to_value('deg'),
-                                                               coord.icrs.dec.to_value('deg')],
-                                                              stddev=np.sqrt(cntmap_bk),
-                                                              header=header,
-                                                              binsize=profile_reso.to_value('deg'),
-                                                              stat='POISSON', counts2brightness=True)
-    
+                                                              stat='POISSON', counts2brightness=True,
+                                                              residual=True)
+        
         fig = plt.figure(figsize=(8,6))
         gs = GridSpec(2,1, height_ratios=[3,1], hspace=0)
         ax1 = plt.subplot(gs[0])
         ax3 = plt.subplot(gs[1])
         
         xlim = [np.amin(r_dat)/2.0, np.amax(r_dat)*2.0]
-        rngyp = 1.2*np.nanmax(p_dat-p_bk+3*err_dat)
-        rngym = 0.5*np.nanmin((p_dat-p_bk)[p_dat-p_bk > 0])
+        rngyp = 1.2*np.nanmax(p_dat-(p_tot-p_cl)+3*err_dat)
+        rngym = 0.5*np.nanmin((p_dat-(p_tot-p_cl))[p_dat-(p_tot-p_cl) > 0])
         ylim = [rngym, rngyp]
         
-        ax1.plot(r_dat, p_cl, ls='-', linewidth=2, color='k', label='Maximum likelihood model')
-        ax1.errorbar(r_dat, p_dat-p_bk, yerr=err_dat,
-                     marker='o', elinewidth=2, color='red',
-                     markeredgecolor="black", markerfacecolor="red",
+        ax1.plot(r_dat, p_cl, ls='-', linewidth=2, color='blue', label='Cluster model')
+        ax1.errorbar(r_dat, p_dat-(p_tot-p_cl), yerr=err_tot,
+                     marker='o', elinewidth=2, color='k',
+                     markeredgecolor="black", markerfacecolor="k",
                      ls ='', label='Data')
         ax1.set_ylabel('Profile (deg$^{-2}$)')
         ax1.set_xscale('log')
@@ -639,7 +750,6 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
         ax1.legend()
         ax1.set_title('E=['+Ebinprint+'] GeV')
 
-        
         # Add extra unit axes
         ax2 = ax1.twinx()
         ax2.plot(r_dat, (p_cl*u.Unit('deg-2')).to_value('arcmin-2'), 'k-', alpha=0.0)
@@ -649,7 +759,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
                      (ylim[1]*u.Unit('deg-2')).to_value('arcmin-2'))
         
         # Residual plot
-        ax3.plot(r_dat, (p_dat-p_bk-p_cl)/err_dat,linestyle='', marker='o', color='k')
+        ax3.plot(r_dat, (p_dat-p_tot)/err_tot, linestyle='', marker='o', color='k')
         ax3.plot(r_dat,  r_dat*0, linestyle='-', color='k')
         ax3.plot(r_dat,  r_dat*0+2, linestyle='--', color='k')
         ax3.plot(r_dat,  r_dat*0-2, linestyle='--', color='k')
@@ -664,6 +774,122 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
 
     pdf_pages.close()
 
+    #========== Profile, for all energy bins - with bk
+    pdf_pages = PdfPages(outdir+'/MCMC_ProfileSlice_bkginc.pdf')
+    
+    for i in range(len(Ebins)):
+        Ebinprint = '{:.1f}'.format(Ebins[i][0]*1e-6)+', '+'{:.1f}'.format(Ebins[i][1]*1e-6)
+
+        cntmap_data = data[i,:,:]
+        cntmap_tot = modbest['total'][i,:,:]
+        cntmap_cl  = modbest['cluster'][i,:,:]
+        cntmap_bk  = modbest['background'][i,:,:]
+        cntmap_ps  = []
+        for ips in range(len(modbest['point_sources'])):
+            cntmap_ps.append((modbest['point_sources'][ips])[i,:,:])
+    
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            r_dat, p_dat, err_dat = map_tools.radial_profile_cts(cntmap_data,
+                                                                 [coord.icrs.ra.to_value('deg'),
+                                                                  coord.icrs.dec.to_value('deg')],
+                                                                 stddev=np.sqrt(cntmap_tot),
+                                                                 header=header,
+                                                                 binsize=profile_reso.to_value('deg'),
+                                                                 stat='POISSON', counts2brightness=True,
+                                                                 residual=True)
+            r_tot, p_tot, err_tot = map_tools.radial_profile_cts(cntmap_tot,
+                                                                 [coord.icrs.ra.to_value('deg'),
+                                                                  coord.icrs.dec.to_value('deg')],
+                                                                 stddev=np.sqrt(cntmap_tot),
+                                                                 header=header,
+                                                                 binsize=profile_reso.to_value('deg'),
+                                                                 stat='POISSON', counts2brightness=True,
+                                                                 residual=True)
+            r_cl, p_cl, err_cl = map_tools.radial_profile_cts(cntmap_cl,
+                                                              [coord.icrs.ra.to_value('deg'),
+                                                               coord.icrs.dec.to_value('deg')],
+                                                              stddev=np.sqrt(cntmap_tot),
+                                                              header=header,
+                                                              binsize=profile_reso.to_value('deg'),
+                                                              stat='POISSON', counts2brightness=True,
+                                                              residual=True)
+            r_bk, p_bk, err_bk = map_tools.radial_profile_cts(cntmap_bk,
+                                                              [coord.icrs.ra.to_value('deg'),
+                                                               coord.icrs.dec.to_value('deg')],
+                                                              stddev=np.sqrt(cntmap_tot),
+                                                              header=header,
+                                                              binsize=profile_reso.to_value('deg'),
+                                                              stat='POISSON', counts2brightness=True,
+                                                              residual=True)
+            
+            p_ps = []
+            for ips in range(len(modbest['point_sources'])):
+                r_psi, p_psi, err_psi = map_tools.radial_profile_cts(cntmap_ps[ips],
+                                                                     [coord.icrs.ra.to_value('deg'),
+                                                                      coord.icrs.dec.to_value('deg')],
+                                                                     stddev=np.sqrt(cntmap_tot),
+                                                                     header=header,
+                                                                     binsize=profile_reso.to_value('deg'),
+                                                                     stat='POISSON', counts2brightness=True,
+                                                                     residual=True)
+                p_ps.append(p_psi)
+
+        fig = plt.figure(figsize=(8,6))
+        gs = GridSpec(2,1, height_ratios=[3,1], hspace=0)
+        ax1 = plt.subplot(gs[0])
+        ax3 = plt.subplot(gs[1])
+        
+        xlim = [np.amin(r_dat)/2.0, np.amax(r_dat)*2.0]
+        rngyp = 1.2*np.nanmax(p_dat+3*err_tot)
+        rngym = 0.5*np.nanmin(p_dat[p_dat > 0])
+        ylim = [rngym, rngyp]
+        
+        ax1.plot(r_dat, p_cl, ls='-', linewidth=2, color='blue', label='Cluster model')
+        ax1.plot(r_dat, p_bk, ls='-', linewidth=2, color='red', label='Background model')
+        for ips in range(len(p_ps)):
+            if ips == 0:
+                ax1.plot(r_dat, p_ps[ips], ls='-', linewidth=2, color='green', label='Point source model')
+            else:
+                ax1.plot(r_dat, p_ps[ips], ls='-', linewidth=2, color='green')
+        ax1.plot(r_dat, p_tot, ls='-', linewidth=2, color='grey', label='Total model')
+        ax1.errorbar(r_dat, p_dat, yerr=err_dat,
+                     marker='o', elinewidth=2, color='k',
+                     markeredgecolor="black", markerfacecolor="k",
+                     ls ='', label='Data')
+        ax1.set_ylabel('Profile (deg$^{-2}$)')
+        ax1.set_xscale('log')
+        ax1.set_yscale('log')
+        ax1.set_xlim(xlim[0], xlim[1])
+        ax1.set_ylim(ylim[0], ylim[1])
+        ax1.set_xticks([])
+        ax1.legend()
+        ax1.set_title('E=['+Ebinprint+'] GeV')
+
+        # Add extra unit axes
+        ax2 = ax1.twinx()
+        ax2.plot(r_dat, (p_cl*u.Unit('deg-2')).to_value('arcmin-2'), 'k-', alpha=0.0)
+        ax2.set_ylabel('Profile (arcmin$^{-2}$)')
+        ax2.set_yscale('log')
+        ax2.set_ylim((ylim[0]*u.Unit('deg-2')).to_value('arcmin-2'),
+                     (ylim[1]*u.Unit('deg-2')).to_value('arcmin-2'))
+        
+        # Residual plot
+        ax3.plot(r_dat, (p_dat-p_tot)/err_tot,linestyle='', marker='o', color='k')
+        ax3.plot(r_dat,  r_dat*0, linestyle='-', color='k')
+        ax3.plot(r_dat,  r_dat*0+2, linestyle='--', color='k')
+        ax3.plot(r_dat,  r_dat*0-2, linestyle='--', color='k')
+        ax3.set_xlim(xlim[0], xlim[1])
+        ax3.set_ylim(-5, 5)
+        ax3.set_xlabel('Radius (deg)')
+        ax3.set_ylabel('$\\chi$')
+        ax3.set_xscale('log')
+        
+        pdf_pages.savefig(fig)
+        plt.close()
+
+    pdf_pages.close()
+    
     #========== Spectrum within theta
     #----- Compute a mask
     radmapgrid = np.tile(radmap, (len(Ebins),1,1))    
@@ -676,41 +902,41 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     
     #----- Get the model and data
     data_spec       = np.sum(np.sum(mask*data, axis=1), axis=1)
+    total_spec      = np.sum(np.sum(mask*modbest['total'], axis=1), axis=1)
     cluster_spec    = np.sum(np.sum(mask*modbest['cluster'], axis=1), axis=1)
-    background_spec = np.sum(np.sum(mask*(modbest['total']-modbest['cluster']), axis=1), axis=1)
+    background_spec = np.sum(np.sum(mask*modbest['background'], axis=1), axis=1)
+    pointsource_spec = []
+    for ips in range(len(modbest['point_sources'])):
+        pointsource_spec.append(np.sum(np.sum(mask*modbest['point_sources'][ips], axis=1), axis=1))
     
     #----- Get the MC
     Nmc = MC_model['cluster'].shape[0]
     cluster_mc_spec    = np.zeros((Nmc, len(Ebins)))
-    background_mc_spec = np.zeros((Nmc, len(Ebins)))
-    tot_mc_spec        = np.zeros((Nmc, len(Ebins)))
-
     for i in range(Nmc):
         cluster_mci_spec    = np.sum(np.sum(mask*MC_model['cluster'][i,:,:,:], axis=1), axis=1)
-        background_mci_spec = np.sum(np.sum(mask*(MC_model['total']-MC_model['cluster'])[i,:,:,:], axis=1), axis=1)
         cluster_mc_spec[i, :]    = cluster_mci_spec
-        background_mc_spec[i, :] = background_mci_spec
-        tot_mc_spec[i, :]        = background_mci_spec + cluster_mci_spec
-
     cluster_up_spec    = np.percentile(cluster_mc_spec, (100-conf)/2.0, axis=0)
     cluster_lo_spec    = np.percentile(cluster_mc_spec, 100 - (100-conf)/2.0, axis=0)
-    background_up_spec = np.percentile(background_mc_spec, (100-conf)/2.0, axis=0)
-    background_lo_spec = np.percentile(background_mc_spec, 100 - (100-conf)/2.0, axis=0)
-    tot_up_spec        = np.percentile(tot_mc_spec, (100-conf)/2.0, axis=0)
-    tot_lo_spec        = np.percentile(tot_mc_spec, 100 - (100-conf)/2.0, axis=0)
 
     #----- Figure
     fig = plt.figure(1, figsize=(8, 6))
     frame1 = fig.add_axes((.1,.3,.8,.6))
     
-    plt.errorbar(Emean, data_spec, yerr=np.sqrt(data_spec),
+    plt.errorbar(Emean, data_spec, yerr=np.sqrt(total_spec),
                  fmt='ko',capsize=0, linewidth=2, zorder=2, label='Data')
     plt.step(binsteps, np.append(cluster_spec,cluster_spec[-1]),
              where='post', color='blue', linewidth=2, label='Cluster model')
     plt.step(binsteps, np.append(background_spec, background_spec[-1]),
-             where='post', color='red', linewidth=2, label='Bkg+PS model')
-    plt.step(binsteps, np.append(cluster_spec+background_spec, (cluster_spec+background_spec)[-1]),
+             where='post', color='red', linewidth=2, label='Background model')
+    plt.step(binsteps, np.append(total_spec, total_spec[-1]),
              where='post', color='grey', linewidth=2, label='Total model')
+    for ips in range(len(pointsource_spec)):
+        if ips == 0:
+            plt.step(binsteps, np.append(pointsource_spec[ips], (pointsource_spec[ips])[-1]),
+                     where='post', color='green', linewidth=2, label='Point source')
+        else:
+            plt.step(binsteps, np.append(pointsource_spec[ips], (pointsource_spec[ips])[-1]),
+                     where='post', color='green', linewidth=2)
     plt.ylabel('Counts')
     plt.xscale('log')
     plt.yscale('log')
@@ -721,7 +947,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     plt.title('Spectrum within $\\theta = $'+str(theta))
 
     frame2 = fig.add_axes((.1,.1,.8,.2))        
-    plt.plot(Emean, (data_spec-cluster_spec-background_spec)/np.sqrt(cluster_spec+background_spec),
+    plt.plot(Emean, (data_spec-total_spec)/np.sqrt(total_spec),
              marker='o', color='k', linestyle='')
     plt.axhline(0, color='0.5', linestyle='-')
     plt.axhline(-3, color='0.5', linestyle='--')
@@ -739,7 +965,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     fig = plt.figure(1, figsize=(8, 6))
     frame1 = fig.add_axes((.1,.3,.8,.6))
     
-    plt.errorbar(Emean, data_spec-background_spec, yerr=np.sqrt(data_spec),
+    plt.errorbar(Emean, data_spec-(total_spec-cluster_spec), yerr=np.sqrt(total_spec),
                  xerr=[Emean-1e-6*Ebins['E_MIN'], 1e-6*Ebins['E_MAX']-Emean],fmt='ko',
                  capsize=0, linewidth=2, zorder=2, label='Data')
     plt.plot(Emean, cluster_spec, color='k', linewidth=2, label='Best-fit cluster model')
@@ -758,7 +984,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     plt.title('Spectrum within $\\theta = $'+str(theta))
 
     frame2 = fig.add_axes((.1,.1,.8,.2))        
-    plt.plot(Emean, (data_spec-cluster_spec-background_spec)/np.sqrt(cluster_spec+background_spec),
+    plt.plot(Emean, (data_spec-total_spec)/np.sqrt(total_spec),
              marker='o', color='k', linestyle='')
     plt.axhline(0, color='0.5', linestyle='-')
     plt.axhline(-3, color='0.5', linestyle='--')
