@@ -302,7 +302,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     
     """
 
-    #----- Get needed information
+    #========== Get needed information
     reso = header['CDELT2']
     sigma_sm = (FWHM/(2*np.sqrt(2*np.log(2)))).to_value('deg')/reso
     header['NAXIS'] = 2
@@ -318,7 +318,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     radmap = map_tools.greatcircle(ra_map, dec_map,
                                    coord.ra.to_value('deg'), coord.dec.to_value('deg'))
 
-    #========== Data - model, stack
+    #========== Plot 1: map, Data - model, stack
     fig = plt.figure(0, figsize=(18, 4))
     ax = plt.subplot(131, projection=proj)
     plt.imshow(gaussian_filter(np.sum(data, axis=0), sigma=sigma_sm),
@@ -355,7 +355,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     plt.savefig(outdir+'/MCMC_MapResidual.pdf')
     plt.close()
 
-    #========== Data - model, for all energy bins
+    #========== Plot 2: map, Data - model, energy bins
     pdf_pages = PdfPages(outdir+'/MCMC_MapSliceResidual.pdf')
     
     for i in range(len(Ebins)):
@@ -398,7 +398,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
 
     pdf_pages.close()
 
-    #========== Profile
+    #========== Plot 3: profile, background subtracted, stack
     cntmap_data = np.sum(data, axis=0)
     cntmap_tot  = np.sum(modbest['background']+modbest['cluster'], axis=0)
     cntmap_cl   = np.sum(modbest['cluster'], axis=0)
@@ -429,7 +429,21 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
                                                           binsize=profile_reso.to_value('deg'),
                                                           stat='POISSON', counts2brightness=True,
                                                           residual=True)
-
+        Nmc = MC_model['cluster'].shape[0]
+        p_cl_mc = np.zeros((Nmc, len(p_cl)))
+        for i in range(Nmc):
+            r_cl_i, p_cl_i, err_cl_i = map_tools.radial_profile_cts(np.sum(MC_model['cluster'][i,:,:,:],axis=0),
+                                                                    [coord.icrs.ra.to_value('deg'),
+                                                                     coord.icrs.dec.to_value('deg')],
+                                                                    stddev=np.sqrt(cntmap_cl),
+                                                                    header=header,
+                                                                    binsize=profile_reso.to_value('deg'),
+                                                                    stat='POISSON', counts2brightness=True,
+                                                                    residual=True)
+            p_cl_mc[i, :]    = p_cl_i
+        p_cl_up    = np.percentile(p_cl_mc, (100-conf)/2.0, axis=0)
+        p_cl_lo    = np.percentile(p_cl_mc, 100 - (100-conf)/2.0, axis=0)
+        
     fig = plt.figure(figsize=(8,6))
     gs = GridSpec(2,1, height_ratios=[3,1], hspace=0)
     ax1 = plt.subplot(gs[0])
@@ -445,6 +459,11 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
                  marker='o', elinewidth=2, color='k',
                  markeredgecolor="black", markerfacecolor="k",
                  ls ='', label='Data')
+    ax1.plot(r_dat, p_cl_up, color='blue', linewidth=1, linestyle='--', label=str(conf)+'% C.L.')
+    ax1.plot(r_dat, p_cl_lo, color='blue', linewidth=1, linestyle='--')
+    ax1.fill_between(r_dat, p_cl_up, p_cl_lo, alpha=0.3, color='blue')
+    for i in range(Nmc):
+        ax1.plot(r_dat, p_cl_mc[i, :], color='blue', linewidth=1, alpha=0.1)    
     ax1.set_ylabel('Profile (deg$^{-2}$)')
     ax1.set_xscale('log')
     ax1.set_yscale('log')
@@ -475,7 +494,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     fig.savefig(outdir+'/MCMC_Profile_bkgsub.pdf')
     plt.close()
 
-    #========== Profile
+    #========== Plot 4: profile, background included, stack
     cntmap_data = np.sum(data, axis=0)
     cntmap_tot  = np.sum(modbest['cluster']+modbest['background'], axis=0)
     cntmap_cl   = np.sum(modbest['cluster'], axis=0)
@@ -527,6 +546,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
 
     ax1.plot(r_dat, p_cl, ls='-', linewidth=2, color='blue', label='Cluster model')
     ax1.plot(r_dat, p_bk, ls='-', linewidth=2, color='red', label='Background model')
+    ax1.plot(r_dat, p_tot, ls='-', linewidth=2, color='grey', label='Total model')
     ax1.errorbar(r_dat, p_dat, yerr=err_tot,
                  marker='o', elinewidth=2, color='k',
                  markeredgecolor="black", markerfacecolor="k",
@@ -562,7 +582,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     plt.close()
 
 
-    #========== Profile, for all energy bins - no bk
+    #========== Plot 5: profile, background subtracted, energy bins
     pdf_pages = PdfPages(outdir+'/MCMC_ProfileSlice_bkgsub.pdf')
     
     for i in range(len(Ebins)):
@@ -647,7 +667,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
 
     pdf_pages.close()
 
-    #========== Profile, for all energy bins - with bk
+    #========== Plot 6: profile, background included, energy bins
     pdf_pages = PdfPages(outdir+'/MCMC_ProfileSlice_bkginc.pdf')
     
     for i in range(len(Ebins)):
@@ -742,7 +762,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
 
     pdf_pages.close()
 
-    #========== Spectrum within theta
+    #========== Plot 7: spectrum, background included
     #----- Compute a mask
     radmapgrid = np.tile(radmap, (len(Ebins),1,1))    
     mask = radmapgrid*0 + 1
@@ -777,7 +797,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     tot_up_spec        = np.percentile(tot_mc_spec, (100-conf)/2.0, axis=0)
     tot_lo_spec        = np.percentile(tot_mc_spec, 100 - (100-conf)/2.0, axis=0)
 
-    #----- Figure
+    #========== Plot 8: spectrum, background subtracted
     fig = plt.figure(1, figsize=(8, 6))
     frame1 = fig.add_axes((.1,.3,.8,.6))
     

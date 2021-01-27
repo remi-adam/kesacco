@@ -42,21 +42,43 @@ def make_map(cluster,
     """
     
     header = cluster.get_map_header()
-    
-    #---------- pion decay
-    image = cluster.get_gamma_map(Emin=Egmin, Emax=Egmax,
+
+    #----- IC + pion decay
+    if includeIC:
+        flux1 = cluster.get_ic_flux(Rmin=cluster._Rmin,
+                                    Rmax=cluster.R_truncation,
+                                    type_integral='cylindrical',
+                                    NR500_los=5.0,
+                                    Emin=Egmin, Emax=Egmax,
+                                    Energy_density=False,
+                                    Cframe=False)
+        img1 = cluster.get_ic_map(Emin=Egmin, Emax=Egmax,
                                   Rmin_los=None, NR500_los=5.0,
                                   Rmin=None, Rmax=None,
-                                  Normalize=True)
-    
-    #---------- IC
-    if includeIC:
-        image += cluster.get_ic_map(Emin=Egmin, Emax=Egmax,
-                                    Rmin_los=None, NR500_los=5.0,
-                                    Rmin=None, Rmax=None,
-                                    Normalize=True)
-        print('!!!!! WARNING: including the IC contribution will lead to non normalized map right now !!!!!')
-    
+                                  Normalize=False)
+
+        flux2 = cluster.get_gamma_flux(Rmin=cluster._Rmin,
+                                       Rmax=cluster.R_truncation,
+                                       type_integral='cylindrical',
+                                       NR500_los=5.0,
+                                       Emin=Egmin, Emax=Egmax,
+                                       Energy_density=False,
+                                       Cframe=False)
+        
+        img2 = cluster.get_gamma_map(Emin=Egmin, Emax=Egmax,
+                                     Rmin_los=None, NR500_los=5.0,
+                                     Rmin=None, Rmax=None,
+                                     Normalize=False)
+        
+        image = ((img1 + img2) / (flux1 + flux2)).to('sr-1')
+        
+    #----- Pion decay only
+    else:
+        image = cluster.get_gamma_map(Emin=Egmin, Emax=Egmax,
+                                      Rmin_los=None, NR500_los=5.0,
+                                      Rmin=None, Rmax=None,
+                                      Normalize=True)
+        
     #---------- Write the fits
     hdu = fits.PrimaryHDU(header=header)
     hdu.data = image.value
@@ -100,11 +122,10 @@ def make_spectrum(cluster,
                                                   Rmin=None, Rmax=cluster.R_truncation,
                                                   Rmin_los=None, NR500_los=5.0,
                                                   type_integral='spherical')
-        print('!!!!! WARNING: including the IC contribution will lead to non normalized map right now !!!!!')
         spec += spec_ic
 
     #---------- Remove zero from the spectrum
-    wgood  = spec >0
+    wgood  = spec > 0
     energy = energy[wgood]
     spec   = spec[wgood]
 
