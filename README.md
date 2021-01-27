@@ -30,6 +30,14 @@ to produce CTA analysis results.
 - notebook :
 	Repository where to find Jupyter notebook used for development/example. 
 
+## Overview of the physical processes and structure of the code
+<figure>
+	<img src="/overview.png" width="600" />
+	<figcaption> Figure 1. Overview of the KESACCO software.</figcaption>
+</figure>
+
+<p style="margin-bottom:3cm;"> </p>
+
 ## Environment
 The code works with python 3. It should work with python 2, although several features may fail. Please make sure that you are in the correct environment when you run the code. In addition, the kesacco directory should be in your python path so it can be found.
 
