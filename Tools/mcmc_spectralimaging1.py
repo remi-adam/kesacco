@@ -461,9 +461,9 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
                  ls ='', label='Data')
     ax1.plot(r_dat, p_cl_up, color='blue', linewidth=1, linestyle='--', label=str(conf)+'% C.L.')
     ax1.plot(r_dat, p_cl_lo, color='blue', linewidth=1, linestyle='--')
-    ax1.fill_between(r_dat, p_cl_up, p_cl_lo, alpha=0.3, color='blue')
+    ax1.fill_between(r_dat, p_cl_up, p_cl_lo, alpha=0.2, color='blue')
     for i in range(Nmc):
-        ax1.plot(r_dat, p_cl_mc[i, :], color='blue', linewidth=1, alpha=0.1)    
+        ax1.plot(r_dat, p_cl_mc[i, :], color='blue', linewidth=1, alpha=0.05)    
     ax1.set_ylabel('Profile (deg$^{-2}$)')
     ax1.set_xscale('log')
     ax1.set_yscale('log')
@@ -797,7 +797,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     tot_up_spec        = np.percentile(tot_mc_spec, (100-conf)/2.0, axis=0)
     tot_lo_spec        = np.percentile(tot_mc_spec, 100 - (100-conf)/2.0, axis=0)
 
-    #========== Plot 8: spectrum, background subtracted
+    #----- Figure
     fig = plt.figure(1, figsize=(8, 6))
     frame1 = fig.add_axes((.1,.3,.8,.6))
     
@@ -833,19 +833,19 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     plt.savefig(outdir+'/MCMC_SpectrumResidualHist.pdf')
     plt.close()
 
-    #----- Figure
+    #========== Plot 8: spectrum, background subtracted
     fig = plt.figure(1, figsize=(8, 6))
     frame1 = fig.add_axes((.1,.3,.8,.6))
     
     plt.errorbar(Emean, data_spec-background_spec, yerr=np.sqrt(cluster_spec+background_spec),
                  xerr=[Emean-1e-6*Ebins['E_MIN'], 1e-6*Ebins['E_MAX']-Emean],fmt='ko',
                  capsize=0, linewidth=2, zorder=2, label='Data')
-    plt.plot(Emean, cluster_spec, color='k', linewidth=2, label='Best-fit cluster model')
+    plt.plot(Emean, cluster_spec, color='blue', linewidth=2, label='Best-fit cluster model')
     plt.plot(Emean, cluster_up_spec, color='blue', linewidth=1, linestyle='--', label=str(conf)+'% C.L.')
     plt.plot(Emean, cluster_lo_spec, color='blue', linewidth=1, linestyle='--')
-    plt.fill_between(Emean, cluster_up_spec, cluster_lo_spec, alpha=0.3, color='blue')
+    plt.fill_between(Emean, cluster_up_spec, cluster_lo_spec, alpha=0.2, color='blue')
     for i in range(Nmc):
-        plt.plot(Emean, cluster_mc_spec[i, :], color='blue', linewidth=1, alpha=0.1)
+        plt.plot(Emean, cluster_mc_spec[i, :], color='blue', linewidth=1, alpha=0.05)
     plt.ylabel('Background subtracted counts')
     plt.xscale('log')
     plt.yscale('log')
@@ -1168,7 +1168,7 @@ def run_constraint(input_files,
     #---------- Run the MCMC
     if run_mcmc:
         print('--- Runing '+str(nsteps)+' MCMC steps')
-        sampler.run_mcmc(pos, nsteps)
+        sampler.run_mcmc(pos, nsteps, progress=True)
 
     #---------- Save the MCMC after the run
     mcmc_common.save_object(sampler, sampler_file)

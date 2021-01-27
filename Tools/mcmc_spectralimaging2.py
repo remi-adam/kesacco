@@ -570,9 +570,9 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
                  ls ='', label='Data')
     ax1.plot(r_dat, p_cl_up, color='blue', linewidth=1, linestyle='--', label=str(conf)+'% C.L.')
     ax1.plot(r_dat, p_cl_lo, color='blue', linewidth=1, linestyle='--')
-    ax1.fill_between(r_dat, p_cl_up, p_cl_lo, alpha=0.3, color='blue')
+    ax1.fill_between(r_dat, p_cl_up, p_cl_lo, alpha=0.2, color='blue')
     for i in range(Nmc):
-        ax1.plot(r_dat, p_cl_mc[i, :], color='blue', linewidth=1, alpha=0.1)    
+        ax1.plot(r_dat, p_cl_mc[i, :], color='blue', linewidth=1, alpha=0.05)    
     ax1.set_ylabel('Profile (deg$^{-2}$)')
     ax1.set_xscale('log')
     ax1.set_yscale('log')
@@ -989,12 +989,12 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     plt.errorbar(Emean, data_spec-(total_spec-cluster_spec), yerr=np.sqrt(total_spec),
                  xerr=[Emean-1e-6*Ebins['E_MIN'], 1e-6*Ebins['E_MAX']-Emean],fmt='ko',
                  capsize=0, linewidth=2, zorder=2, label='Data')
-    plt.plot(Emean, cluster_spec, color='k', linewidth=2, label='Best-fit cluster model')
+    plt.plot(Emean, cluster_spec, color='blue', linewidth=2, label='Best-fit cluster model')
     plt.plot(Emean, cluster_up_spec, color='blue', linewidth=1, linestyle='--', label=str(conf)+'% C.L.')
     plt.plot(Emean, cluster_lo_spec, color='blue', linewidth=1, linestyle='--')
-    plt.fill_between(Emean, cluster_up_spec, cluster_lo_spec, alpha=0.3, color='blue')
+    plt.fill_between(Emean, cluster_up_spec, cluster_lo_spec, alpha=0.2, color='blue')
     for i in range(Nmc):
-        plt.plot(Emean, cluster_mc_spec[i, :], color='blue', linewidth=1, alpha=0.1)
+        plt.plot(Emean, cluster_mc_spec[i, :], color='blue', linewidth=1, alpha=0.05)
     plt.ylabel('Background subtracted counts')
     plt.xscale('log')
     plt.yscale('log')
@@ -1353,7 +1353,7 @@ def run_constraint(input_files,
         pos = [par0 + 1e-2*np.random.randn(ndim) for i in range(nwalkers)]
         sampler = emcee.EnsembleSampler(nwalkers, ndim, lnlike,
                                         args=[data, modgrid, par_min, par_max, GaussLike])
-
+    
     #---------- Run the MCMC
     if run_mcmc:
         print('--- Runing '+str(nsteps)+' MCMC steps')
