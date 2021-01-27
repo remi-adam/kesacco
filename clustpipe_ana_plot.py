@@ -193,10 +193,14 @@ def combined_maps(cpipe,
         if not cpipe.silent: print(cpipe.output_dir+'/Ana_SkymapTot.fits does not exist, no SkymapTot plot')
         
     #========== Show the combined total residuals
-    for alg in ['SIGNIFICANCE', 'SUB', 'SUBDIV']:
+    for alg in ['SIGNIFICANCE', 'SUB', 'SUBDIV', 'SUBDIVSQRT']:
         if alg == 'SIGNIFICANCE':
             is_significance = True
             btitle = 'Significance'
+            mrange = [-5, None]
+        elif alg == 'SUBDIVSQRT':
+            is_significance = True
+            btitle = '(Data-Model)/Model$^{1/2}$'
             mrange = [-5, None]
         elif alg == 'SUB':
             is_significance = False

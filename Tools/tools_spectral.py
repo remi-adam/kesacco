@@ -234,11 +234,14 @@ def residual(inobs, inmodel, outfile,
     See http://cta.irap.omp.eu/ctools/users/reference_manual/csresspec.html
 
     Parameters
-    ----------
-    -
-    -
-    -
-    -
+    ----------   
+    - inobs (string): input observation file
+    - inmodel (string): input model
+    - outfile (str): output resdi spectrum file
+    - npix (int): Number of cube bins
+    - reso (float): Cube bin size (in degrees/pixel)
+    - cra (float): Right Ascension of circular selection region centre (J2000, in degrees)
+    - cdec (float): declination of circular selection region centre (J2000, in degrees)
 
     Outputs
     --------

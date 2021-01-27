@@ -284,7 +284,7 @@ def bkg_cube(output_dir,
 def edisp_cube(output_dir,
                map_coord, map_fov,
                emin, emax, enumbins, ebinalg,
-               binsz=1.0,migramax=2.0, migrabins=100,
+               binsz=1.0, migramax=2.0, migrabins=100,
                logfile=None,
                silent=False):
     """

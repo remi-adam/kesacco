@@ -32,6 +32,9 @@ def onoff_filegen(inobs, inmodel,
                   use_model_bkg=True,
                   maxoffset=4.0,
                   stack=True,
+                  etruemin=0.01,
+                  etruemax=300,
+                  etruebins=30,
                   logfile=None,
                   silent=False):
     """
@@ -143,13 +146,13 @@ def onoff_filegen(inobs, inmodel,
     onoff['stack'] = stack
     
     # Minimum true energy (TeV).
-    #--#onoff['etruemin'] = emin
+    onoff['etruemin'] = etruemin
     
     # Maximum true energy (TeV).
-    #--#onoff['etruemax'] = emax
+    onoff['etruemax'] = etruemax
 
     # Number of bins per decade for true energy bins.
-    #--#onoff['etruebins'] = enumbins
+    onoff['etruebins'] = etruebins
         
     if logfile is not None: onoff['logfile'] = logfile
 

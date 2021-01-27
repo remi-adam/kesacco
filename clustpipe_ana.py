@@ -63,7 +63,11 @@ class CTAana(object):
     - run_ana_timing: perform the time analysis (lightcurve of sources in the ROI)
     - run_ana_expected_output: compute the IRF convolved expected cluster based 
     on the input simulation
-    - run_ana_mcmc: run the MCMC to constrain the spectrum and profile
+    - run_ana_mcmc_spectrum: MCMC fit of the spectrum, assuming a given spatial model
+    and using the spectrum extracted from the spectral analysis
+    - run_ana_mcmc_profile: MCMC fit of the profile
+    - run_ana_mcmc_spectralimaging: run the MCMC to constrain the spectrum and profile
+    together with background parameters
     - run_ana_plot: run the plotting tools to show the results
 
     To do list
@@ -262,7 +266,7 @@ class CTAana(object):
             sel['tmax'] = 'NONE'
         sel['phase']    = 'NONE'
         sel['expr']     = ''
-        sel['usethres'] = 'NONE'
+        sel['usethres'] = 'USER'
         sel['logfile']  = self.output_dir+'/Ana_EventsSelected_log.txt'
         sel['chatter']  = 2
         
@@ -365,6 +369,7 @@ class CTAana(object):
                                               bkgregmin=2, bkgregskip=1,
                                               use_model_bkg=use_model_bkg, maxoffset=4.0,
                                               stack=self.method_stack,
+                                              etruemin=0.01,etruemax=300,etruebins=30,
                                               logfile=self.output_dir+'/Ana_OnOff_log.txt')
             
             if self.method_stack and use_model_bkg:
@@ -898,7 +903,7 @@ class CTAana(object):
                 print('               Other sources unaccounted for in the model may bias the residual.')
 
             #----- Total residual and keeping the cluster
-            for alg in ['SIGNIFICANCE', 'SUB', 'SUBDIV']:
+            for alg in ['SIGNIFICANCE', 'SUB', 'SUBDIV', 'SUBDIVSQRT']:
                 resmap = tools_imaging.resmap(self.output_dir+'/Ana_Countscube.fits',
                                               self.output_dir+'/Ana_Model_Output.xml',
                                               self.output_dir+'/Ana_ResmapTot_'+alg+'.fits',
@@ -1245,9 +1250,9 @@ class CTAana(object):
                                             bkgregmin=bkgregmin,
                                             use_model_bkg=False,
                                             maxoffset=maxoffset.to_value('deg'),
-                                            etruemin=self.spec_emin.to_value('TeV'),
-                                            etruemax=self.spec_emax.to_value('TeV'),
-                                            etruebins=self.spec_enumbins,
+                                            etruemin=0.01,
+                                            etruemax=300,
+                                            etruebins=30,
                                             #
                                             statistic=self.method_stat,
                                             calc_ts=True,
@@ -1738,7 +1743,7 @@ class CTAana(object):
         if not self.silent:
             print('----- ObsID to be looked at: '+str(obsID))
             print('')
-
+        
         #========== Plot the observing properties
         clustpipe_ana_plot.observing_setup(self)
      
