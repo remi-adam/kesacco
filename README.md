@@ -16,9 +16,8 @@ to produce CTA analysis results.
 - clustpipe_ana.py : 
   Subclass that deal with observation analysis.
     
-- clustpipe_{ana,sim}_plot.py : 
-  Sub-modules dedicated to run automatic plots related to analysis
-  and simulations.
+- clustpipe_ana_plot.py : 
+  Sub-modules dedicated to run automatic plots related to analysis.
 
 - clustpipe_title.py : 
 	Title for the software.
@@ -32,8 +31,7 @@ to produce CTA analysis results.
 	Repository where to find Jupyter notebook used for development/example. 
 
 ## Environment
-To be compliant with other softwares developed in parallel, the code was made for python 2. Nevertheless, it should work with python 3. Please make sure that you are in the correct environment when you run the code.
-In addition, the kesacco directory should be in your python path so it can be found.
+The code works with python 3. It should work with python 2, although several features may fail. Please make sure that you are in the correct environment when you run the code. In addition, the kesacco directory should be in your python path so it can be found.
 
 ## Installation
 To install these tools, just fork the repository to your favorite location in your machine.
