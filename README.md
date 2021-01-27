@@ -30,7 +30,7 @@ to produce CTA analysis results.
 - notebook :
 	Repository where to find Jupyter notebook used for development/example. 
 
-## Overview of the physical processes and structure of the code
+## Overview of the code
 <figure>
 	<img src="/overview.png" width="600" />
 	<figcaption> Figure 1. Overview of the KESACCO software.</figcaption>
