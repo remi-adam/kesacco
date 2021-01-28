@@ -2,6 +2,7 @@
 This the equivalent of the notebook development.ipynb, but in a python script.
 It provides an example to the Cluster simulation and analysis with CTA.
 """
+
 ##################################################################
 # Imports
 ##################################################################
@@ -21,9 +22,10 @@ from kesacco import clustpipe
 #=================================================================
 #======= Define the simulation
 #=================================================================
+output_dir = '/pbs/home/r/radam/Project/CTA/Phys/Outputs/KESACCO_example'
 
-cpipe = clustpipe.ClusterPipe(silent=False, output_dir='/Users/adam/Project/CTA/Phys/Outputs/KESACCO_example')
-
+cpipe = clustpipe.ClusterPipe(silent=False, output_dir=output_dir)
+print('')
 
 #=================================================================
 #======= Define the cluster object
@@ -57,6 +59,7 @@ cpipe.cluster.Npt_per_decade_integ = 30
 
 # Get information about the state of the cluster model
 cpipe.cluster.print_param()
+print('')
 
 
 #=================================================================
@@ -89,6 +92,7 @@ cpipe.compact_source.add_source(name, spatial, spectral)# Add the source to the 
 
 # Show the status of the compact sources in the sky model
 cpipe.compact_source.print_source()
+print('')
 
 
 #=================================================================
@@ -124,7 +128,7 @@ cpipe.obs_setup.add_obs(obsid='003', name='Perseus_Ptg3',
 
 # Print info
 cpipe.obs_setup.print_obs()
-
+print('')
 
 
 ##################################################################
@@ -137,6 +141,7 @@ cpipe.run_sim_quicklook(ShowEvent=True,
                         ShowSkyModel=True,
                         bkgsubtract='NONE',
                         smoothing_FWHM=0.2*u.deg)
+print('')
 
 
 ##################################################################
@@ -173,12 +178,13 @@ cpipe.cluster.map_coord = copy.deepcopy(cpipe.cluster.coord)
 # Analysis
 #=================================================================
 
-cpipe.run_ana_dataprep(obsID=obsID)
-cpipe.run_ana_likelihood(refit=False, like_accuracy=0.05, max_iter=50, fix_spat_for_ts=False)
-cpipe.run_ana_imaging(bkgsubtract='NONE', do_TS=False, do_Res=True, do_Skymap=True, do_SourceDet=False)
-cpipe.run_ana_spectral(do_Spec=True, do_Butterfly=True, do_Res=True)
-cpipe.run_ana_expected_output(obsID=obsID, profile_reso=0.05*u.deg)
-cpipe.run_ana_plot(obsID=obsID, profile_log=True, smoothing_FWHM=0.1*u.deg)
+cpipe.run_ana_dataprep()
+cpipe.run_ana_likelihood()
+cpipe.run_ana_imaging()
+cpipe.run_ana_spectral()
+cpipe.run_ana_expected_output()
+cpipe.run_ana_plot()
+
 cpipe.run_ana_mcmc_spectrum(reset_mcmc=True, run_mcmc=True, GaussLike=False)
 cpipe.run_ana_mcmc_spectralimaging(reset_modelgrid=True,
                                    reset_mcmc=True, run_mcmc=True, GaussLike=False,
