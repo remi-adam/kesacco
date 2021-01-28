@@ -1737,6 +1737,15 @@ class CTAana(object):
         - Many plots are obtained from the available file products
 
         """
+
+
+        #===== Information
+        if not self.silent:
+            print('')
+            print('======================================================')
+            print(' Starting the automatic plots')
+            print('======================================================')
+            print('')
         
         #========== Get the obs ID to run (defaults is all of them)
         obsID = self._check_obsID(obsID)
