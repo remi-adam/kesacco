@@ -141,6 +141,7 @@ cpipe.run_sim_quicklook(ShowEvent=True,
                         ShowSkyModel=True,
                         bkgsubtract='NONE',
                         smoothing_FWHM=0.2*u.deg)
+
 print('')
 
 
