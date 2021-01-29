@@ -520,7 +520,8 @@ class CTAana(object):
         # Log file
         like['logfile'] = self.output_dir+'/Ana_Model_Output_log.txt'
 
-        print(like)
+        if not self.silent:
+            print(like)
         like.logFileOpen()
         like.execute()
         like.logFileClose()
