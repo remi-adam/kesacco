@@ -387,7 +387,8 @@ class CTAana(object):
     def run_ana_likelihood(self, refit=False,
                            like_accuracy=0.005,
                            max_iter=50,
-                           fix_spat_for_ts=False):
+                           fix_spat_for_ts=False,
+                           compute_bestfit=True):
         """
         Run the likelihood analysis.
         See http://cta.irap.omp.eu/ctools/users/reference_manual/ctlike.html
@@ -398,7 +399,8 @@ class CTAana(object):
         - like_accuracy (float): Absolute accuracy of maximum likelihood value
         - max_iter (int): Maximum number of fit iterations.
         - fix_spat_for_ts (bool): Fix spatial parameters for TS computation.
-        
+        - compute_bestfit (bool): compute the best fit model
+
         Outputs files
         -------------
         - Ana_Model_Output.xml: constrained sky model
@@ -538,26 +540,31 @@ class CTAana(object):
                             self.cluster.name)
 
         #========== Compute the binned model
-        modcube = cubemaking.model_cube(self.output_dir,
-                                        self.map_reso, self.map_coord, self.map_fov,
-                                        self.spec_emin, self.spec_emax, self.spec_enumbins,
-                                        self.spec_ebinalg,
-                                        edisp=self.spec_edisp,
-                                        stack=self.method_stack,
-                                        logfile=self.output_dir+'/Ana_Model_Cube_log.txt',
-                                        silent=self.silent)
+        if compute_bestfit:
+            modcube = cubemaking.model_cube(self.output_dir,
+                                            self.map_reso, self.map_coord, self.map_fov,
+                                            self.spec_emin, self.spec_emax, self.spec_enumbins,
+                                            self.spec_ebinalg,
+                                            edisp=self.spec_edisp,
+                                            stack=self.method_stack,
+                                            logfile=self.output_dir+'/Ana_Model_Cube_log.txt',
+                                            silent=self.silent)
+            
+            modcube_Cl = cubemaking.model_cube(self.output_dir,
+                                               self.map_reso, self.map_coord, self.map_fov,
+                                               self.spec_emin, self.spec_emax, self.spec_enumbins,
+                                               self.spec_ebinalg,
+                                               edisp=self.spec_edisp,
+                                               stack=self.method_stack, silent=self.silent,
+                                               logfile=self.output_dir+'/Ana_Model_Cube_Cluster_log.txt',
+                                               inmodel_usr=self.output_dir+'/Ana_Model_Output_Cluster.xml',
+                                               outmap_usr=self.output_dir+'/Ana_Model_Cube_Cluster.fits')
+            
+            return (like, modcube, modcube_Cl)
         
-        modcube_Cl = cubemaking.model_cube(self.output_dir,
-                                           self.map_reso, self.map_coord, self.map_fov,
-                                           self.spec_emin, self.spec_emax, self.spec_enumbins,
-                                           self.spec_ebinalg,
-                                           edisp=self.spec_edisp,
-                                           stack=self.method_stack, silent=self.silent,
-                                           logfile=self.output_dir+'/Ana_Model_Cube_Cluster_log.txt',
-                                           inmodel_usr=self.output_dir+'/Ana_Model_Output_Cluster.xml',
-                                           outmap_usr=self.output_dir+'/Ana_Model_Cube_Cluster.fits')
-
-        return (like, modcube, modcube_Cl)
+        else:
+            return like
+        
         
     #==================================================
     # Sensitivity

@@ -22,7 +22,7 @@ from kesacco import clustpipe
 #=================================================================
 #======= Define the simulation
 #=================================================================
-output_dir = '/pbs/home/r/radam/Project/CTA/Phys/Outputs/KESACCO_example'
+output_dir = '/sps/hep/cta/llr/radam/KESACCO_example'
 
 cpipe = clustpipe.ClusterPipe(silent=False, output_dir=output_dir)
 print('')
