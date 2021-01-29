@@ -806,11 +806,8 @@ def skymap_quicklook(output_file,
                                   inradius=cluster.theta500.to_value('deg'),
                                   outradius=cluster.theta500.to_value('deg')*1.2,
                                   iterations=3, threshold=3,
-                                  inexclusion='NONE')
-    if silent == False:
-        print('')
-        print(skymap)
-        print('')
+                                  inexclusion='NONE',
+                                  silent=silent)
     
     #---------- Plot
     show_map(output_file+'.fits',
