@@ -202,7 +202,7 @@ def build_model_grid(cpipe,
     for ips in range(len(cpipe.compact_source.name)):
         print('------ Point source '+cpipe.compact_source.name[ips])
         for jmod in range(ps_spectral_npt):
-            print('--- Building point source template '+str(1+jmod)+'/'+str(bkg_spectral_npt))
+            print('--- Building point source template '+str(1+jmod)+'/'+str(ps_spectral_npt))
             
             #---------- Indexing
             spectral_j   = ps_spectral_value[jmod]
