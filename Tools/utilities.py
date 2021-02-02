@@ -97,8 +97,10 @@ def listcord2center(coord_list):
     if res.success is not True:
         print('!!! WARNING: not sure I found the coordinates barycenter !!!')
         print('Separation between cartesian center and my center: ')
-        print(center.separation(center_guess).to_value('deg'))
-    
+        print(center.separation(center_guess).to_value('deg'), 'deg')
+        print('Center: ')
+        print(center)
+
     return center
 
 
