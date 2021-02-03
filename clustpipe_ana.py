@@ -158,7 +158,9 @@ class CTAana(object):
                          obsID=None,
                          frac_src_on_reg=0.8,
                          exclu_rad=0.2*u.deg,
-                         use_model_bkg=False):
+                         use_model_bkg=False,
+                         overwrite_data=True,
+                         overwrite_irfs=True)
         """
         This function is used to prepare the data to the 
         analysis.
@@ -172,6 +174,8 @@ class CTAana(object):
         - exclu_rad (quantity): exclusion radius for sources in the field of 
         view in onoff analysis
         - use_model_bkg (bool): do we use background model in on off analysis
+        - overwrite_{sel,} (bool): recompute and overwrite existing file, or use them 
+        without recomputing
 
         Outputs files
         -------------
@@ -245,39 +249,44 @@ class CTAana(object):
                                             obsID)
 
         #----- Data selection
-        sel = ctools.ctselect()
-        sel['inobs']    = self.output_dir+'/Ana_Events.xml'
-        sel['outobs']   = self.output_dir+'/Ana_EventsSelected.xml'
-        sel['prefix']   = self.output_dir+'/Ana_Selected'
-        sel['usepnt']   = False
-        sel['ra']       = self.map_coord.icrs.ra.to_value('deg')
-        sel['dec']      = self.map_coord.icrs.dec.to_value('deg')
-        sel['rad']      = self.map_fov.to_value('deg') * np.sqrt(2)/2.0
-        sel['forcesel'] = True
-        sel['emin']     = self.spec_emin.to_value('TeV')
-        sel['emax']     = self.spec_emax.to_value('TeV')
-        if self.time_tmin is not None:
-            sel['tmin'] = self.time_tmin
+        selexist = os.path.exists(self.output_dir+'/Ana_EventsSelected.xml')
+        if not overwrite_data and selexist:
+            if not self.silent:
+                print('-----> Skipping data selection')
         else:
-            sel['tmin'] = 'NONE'
-        if self.time_tmax is not None:
-            sel['tmax'] = self.time_tmax
-        else:
-            sel['tmax'] = 'NONE'
-        sel['phase']    = 'NONE'
-        sel['expr']     = ''
-        sel['usethres'] = 'USER'
-        sel['logfile']  = self.output_dir+'/Ana_EventsSelected_log.txt'
-        sel['chatter']  = 2
-        
-        sel.logFileOpen()
-        sel.execute()
-        sel.logFileClose()
-
-        if not self.silent:
-            print(sel)
-            print('')
-        
+            sel = ctools.ctselect()
+            sel['inobs']    = self.output_dir+'/Ana_Events.xml'
+            sel['outobs']   = self.output_dir+'/Ana_EventsSelected.xml'
+            sel['prefix']   = self.output_dir+'/Ana_Selected'
+            sel['usepnt']   = False
+            sel['ra']       = self.map_coord.icrs.ra.to_value('deg')
+            sel['dec']      = self.map_coord.icrs.dec.to_value('deg')
+            sel['rad']      = self.map_fov.to_value('deg') * np.sqrt(2)/2.0
+            sel['forcesel'] = True
+            sel['emin']     = self.spec_emin.to_value('TeV')
+            sel['emax']     = self.spec_emax.to_value('TeV')
+            if self.time_tmin is not None:
+                sel['tmin'] = self.time_tmin
+            else:
+                sel['tmin'] = 'NONE'
+            if self.time_tmax is not None:
+                sel['tmax'] = self.time_tmax
+            else:
+                sel['tmax'] = 'NONE'
+            sel['phase']    = 'NONE'
+            sel['expr']     = ''
+            sel['usethres'] = 'USER'
+            sel['logfile']  = self.output_dir+'/Ana_EventsSelected_log.txt'
+            sel['chatter']  = 2
+            
+            sel.logFileOpen()
+            sel.execute()
+            sel.logFileClose()
+            
+            if not self.silent:
+                print(sel)
+                print('')
+                
         #----- Model
         map_template_fov = np.amin(self.cluster.map_fov.to_value('deg'))
         if (not self.silent) and (2*self.cluster.theta_truncation.to_value('deg') > map_template_fov):
@@ -290,45 +299,76 @@ class CTAana(object):
         outs.append(model_tot)
         
         #----- Binning (needed even if unbinned likelihood)
-        for stacklist in [True, False]: # 1 single fits for stacked, else xml +N fits
-            ctscube = cubemaking.counts_cube(self.output_dir,
-                                             self.map_reso, self.map_coord, self.map_fov,
-                                             self.spec_emin, self.spec_emax,
-                                             self.spec_enumbins, self.spec_ebinalg,
-                                             stack=stacklist,
-                                             logfile=self.output_dir+'/Ana_Countscube_log.txt',
-                                             silent=self.silent)
-            outs.append(ctscube)
+        # Data counts
+        ctscube1exist = os.path.exists(self.output_dir+'/Ana_Countscube.fits')
+        ctscube2exist = os.path.exists(self.output_dir+'/Ana_Countscube.xml')
+        if not overwrite_data and ctscube1exist and ctscube1exist:
+            if not self.silent:
+                print('-----> Skipping data cubemaking')
+        else:
+            for stacklist in [True, False]: # 1 single fits for stacked, else xml +N fits
+                ctscube = cubemaking.counts_cube(self.output_dir,
+                                                 self.map_reso, self.map_coord, self.map_fov,
+                                                 self.spec_emin, self.spec_emax,
+                                                 self.spec_enumbins, self.spec_ebinalg,
+                                                 stack=stacklist,
+                                                 logfile=self.output_dir+'/Ana_Countscube_log.txt',
+                                                 silent=self.silent)
+                outs.append(ctscube)
+
+        # Exposure
+        expcubeexist = os.path.exists(self.output_dir+'/Ana_Expcube.fits')
+        if not overwrite_irfs and expcubeexist:
+            if not self.silent:
+                print('-----> Skipping exposure cubemaking')
+        else:
+            expcube = cubemaking.exp_cube(self.output_dir,
+                                          self.map_reso, self.map_coord, self.map_fov,
+                                          self.spec_emin, self.spec_emax,
+                                          self.spec_enumbins, self.spec_ebinalg,
+                                          logfile=self.output_dir+'/Ana_Expcube_log.txt',
+                                          silent=self.silent)
+            outs.append(expcube)
+
+        # PSF
+        psfcubeexist = os.path.exists(self.output_dir+'/Ana_Psfcube.fits')
+        if not overwrite_irfs and psfcubeexist:
+            if not self.silent:
+                print('-----> Skipping PSF cubemaking')
+        else:
+            psfcube = cubemaking.psf_cube(self.output_dir,
+                                          self.map_reso, self.map_coord, self.map_fov,
+                                          self.spec_emin, self.spec_emax,
+                                          self.spec_enumbins, self.spec_ebinalg,
+                                          logfile=self.output_dir+'/Ana_Psfcube_log.txt',
+                                          silent=self.silent)
+            outs.append(psfcube)
             
-        expcube = cubemaking.exp_cube(self.output_dir,
-                                      self.map_reso, self.map_coord, self.map_fov,
-                                      self.spec_emin, self.spec_emax,
-                                      self.spec_enumbins, self.spec_ebinalg,
-                                      logfile=self.output_dir+'/Ana_Expcube_log.txt',
-                                      silent=self.silent)
-        outs.append(expcube)
-        
-        psfcube = cubemaking.psf_cube(self.output_dir,
-                                      self.map_reso, self.map_coord, self.map_fov,
-                                      self.spec_emin, self.spec_emax,
-                                      self.spec_enumbins, self.spec_ebinalg,
-                                      logfile=self.output_dir+'/Ana_Psfcube_log.txt',
-                                      silent=self.silent)
-        outs.append(psfcube)
-        
-        bkgcube = cubemaking.bkg_cube(self.output_dir,
-                                      logfile=self.output_dir+'/Ana_Bkgcube_log.txt',
-                                      silent=self.silent)
-        outs.append(bkgcube)
-        
+        # Background
+        bkgcubeexist = os.path.exists(self.output_dir+'/Ana_Bkgcube.fits')
+        if not overwrite_irfs and bkgcubeexist:
+            if not self.silent:
+                print('-----> Skipping background cubemaking')
+        else:
+            bkgcube = cubemaking.bkg_cube(self.output_dir,
+                                          logfile=self.output_dir+'/Ana_Bkgcube_log.txt',
+                                          silent=self.silent)
+            outs.append(bkgcube)
+
+        # Energy dispersion
         if self.spec_edisp:
-            edcube = cubemaking.edisp_cube(self.output_dir,
-                                           self.map_coord, self.map_fov,
-                                           self.spec_emin, self.spec_emax,
-                                           self.spec_enumbins, self.spec_ebinalg,
-                                           logfile=self.output_dir+'/Ana_Edispcube_log.txt',
-                                           silent=self.silent)
-            outs.append(edcube)
+            edispcubeexist = os.path.exists(self.output_dir+'/Ana_Edispcube.fits')
+            if not overwrite_irfs and edispcubeexist:
+                if not self.silent:
+                    print('-----> Skipping Edisp cubemaking')
+            else:
+                edcube = cubemaking.edisp_cube(self.output_dir,
+                                               self.map_coord, self.map_fov,
+                                               self.spec_emin, self.spec_emax,
+                                               self.spec_enumbins, self.spec_ebinalg,
+                                               logfile=self.output_dir+'/Ana_Edispcube_log.txt',
+                                               silent=self.silent)
+                outs.append(edcube)
         
         #----- ON/OFF files
         if self.method_ana == 'ONOFF':
@@ -352,25 +392,32 @@ class CTAana(object):
             else:
                 obsdefonoff = self.output_dir+'/Ana_ObsDef_OnOff_Unstack.xml'
                 inmodelonoff = self.output_dir+'/Ana_Model_Input_OnOff_Unstack.xml'
-                
-            onoff = tools_onoff.onoff_filegen(self.output_dir+'/Ana_EventsSelected.xml',
-                                              self.output_dir+'/Ana_Model_Input_OnOffIn.xml',
-                                              self.cluster.name, 
-                                              obsdefonoff, inmodelonoff,
-                                              self.output_dir+'/Ana_OnOff',
-                                              self.spec_ebinalg,
-                                              self.spec_emin.to_value('TeV'),
-                                              self.spec_emax.to_value('TeV'),
-                                              self.spec_enumbins,
-                                              self.cluster.coord.ra.to_value('deg'),
-                                              self.cluster.coord.dec.to_value('deg'),
-                                              rad.to_value('deg'),
-                                              inexclusion=self.output_dir+'/Ana_OnOff_exclusion.fits',
-                                              bkgregmin=2, bkgregskip=1,
-                                              use_model_bkg=use_model_bkg, maxoffset=4.0,
-                                              stack=self.method_stack,
-                                              etruemin=0.01,etruemax=300,etruebins=30,
-                                              logfile=self.output_dir+'/Ana_OnOff_log.txt')
+
+
+            # region gen
+            onoffexist = os.path.exists(self.output_dir+'/Ana_OnOff_on.reg')
+            if not overwrite_data and onoffexist:
+                if not self.silent:
+                    print('-----> Skipping data cubemaking')
+            else:
+                onoff = tools_onoff.onoff_filegen(self.output_dir+'/Ana_EventsSelected.xml',
+                                                  self.output_dir+'/Ana_Model_Input_OnOffIn.xml',
+                                                  self.cluster.name, 
+                                                  obsdefonoff, inmodelonoff,
+                                                  self.output_dir+'/Ana_OnOff',
+                                                  self.spec_ebinalg,
+                                                  self.spec_emin.to_value('TeV'),
+                                                  self.spec_emax.to_value('TeV'),
+                                                  self.spec_enumbins,
+                                                  self.cluster.coord.ra.to_value('deg'),
+                                                  self.cluster.coord.dec.to_value('deg'),
+                                                  rad.to_value('deg'),
+                                                  inexclusion=self.output_dir+'/Ana_OnOff_exclusion.fits',
+                                                  bkgregmin=2, bkgregskip=1,
+                                                  use_model_bkg=use_model_bkg, maxoffset=4.0,
+                                                  stack=self.method_stack,
+                                                  etruemin=0.01,etruemax=300,etruebins=30,
+                                                  logfile=self.output_dir+'/Ana_OnOff_log.txt')
             
             if self.method_stack and use_model_bkg:
                 tools_onoff.rename_bkg_onoff(inmodelonoff)

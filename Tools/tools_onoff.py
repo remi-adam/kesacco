@@ -38,7 +38,7 @@ def onoff_filegen(inobs, inmodel,
                   logfile=None,
                   silent=False):
     """
-    Compute sky map.
+    Compute ON OFF regions.
     See http://cta.irap.omp.eu/ctools/users/reference_manual/ctskymap.html
 
     Parameters
