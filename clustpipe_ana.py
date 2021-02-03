@@ -160,7 +160,7 @@ class CTAana(object):
                          exclu_rad=0.2*u.deg,
                          use_model_bkg=False,
                          overwrite_data=True,
-                         overwrite_irfs=True)
+                         overwrite_irfs=True):
         """
         This function is used to prepare the data to the 
         analysis.
