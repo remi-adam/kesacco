@@ -381,7 +381,7 @@ class CTAana(object):
                                                        self.output_dir+'/Ana_OnOff_exclusion.fits',
                                                        rad=exclu_rad)
             # Make a source model for On/Off
-            tools_onoff.make_onoff_source_model(self.output_dir+'/Ana_Model_Input_UnStack.xml',
+            tools_onoff.make_onoff_source_model(self.output_dir+'/Ana_Model_Input_Unstack.xml',
                                                 self.output_dir+'/Ana_Model_Input_OnOffIn.xml',
                                                 self.compact_source, keepbkg=use_model_bkg)
             
