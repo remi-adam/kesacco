@@ -1352,12 +1352,13 @@ def run_constraint(input_files,
         print('--- No pre-existing sampler, start from scratch')
         pos = mcmc_common.chains_starting_point(par0, 0.1, par_min, par_max, nwalkers)
         sampler = emcee.EnsembleSampler(nwalkers, ndim, lnlike,
-                                        args=[data, modgrid, par_min, par_max, GaussLike])
+                                        args=[data, modgrid, par_min, par_max, GaussLike],
+                                        skip_initial_state_check=True)
         
     #---------- Run the MCMC
     if run_mcmc:
         print('--- Runing '+str(nsteps)+' MCMC steps')
-        sampler.run_mcmc(pos, nsteps, progress=True)
+        sampler.run_mcmc(pos, nsteps, progress=True, skip_initial_state_check=True)
 
     #---------- Save the MCMC after the run
     mcmc_common.save_object(sampler, sampler_file)
