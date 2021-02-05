@@ -580,7 +580,7 @@ def run_constraint(cluster_test,
     #---------- Run the MCMC
     if run_mcmc:
         print('--- Runing '+str(nsteps)+' MCMC steps')
-        sampler.run_mcmc(pos, nsteps, progress=True, skip_initial_state_check=True)
+        sampler.run_mcmc(pos, nsteps, progress=True)
 
     #---------- Save the MCMC after the run
     mcmc_common.save_object(sampler, sampler_file)

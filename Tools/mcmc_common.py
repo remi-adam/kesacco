@@ -217,10 +217,7 @@ def chains_plots(param_chains,
     figure.savefig(rout_file+'_triangle_corner.pdf')
     plt.close("all")
 
-
-
-
-
+    
 #==================================================
 # Starting point
 #==================================================
@@ -244,14 +241,36 @@ def chains_starting_point(guess, disp, par_min, par_max, nwalkers):
     """
 
     ndim = len(guess)
-    
-    vmin = guess - guess*disp
+
+    # First range using guess + dispersion
+    vmin = guess - guess*disp 
     vmax = guess + guess*disp
+
+    # If parameters are 0, uses born
+    w0 = np.where(guess < 1e-4)[0]
+    for i in range(len(w0)):
+        if np.array(par_min)[w0[i]] != np.inf and np.array(par_min)[w0[i]] != -np.inf:
+            vmin[w0[i]] = np.array(par_min)[w0[i]]
+            vmax[w0[i]] = np.array(par_max)[w0[i]]
+        else:
+            vmin[w0[i]] = -1.0
+            vmax[w0[i]] = +1.0
+            print('Warning, some starting point parameters are difficult to estimate')
+            print('because the guess parameter is 0 and the par_min/max are infinity')
+
+    # Check that the parameters are in the prior range
     wup = vmin < np.array(par_min)
     wlo = vmax > np.array(par_max)
     vmin[wup] = np.array(par_min)[wup]
     vmax[wlo] = np.array(par_max)[wlo]
-    
+
+    # Get parameters
     start = [np.random.uniform(low=vmin, high=vmax) for i in range(nwalkers)]
 
+    #print(guess)
+    #print(par_min)
+    #print(par_max)
+    #print(vmin)
+    #print(vmax)
+    
     return start
