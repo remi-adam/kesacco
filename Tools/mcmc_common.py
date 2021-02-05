@@ -216,3 +216,42 @@ def chains_plots(param_chains,
                            quantiles=(0.16, 0.84))
     figure.savefig(rout_file+'_triangle_corner.pdf')
     plt.close("all")
+
+
+
+
+
+#==================================================
+# Starting point
+#==================================================
+
+def chains_starting_point(guess, disp, par_min, par_max, nwalkers):
+    """
+    Sample the parameter space for chain starting point
+        
+    Parameters
+    ----------
+    - guess (Nparam array): guess value of the parameters
+    - disp (float): dispersion allowed for unborned parameters
+    - parmin (Nparam array): min value of the parameters
+    - parmax (Nparam array): max value of the parameters
+    - nwalkers (int): number of walkers
+
+    Output
+    ------
+    start: the starting point of the chains in the parameter space
+
+    """
+
+    ndim = len(guess)
+    
+    vmin = guess - guess*disp
+    vmax = guess + guess*disp
+    wup = vmin < np.array(par_min)
+    wlo = vmax > np.array(par_max)
+    vmin[wup] = np.array(par_min)[wup]
+    vmax[wlo] = np.array(par_max)[wlo]
+    
+    start = [np.random.uniform(low=vmin, high=vmax) for i in range(nwalkers)]
+
+    return start

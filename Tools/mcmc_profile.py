@@ -665,7 +665,7 @@ def run_profile_constraint(input_file,
     if sampler_exist:
         if reset_mcmc:
             print('--- Reset MCMC even though sampler already exists')
-            pos = [par0 + 1e-2*np.random.randn(ndim) for i in range(nwalkers)]
+            pos = mcmc_common.chains_starting_point(par0, 0.1, par_min, par_max, nwalkers)
             sampler.reset()
             sampler = emcee.EnsembleSampler(nwalkers, ndim, lnlike,
                                             args=[data, modgrid, par_min, par_max, GaussLike])
@@ -674,7 +674,7 @@ def run_profile_constraint(input_file,
             pos = sampler.chain[:,-1,:]
     else:
         print('--- No pre-existing sampler, start from scratch')
-        pos = [par0 + 1e-2*np.random.randn(ndim) for i in range(nwalkers)]
+        pos = mcmc_common.chains_starting_point(par0, 0.1, par_min, par_max, nwalkers)
         sampler = emcee.EnsembleSampler(nwalkers, ndim, lnlike,
                                         args=[data, modgrid, par_min, par_max, GaussLike])
         
