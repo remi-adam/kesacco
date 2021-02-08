@@ -1070,7 +1070,11 @@ class CTAana(object):
     # Run the spectral analysis
     #==================================================
     
-    def run_ana_spectral(self, do_Spec=True, do_Butterfly=True, do_Res=True):
+    def run_ana_spectral(self,
+                         do_Spec=True,
+                         do_Butterfly=True,
+                         do_Res=True,
+                         name=None):
         """
         Run the spectral analysis
         
@@ -1079,6 +1083,7 @@ class CTAana(object):
         - do_Spec (bool): compute spectra
         - do_Butterfly (bool): compute butterfly
         - do_Res (bool): compute residual spectra
+        - name (str): name of the source to consider (default all source used)
         
         Outputs files
         -------------
@@ -1117,7 +1122,17 @@ class CTAana(object):
             
             srcname = models[isource].name()
 
-            if models[isource].type() not in ['CTACubeBackground', 'CTAIrfBackground']:
+            # Condition for doing specrum
+            cond1 = models[isource].type() not in ['CTACubeBackground', 'CTAIrfBackground']
+            if name is not None:
+                if name == srcname:
+                    cond2 = True
+                else:
+                    cond2 = False
+            else:
+                cond2 = True
+            
+            if cond1 and cond2:
                 if not self.silent:
                     print('--- Computing spectrum: '+srcname)
 
