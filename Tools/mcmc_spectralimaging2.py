@@ -1376,10 +1376,15 @@ def run_constraint(input_files,
     Best_model = model_specimg(modgrid, par_best)
 
     #---------- Plots and results
-    
     mcmc_common.chains_plots(param_chains, parname, chainplot_file,
                              par_best=par_best, par_percentile=par_percentile, conf=conf,
                              par_min=par_min, par_max=par_max)
+
+    mcmc_common.chains_plots(param_chains[:,:,[0,1,2]], parname[0:3],
+                             chainplot_file+'_cl',
+                             par_best=par_best[0:3], par_percentile=par_percentile[:,[0,1,2]],
+                             conf=conf,
+                             par_min=par_min[0:3], par_max=par_max[0:3])
     
     modelplot(data, Best_model, MC_model, modgrid['header'], modgrid['Ebins'], subdir,
               conf=conf, FWHM=FWHM, theta=theta, coord=coord, profile_reso=profile_reso)
