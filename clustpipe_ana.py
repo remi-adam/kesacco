@@ -1788,6 +1788,7 @@ class CTAana(object):
     
     def run_ana_plot(self,
                      obsID=None,
+                     ShowIndividualPointing=False,
                      bkgsubtract='NONE',
                      smoothing_FWHM=0.1*u.deg,
                      profile_log=True):
@@ -1798,6 +1799,7 @@ class CTAana(object):
         ----------
         - obsID (str): list of obsID to be used in data preparation. 
         By default, all of the are used.
+        - ShowIndividualPointing (bool): show the indicidual pointing maps
         - bkgsubtract (string): method for subtracting the background in skymaps quicklooks
         - smoothing_FWHM (quantity): the smoothing used for skymaps
         - profile_log (bool): show the profile in log scale
@@ -1826,8 +1828,12 @@ class CTAana(object):
         #========== Plot the observing properties
         clustpipe_ana_plot.observing_setup(self)
      
-        #========== Show events
-        clustpipe_ana_plot.events_quicklook(self, obsID, smoothing_FWHM=smoothing_FWHM, bkgsubtract=bkgsubtract)
+        #========== Show individual pointings
+        if ShowIndividualPointing:
+            clustpipe_ana_plot.events_quicklook(self,
+                                                obsID,
+                                                smoothing_FWHM=smoothing_FWHM,
+                                                bkgsubtract=bkgsubtract)
         
         #========== Show Combined map
         clustpipe_ana_plot.combined_maps(self, obsID, smoothing_FWHM=smoothing_FWHM)
