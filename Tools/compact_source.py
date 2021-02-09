@@ -29,6 +29,7 @@ class CompactSource(object):
     - spatial  : the spatial properties of the sources
     - spectral : the spectral properties of the sources
     - temporal : the temporal properties of the sources
+    - redshift : the redshift of the sources (for EBL)
 
     Methods
     ----------  
@@ -50,9 +51,10 @@ class CompactSource(object):
         Parameters
         ----------
         - name (str): the label of the source
-        - coord (skycoord object): the coordinates of the source
-        - spec_param (dict) : the spectral properties of the source
-        - time_param (dict) : the temporal properties of the source
+        - spatial (dict) : the spatial properties of the source
+        - spectral (dict) : the spectral properties of the source
+        - temporal (dict) : the temporal properties of the source
+        - redshift (float) : the redshift of the source (for EBL)
 
         """
         
@@ -60,6 +62,7 @@ class CompactSource(object):
         self.spatial  = []
         self.spectral = []
         self.temporal = []
+        self.redshift = []
         
         
     #==================================================
@@ -76,7 +79,8 @@ class CompactSource(object):
                                       'Index':{'value':2.5, 'free':True},
                                       'PivotEnergy':{'value':1.0*u.TeV, 'free':False}}},
                    temporal={'type':'Constant',
-                             'param':{'Normalization':{'value':1.0, 'free':False}}}
+                             'param':{'Normalization':{'value':1.0, 'free':False}}},
+                   redshift=None
     ):
 
         
@@ -95,6 +99,7 @@ class CompactSource(object):
         - spatial (dictionary): contain coordinates of the source
         - spectral (dictionary): spectral properties of the source
         - temporal (dictionary): time properties of the source
+        - redshift (float): give the redshift to be used for EBL
         
         """
 
@@ -108,6 +113,7 @@ class CompactSource(object):
             self.spatial.append(spatial)
             self.spectral.append(spectral)
             self.temporal.append(temporal)
+            self.redshift.append(redshift)
         
         
     #==================================================
@@ -138,6 +144,7 @@ class CompactSource(object):
             del self.spatial[idx]
             del self.spectral[idx]
             del self.temporal[idx]
+            del self.redshift[idx]
         
     #==================================================
     # Remove a source
@@ -160,7 +167,7 @@ class CompactSource(object):
         for k in range(Ncomp):
 
             #----- First show the name
-            print('--- '+self.name[k])
+            print('--- '+self.name[k]+' at z='+str(self.redshift[k]))
 
             #----- Show the spatial component
             print('    -- Spatial model: '+self.spatial[k]['type'])

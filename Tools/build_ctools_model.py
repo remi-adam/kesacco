@@ -9,7 +9,52 @@ like model file.
 #==================================================
 
 import astropy.units as u
+import numpy as np
 import gammalib
+from minot.ClusterTools import cluster_spectra
+
+#==================================================
+# Saving txt file utility function
+#==================================================
+
+def save_txt_file(filename, col1, col2, col1_name, col2_name, ndec=20):
+    """
+    Save the file with a given format in txt file. Taken
+    from minot
+    
+    Parameters
+    ----------
+    - filename (str): full path to the file
+    - col1 (np.ndarray): the first column of data
+    - col2 (np.ndarray): the second column of data
+    - col1_name (str): the name of the first column
+    - col2_name (str): the name of the second column
+    - ndec (int): number of decimal in numbers
+    
+    Outputs
+    ----------
+    Files are saved
+
+    """
+    
+    ncar = ndec + 6
+
+    # Mae sure name are not too long
+    col1_name = ('{:.'+str(ncar-1)+'}').format(col1_name)
+    col2_name = ('{:.'+str(ncar)+'}').format(col2_name)
+
+    # Correct formating
+    col1_name = ('{:>'+str(ncar-1)+'}').format(col1_name)
+    col2_name = ('{:>'+str(ncar)+'}').format(col2_name)
+
+    # saving
+    sfile = open(filename, 'w')
+    sfile.writelines(['#'+col1_name, ('{:>'+str(ncar)+'}').format(''), col2_name+'\n'])
+    for il in range(len(col1)):
+        sfile.writelines([('{:.'+str(ndec)+'e}').format(col1[il]),
+                          ('{:>'+str(ncar)+'}').format(''),
+                          ('{:.'+str(ndec)+'e}').format(col2[il])+'\n'])
+    sfile.close()
 
 
 #==================================================
@@ -48,7 +93,10 @@ def cluster(model_tot, file_map, file_spec, ClusterName='Cluster', tscalc=True):
 # Point sources
 #==================================================
 
-def compact_sources(model_tot, source_dict, tscalc=True):
+def compact_sources(model_tot, source_dict, work_dir,
+                    tscalc=True,
+                    EBL_model='dominguez',
+                    energy=np.logspace(-1,5,1000)*u.GeV):
     """
     Build a ctools model for the compact sources.
     
@@ -58,10 +106,11 @@ def compact_sources(model_tot, source_dict, tscalc=True):
     - source_dict (dictionary): the source dictionary 
     as defined by the CompactSource class
     - tscalc (bool): request TS computation or not
+    - EBL_model (string): the EBL model to use
 
     Outputs
     --------
-    - the model is updated to include the sources
+    - The model is updated to include the sources
     """
     
     Nsource = len(source_dict.name)
@@ -81,22 +130,39 @@ def compact_sources(model_tot, source_dict, tscalc=True):
         #----- Spectral model
         # PowerLaw
         if source_dict.spectral[ips]['type'] == 'PowerLaw':
-            prefact = source_dict.spectral[ips]['param']['Prefactor']['value'].to_value('cm-2 s-1 MeV-1')
-            index   = source_dict.spectral[ips]['param']['Index']['value']
-            pivot   = gammalib.GEnergy(source_dict.spectral[ips]['param']['PivotEnergy']['value'].to_value('TeV'), 'TeV')
-            spectral = gammalib.GModelSpectralPlaw(prefact, index, pivot)
+            prefact   = source_dict.spectral[ips]['param']['Prefactor']['value'].to_value('cm-2 s-1 MeV-1')
+            index     = source_dict.spectral[ips]['param']['Index']['value']
+            pivot     = gammalib.GEnergy(source_dict.spectral[ips]['param']['PivotEnergy']['value'].to_value('TeV'), 'TeV')
+            spectral0 = gammalib.GModelSpectralPlaw(prefact, index, pivot)
 
         # PowerLawExpCutoff
         elif source_dict.spectral[ips]['type'] == 'PowerLawExpCutoff':
-            prefact = source_dict.spectral[ips]['param']['Prefactor']['value'].to_value('cm-2 s-1 MeV-1')
-            index   = source_dict.spectral[ips]['param']['Index']['value']
-            pivot   = gammalib.GEnergy(source_dict.spectral[ips]['param']['PivotEnergy']['value'].to_value('TeV'), 'TeV')
-            cutoff  = gammalib.GEnergy(source_dict.spectral[ips]['param']['Cutoff']['value'].to_value('TeV'), 'TeV')
-            spectral = gammalib.GModelSpectralExpPlaw(prefact, index, pivot, cutoff)
+            prefact   = source_dict.spectral[ips]['param']['Prefactor']['value'].to_value('cm-2 s-1 MeV-1')
+            index     = source_dict.spectral[ips]['param']['Index']['value']
+            pivot     = gammalib.GEnergy(source_dict.spectral[ips]['param']['PivotEnergy']['value'].to_value('TeV'), 'TeV')
+            cutoff    = gammalib.GEnergy(source_dict.spectral[ips]['param']['Cutoff']['value'].to_value('TeV'), 'TeV')
+            spectral0 = gammalib.GModelSpectralExpPlaw(prefact, index, pivot, cutoff)
 
         # Error
         else:
             raise ValueError('Spectral model not available')
+
+        # EBL absorb
+        if EBL_model is not None and source_dict.redshift[ips] is not None:
+            absorb = cluster_spectra.get_ebl_absorb(energy.to_value('GeV'),
+                                                    source_dict.redshift[ips], EBL_model)
+            absmin = np.amin(absorb[absorb > 0])
+            absorb[absorb == 0] = np.amin(np.array([absmin, 1e-16])) # does not accept 0
+            
+            ebl_abs_file = work_dir+'/EBLmodel_'+source_dict.name[ips]+'.txt'
+            save_txt_file(ebl_abs_file,
+                          energy.to_value('MeV'), absorb,
+                          'energy (MeV)', 'Absorb')
+            ebl_spec = gammalib.GModelSpectralFunc(ebl_abs_file, 1.0)
+            ebl_spec['Normalization'].fix()
+            doEBL = True
+        else:
+            doEBL = False
 
         #----- Temporal model
         # Constant
@@ -108,10 +174,18 @@ def compact_sources(model_tot, source_dict, tscalc=True):
             raise ValueError('Temporal model not available')
 
         #----- Parameter management
-        spatial  = manage_parameters(source_dict.spatial[ips]['param'], spatial)
-        spectral = manage_parameters(source_dict.spectral[ips]['param'], spectral)
-        temporal = manage_parameters(source_dict.temporal[ips]['param'], temporal)
+        spatial   = manage_parameters(source_dict.spatial[ips]['param'], spatial)
+        spectral0 = manage_parameters(source_dict.spectral[ips]['param'], spectral0)
+        temporal  = manage_parameters(source_dict.temporal[ips]['param'], temporal)
 
+        #----- EBL x initial spectrum
+        if doEBL:
+            spectral = gammalib.GModelSpectralMultiplicative()
+            spectral.append(spectral0)
+            spectral.append(ebl_spec)
+        else:
+            spectral = spectral0
+        
         #----- Overal model for each source
         model = gammalib.GModelSky(spatial, spectral, temporal)
         model.name(source_dict.name[ips])

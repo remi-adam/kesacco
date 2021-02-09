@@ -365,14 +365,17 @@ class Common():
             
         build_ctools_model.compact_sources(model_tot,
                                            self.compact_source,
-                                           tscalc=True)
+                                           self.output_dir,
+                                           tscalc=True,
+                                           EBL_model=self.cluster.EBL_model,
+                                           energy=np.logspace(-1,5,1000)*u.GeV)
         
         if obsID is None:
             background = self.obs_setup.bkg
         else:
             background = self.obs_setup.select_obs(obsID).bkg
         build_ctools_model.background(model_tot, background)
-        
+
         model_tot.save(self.output_dir+'/'+prefix+'_Unstack.xml')
 
         return model_tot
