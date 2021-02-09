@@ -489,6 +489,9 @@ class CTAana(object):
         
         # Input event list, counts cube or observation definition XML file.
         if self.method_ana == 'ONOFF':
+            if not self.silent:
+                print('The OnOff likelihood fit may crash if the pointing')
+                print('strategy or On/Off region definition is not appropriate')
             if self.method_stack:
                 like['inobs'] = self.output_dir+'/Ana_ObsDef_OnOff_Stack.xml'
             else:
