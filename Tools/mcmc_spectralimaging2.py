@@ -98,7 +98,8 @@ def build_model_grid(cpipe,
     for imod in range(spatial_npt):
         for jmod in range(spectral_npt):
             print('--- Building cluster template '+str(1+jmod+imod*spectral_npt)+'/'+str(spatial_npt*spectral_npt))
-            
+            print('    ---> spectral value = '+str(spectral_value[jmod])+', spatial value = '+str(spatial_value[imod]))
+
             #---------- Indexing
             spatial_i = spatial_value[imod]            
             spectral_j   = spectral_value[jmod]
@@ -159,6 +160,7 @@ def build_model_grid(cpipe,
     #===== Loop over all background models to be tested
     for jmod in range(bkg_spectral_npt):
         print('--- Building background template '+str(1+jmod)+'/'+str(bkg_spectral_npt))
+        print('    ---> spectral value = '+str(bkg_spectral_value[jmod]))
             
         #---------- Indexing
         spectral_j   = bkg_spectral_value[jmod]
@@ -203,7 +205,8 @@ def build_model_grid(cpipe,
         print('------ Point source '+cpipe.compact_source.name[ips])
         for jmod in range(ps_spectral_npt):
             print('--- Building point source template '+str(1+jmod)+'/'+str(ps_spectral_npt))
-            
+            print('    ---> spectral value = '+str(ps_spectral_value[jmod]))
+
             #---------- Indexing
             spectral_j   = ps_spectral_value[jmod]
             extij = 'TMP_'+str(jmod)
