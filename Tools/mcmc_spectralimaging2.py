@@ -334,6 +334,167 @@ def build_model_grid(cpipe,
         for fi in tmp_list:
             os.remove(fi)
 
+#==================================================
+# Compute uncertainty on the model grid
+#==================================================
+
+def validation_model_grid_itpl(param_test, input_files, cpipe, subdir, rad, prof_ini, includeIC=False):
+    """
+    Validate the model interpolation for a set of parameters. To to so
+    it uses the interpolation on one hand (quick), and also compute the 
+    exact model without interpolation as done in build_model_grid.
+        
+    Parameters
+    ----------
+    - param_test (list):
+    - input_files (str list):
+    - cpipe (kesacco object):
+    - subdir (str):
+    - rad (np array):
+    - prof_ini (np array):
+    - includeIC (bool):
+
+    Output
+    ------
+    - Plot the relative difference between truth and interpolated model
+
+    """
+
+    if param_test[5] != param_test[7] or param_test[6] != param_test[8]:
+        raise ValueError('The point source parameter should be the same for all point source in this test')
+    
+    #---------- Build a subsubdirectory for the test
+    if not os.path.exists(subdir+'/ValidationItpl'):
+        os.mkdir(subdir+'/ValidationItpl')
+
+    #---------- Build the MCMC model from interpolation
+    data, modgrid = read_data(input_files)
+    model_mcmc = model_specimg(modgrid, param_test)
+
+    #---------- Build the true model
+    build_model_grid(cpipe, subdir+'/ValidationItpl', rad, prof_ini,
+                     np.array([param_test[1]]), np.array([0]),
+                     np.array([param_test[2]]), np.array([0]),
+                     np.array([param_test[4]]), np.array([0]),
+                     np.array([param_test[6]]), np.array([0]),
+                     includeIC=includeIC,
+                     rm_tmp=False)
+    
+    #---------- How many point sources
+    Nps   = len(cpipe.compact_source.name)
+    Nebin = model_mcmc['cluster'].shape[0]
+
+    #----------- Show the difference (cluster)
+    hdu = fits.open(subdir+'/ValidationItpl/Model_Cluster_Cube_TMP_0_0.fits')
+    model_cl_true  = hdu[0].data
+    hdu.close()
+    
+    pdf_pages = PdfPages(subdir+'/ValidationItpl/Cluster.pdf')
+    for ibin in range(Nebin):
+        fig = plt.figure(0, figsize=(20, 4))
+        ax = plt.subplot(1,5,1)
+        plt.imshow(model_mcmc['cluster'][ibin,:,:], origin='lower')
+        plt.title('Interpolated model')
+        plt.colorbar()
+        ax = plt.subplot(1,5,2)
+        plt.imshow(model_cl_true[ibin,:,:], origin='lower')
+        plt.title('True model')
+        plt.colorbar()
+        ax = plt.subplot(1,5,3)
+        plt.imshow((model_cl_true[ibin,:,:]-model_mcmc['cluster'][ibin,:,:]),origin='lower')
+        plt.title('Difference')
+        plt.colorbar()
+        ax = plt.subplot(1,5,4)
+        syst = (model_cl_true[ibin,:,:]-model_mcmc['cluster'][ibin,:,:])/model_cl_true[ibin,:,:]*100
+        vmin = np.mean(syst[np.isfinite(syst)]) - np.std(syst[np.isfinite(syst)])
+        vmax = np.mean(syst[np.isfinite(syst)]) + np.std(syst[np.isfinite(syst)])
+        plt.imshow(syst, origin='lower', vmin=vmin, vmax=vmax)
+        plt.title('Systematic error (%)')
+        plt.colorbar()
+        ax = plt.subplot(1,5,5)
+        syst = (model_cl_true[ibin,:,:]-model_mcmc['cluster'][ibin,:,:])/model_cl_true[ibin,:,:]**0.5
+        plt.imshow(syst, origin='lower')
+        plt.title('Difference/true$^{1/2}$')
+        plt.colorbar()
+        pdf_pages.savefig(fig)
+        plt.close()
+    pdf_pages.close()
+
+    #----------- Show the difference (background)
+    hdu = fits.open(subdir+'/ValidationItpl/Model_Background_Cube_TMP_0.fits')
+    model_bk_true  = hdu[0].data
+    hdu.close()
+
+    pdf_pages = PdfPages(subdir+'/ValidationItpl/Background.pdf')
+    for ibin in range(Nebin):
+        fig = plt.figure(0, figsize=(20, 4))
+        ax = plt.subplot(1,5,1)
+        plt.imshow(model_mcmc['background'][ibin,:,:], origin='lower')
+        plt.title('Interpolated model')
+        plt.colorbar()
+        ax = plt.subplot(1,5,2)
+        plt.imshow(model_bk_true[ibin,:,:], origin='lower')
+        plt.title('True model')
+        plt.colorbar()
+        ax = plt.subplot(1,5,3)
+        plt.imshow((model_bk_true[ibin,:,:]-model_mcmc['background'][ibin,:,:]),origin='lower')
+        plt.title('Difference')
+        plt.colorbar()
+        ax = plt.subplot(1,5,4)
+        syst = (model_bk_true[ibin,:,:]-model_mcmc['background'][ibin,:,:])/model_bk_true[ibin,:,:]*100
+        vmin = np.mean(syst[np.isfinite(syst)]) - np.std(syst[np.isfinite(syst)])
+        vmax = np.mean(syst[np.isfinite(syst)]) + np.std(syst[np.isfinite(syst)])
+        plt.imshow(syst, vmin=vmin, vmax=vmax, origin='lower')
+        plt.title('Systematic error (%)')
+        plt.colorbar()
+        ax = plt.subplot(1,5,5)
+        syst = (model_bk_true[ibin,:,:]-model_mcmc['background'][ibin,:,:])/model_bk_true[ibin,:,:]**0.5
+        plt.imshow(syst, origin='lower')
+        plt.title('Difference/true$^{1/2}$')
+        plt.colorbar()
+        pdf_pages.savefig(fig)
+        plt.close()
+    pdf_pages.close()
+
+    #----------- Show the difference (point sources)
+    for ips in range(Nps):
+        srcname = cpipe.compact_source.name[ips]
+
+        hdu = fits.open(subdir+'/ValidationItpl/Model_'+srcname+'_Cube_TMP_0.fits')
+        model_ps_true  = hdu[0].data
+        hdu.close()        
+
+        pdf_pages = PdfPages(subdir+'/ValidationItpl/'+srcname+'.pdf')
+        for ibin in range(Nebin):
+            fig = plt.figure(0, figsize=(20, 4))
+            ax = plt.subplot(1,5,1)
+            plt.imshow(model_mcmc['point_sources'][ips][ibin,:,:], origin='lower')
+            plt.title('Interpolated model')
+            plt.colorbar()
+            ax = plt.subplot(1,5,2)
+            plt.imshow(model_ps_true[ibin,:,:], origin='lower')
+            plt.title('True model')
+            plt.colorbar()
+            ax = plt.subplot(1,5,3)
+            plt.imshow((model_ps_true[ibin,:,:]-model_mcmc['point_sources'][ips][ibin,:,:]),origin='lower')
+            plt.title('Difference')
+            plt.colorbar()
+            ax = plt.subplot(1,5,4)
+            syst = (model_ps_true[ibin,:,:]-model_mcmc['point_sources'][ips][ibin,:,:])/model_ps_true[ibin,:,:]*100
+            vmin = np.mean(syst[np.isfinite(syst)]) - np.std(syst[np.isfinite(syst)])
+            vmax = np.mean(syst[np.isfinite(syst)]) + np.std(syst[np.isfinite(syst)])
+            plt.imshow(syst, vmin=vmin, vmax=vmax, origin='lower')
+            plt.title('Systematic error (%)')
+            plt.colorbar()
+            ax = plt.subplot(1,5,5)
+            syst = (model_ps_true[ibin,:,:]-model_mcmc['point_sources'][ips][ibin,:,:])/model_ps_true[ibin,:,:]**0.5
+            plt.imshow(syst, origin='lower')
+            plt.title('Difference/true$^{1/2}$')
+            plt.colorbar()
+            pdf_pages.savefig(fig)
+            plt.close()
+        pdf_pages.close()
+        
             
 #==================================================
 # Get models from the parameter space
