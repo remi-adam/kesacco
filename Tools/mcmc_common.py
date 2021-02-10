@@ -192,6 +192,7 @@ def chains_plots(param_chains,
             ax.plot(param_chains[j, :, i], alpha=0.5)
         ax.set_xlim(0, len(param_chains[0,:,0]))
         ax.set_ylabel('$'+parname[i]+'$')
+        ax.grid()
     axes[-1].set_xlabel("step number")
     fig.savefig(rout_file+'_chains.pdf')
     plt.close()
