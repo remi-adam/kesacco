@@ -1585,7 +1585,7 @@ def seaborn_corner(dfs, output_fig=None, ci2d=[0.95, 0.68], ci1d=0.68,
                         ax.fill_between(xkde_itpl, 0*ykde_itpl, y2=ykde_itpl, alpha=alpha[1], color=cols[idx][0])
 
                 if add_grid:
-                    ax.xaxis.set_major_locator(MultipleLocator((xmax+Dx-(xmin-Dx))/5.0))
+                    #ax.xaxis.set_major_locator(MultipleLocator((xmax+Dx-(xmin-Dx))/5.0))
                     ax.grid(True, axis='x', linestyle='--')
                 else:
                     ax.grid(False)
@@ -1632,8 +1632,8 @@ def seaborn_corner(dfs, output_fig=None, ci2d=[0.95, 0.68], ci1d=0.68,
                 ax.set_ylim(ymin-Dy, ymax+Dy)
 
                 if add_grid:
-                    ax.xaxis.set_major_locator(MultipleLocator((xmax+Dx-(xmin-Dx))/5.0))
-                    ax.yaxis.set_major_locator(MultipleLocator((ymax+Dy-(ymin-Dy))/5.0))
+                    #ax.xaxis.set_major_locator(MultipleLocator((xmax+Dx-(xmin-Dx))/5.0))
+                    #ax.yaxis.set_major_locator(MultipleLocator((ymax+Dy-(ymin-Dy))/5.0))
                     ax.grid(True, linestyle='--')
                 else:
                     ax.grid(False)
