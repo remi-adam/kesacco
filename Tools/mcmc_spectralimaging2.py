@@ -98,7 +98,7 @@ def build_model_grid(cpipe,
     for imod in range(spatial_npt):
         for jmod in range(spectral_npt):
             print('--- Building cluster template '+str(1+jmod+imod*spectral_npt)+'/'+str(spatial_npt*spectral_npt))
-            print('    ---> spectral value = '+str(spectral_value[jmod])+', spatial value = '+str(spatial_value[imod]))
+            print('    ---> spectral = '+str(spectral_value[jmod])+', spatial = '+str(spatial_value[imod]))
 
             #---------- Indexing
             spatial_i = spatial_value[imod]            
@@ -216,7 +216,8 @@ def build_model_grid(cpipe,
             psencounter = 0
             for i in range(len(model_tot)):
                 if model_tot[i].name() == cpipe.compact_source.name[ips]:
-                    model_tot[i].spectral().index(model_tot[i].spectral().index() + spectral_j)
+                    #model_tot[i].spectral().index(model_tot[i].spectral().index() + spectral_j)
+                    model_tot[i].spectral()[1].value(model_tot[i].spectral()[1].value() + spectral_j)
                     psencounter += 1
 
             if psencounter != 1:
@@ -232,6 +233,7 @@ def build_model_grid(cpipe,
                                  subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
                                  'BackgroundModel')
 
+            # Remove other point sources
             for jps in range(len(cpipe.compact_source.name)):
                 if jps != ips:
                     cpipe._rm_source_xml(subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
