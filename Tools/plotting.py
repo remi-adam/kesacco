@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import matplotlib.pylab as pl
 from matplotlib.gridspec import GridSpec
 from matplotlib.colors import SymLogNorm
+from matplotlib.ticker import (AutoMinorLocator, MultipleLocator)
 import astropy.units as u
 from astropy.io import fits
 from astropy.wcs import WCS
@@ -1479,7 +1480,7 @@ def show_param_cormat(covfile, outfile):
 def seaborn_corner(dfs, output_fig=None, ci2d=[0.95, 0.68], ci1d=0.68,
                    truth=None, truth_style='star', labels=None,
                    gridsize=100, linewidth=0.75, alpha=(0.3, 0.3, 1.0), n_levels=None,
-                   zoom=1.0/10,
+                   zoom=1.0/10, add_grid=True,
                    figsize=(10,10), fontsize=12,
                    cols = [('orange',None,'orange','Oranges'),
                            ('green',None,'green','Greens'), 
@@ -1505,6 +1506,7 @@ def seaborn_corner(dfs, output_fig=None, ci2d=[0.95, 0.68], ci1d=0.68,
     - zoom (float): controle the axis limits wrt the plotted distribution.
     The give nnumber corresponds to the fractional size of the 2D distribution 
     to add on each side. If negative, will zoom in the plot.
+    - add_grid (bool): add the grid in the plot
     - figsize (tuple): the size of the figure
     - fontsize (int): the font size
     - cols (list of 4-tupples): deal with the colors for the dataframes. Each tupple
@@ -1582,13 +1584,20 @@ def seaborn_corner(dfs, output_fig=None, ci2d=[0.95, 0.68], ci1d=0.68,
                         ax.vlines(perc[1], 0.0, perc_max[1], linestyle='--', color=cols[idx][0])
                         ax.fill_between(xkde_itpl, 0*ykde_itpl, y2=ykde_itpl, alpha=alpha[1], color=cols[idx][0])
 
+                if add_grid:
+                    ax.xaxis.set_major_locator(MultipleLocator((xmax+Dx-(xmin-Dx))/5.0))
+                    ax.grid(True, axis='x', linestyle='--')
+                else:
+                    ax.grid(False)
+                        
                 if truth is not None:
                     ax.vlines(truth[ip], ax.get_ylim()[0], ax.get_ylim()[1], linestyle=':', color='k')
                     
                 plt.yticks([])
                 plt.ylabel(None)
                 if jp<Npar-1:
-                    plt.xticks([])
+                    #plt.xticks([])
+                    ax.set_xticklabels([])
                     plt.xlabel(None)
                 if ip == 0 and labels is not None:
                     plt.legend(loc='upper left')
@@ -1612,7 +1621,6 @@ def seaborn_corner(dfs, output_fig=None, ci2d=[0.95, 0.68], ci1d=0.68,
                     sns.kdeplot(x=df.columns[jp], y=df.columns[ip], data=df, gridsize=gridsize, 
                                 levels=levels[0:-1], color=cols[idx][2], linewidths=linewidth)
                 ax = plt.gca()
-
                 xmin = np.nanmin(np.array(xlims1))
                 xmax = np.nanmax(np.array(xlims2))
                 Dx = (xmax - xmin)*zoom
@@ -1623,6 +1631,13 @@ def seaborn_corner(dfs, output_fig=None, ci2d=[0.95, 0.68], ci1d=0.68,
                 ax.set_xlim(xmin-Dx, xmax+Dx)
                 ax.set_ylim(ymin-Dy, ymax+Dy)
 
+                if add_grid:
+                    ax.xaxis.set_major_locator(MultipleLocator((xmax+Dx-(xmin-Dx))/5.0))
+                    ax.yaxis.set_major_locator(MultipleLocator((ymax+Dy-(ymin-Dy))/5.0))
+                    ax.grid(True, linestyle='--')
+                else:
+                    ax.grid(False)
+
                 if truth is not None:
                     if truth_style is 'line':
                         ax.vlines(truth[jp], ax.get_ylim()[0], ax.get_ylim()[1], linestyle=':', color='k')
@@ -1631,15 +1646,17 @@ def seaborn_corner(dfs, output_fig=None, ci2d=[0.95, 0.68], ci1d=0.68,
                         ax.plot(truth[jp], truth[ip], linestyle='', marker="*", color='k', markersize=10)
                     
                 if jp > 0:
-                    plt.yticks([])
+                    #plt.yticks([])
+                    ax.set_yticklabels([])
                     plt.ylabel(None)
                 if ip<Npar-1:
-                    ax.set_xticks([])
+                    #ax.set_xticks([])
+                    ax.set_xticklabels([])
                     ax.set_xlabel(None)
                 for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
                              ax.get_xticklabels() + ax.get_yticklabels()):
                     item.set_fontsize(fontsize)
-    
+                    
     plt.tight_layout(h_pad=0.0,w_pad=0.0)
     if output_fig is not None:
         plt.savefig(output_fig)
