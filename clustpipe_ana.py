@@ -1608,6 +1608,7 @@ class CTAana(object):
                                      ps_spectral_npt=11,
                                      ps_spectral_range=[-0.5,0.5],
                                      rm_tmp=False,
+                                     Ngrid_validation=0,
                                      FWHM=0.1*u.deg,
                                      theta=1.0*u.deg,
                                      coord=None,
@@ -1640,6 +1641,7 @@ class CTAana(object):
         - ps_spectral_range (list of min/max): min and max value to add to the point sources
         spectra, i.e. [default+min, default+max]
         - rm_tmp (bool): remove temporary templates?
+        - Ngrid_validation (int): numbre of model to check for interpolation validation
         - FWHM (quantity): size of the FWHM to be used for smoothing (plot)
         - theta (quantity): containment angle for plots
         - coord (SkyCoord): source coordinates for extraction (plot)
@@ -1749,7 +1751,24 @@ class CTAana(object):
                                                        bk_spectral_value, bk_spectral_idx,
                                                        ps_spectral_value, ps_spectral_idx,
                                                        includeIC=includeIC, rm_tmp=rm_tmp)
-        
+        #===== Validation of the grid interpolation
+        if Ngrid_validation>0:
+            for ipar in range(Ngrid_validation):
+                spec_ps = np.random.uniform(ps_spectral_range[0], ps_spectral_range[1])
+                param = [1.0,
+                         np.random.uniform(spatial_range[0], spatial_range[1]),
+                         np.random.uniform(spectral_range[0], spectral_range[1]),
+                         1.0,
+                         np.random.uniform(bkg_spectral_range[0], bkg_spectral_range[1]),
+                         1.0, spec_ps,1.0,spec_ps]
+                mcmc_spectralimaging2.validation_model_grid_itpl(param,
+                                                                 [self.output_dir+'/Ana_Countscube.fits',
+                                                                  subdir+'/Grid_Sampling.fits'],
+                                                                 self,
+                                                                 subdir,
+                                                                 rad, prof_ini,
+                                                                 includeIC=includeIC)
+
         #===== MCMC fit with cluster parameters
         if bkg_marginalize:
             mcmc_spectralimaging1.run_constraint([self.output_dir+'/Ana_Countscube.fits',

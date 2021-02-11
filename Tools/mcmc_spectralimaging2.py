@@ -362,6 +362,7 @@ def validation_model_grid_itpl(param_test, input_files, cpipe, subdir, rad, prof
 
     if param_test[5] != param_test[7] or param_test[6] != param_test[8]:
         raise ValueError('The point source parameter should be the same for all point source in this test')
+    ext_name = str(param_test[1])+'_'+str(param_test[2])+'_'+str(param_test[4])+'_'+str(param_test[6])
     
     #---------- Build a subsubdirectory for the test
     if not os.path.exists(subdir+'/ValidationItpl'):
@@ -389,33 +390,46 @@ def validation_model_grid_itpl(param_test, input_files, cpipe, subdir, rad, prof
     model_cl_true  = hdu[0].data
     hdu.close()
     
-    pdf_pages = PdfPages(subdir+'/ValidationItpl/Cluster.pdf')
+    pdf_pages = PdfPages(subdir+'/ValidationItpl/Cluster_par_'+ext_name+'.pdf')
     for ibin in range(Nebin):
-        fig = plt.figure(0, figsize=(20, 4))
-        ax = plt.subplot(1,5,1)
-        plt.imshow(model_mcmc['cluster'][ibin,:,:], origin='lower')
-        plt.title('Interpolated model')
-        plt.colorbar()
-        ax = plt.subplot(1,5,2)
-        plt.imshow(model_cl_true[ibin,:,:], origin='lower')
+        fig = plt.figure(0, figsize=(15, 10))
+        ax = plt.subplot(2,3,1)
+        vmin = np.nanmin(model_cl_true[ibin,:,:])
+        vmax = np.nanmax(model_cl_true[ibin,:,:])
+        plt.imshow(model_cl_true[ibin,:,:], origin='lower', cmap='viridis', vmin=vmin, vmax=vmax)
         plt.title('True model')
         plt.colorbar()
-        ax = plt.subplot(1,5,3)
-        plt.imshow((model_cl_true[ibin,:,:]-model_mcmc['cluster'][ibin,:,:]),origin='lower')
+        
+        ax = plt.subplot(2,3,2)
+        plt.imshow(model_mcmc['cluster'][ibin,:,:], origin='lower', cmap='viridis', vmin=vmin, vmax=vmax)
+        plt.title('Interpolated model')
+        plt.colorbar()
+        
+        ax = plt.subplot(2,3,3)
+        plt.imshow((model_cl_true[ibin,:,:]-model_mcmc['cluster'][ibin,:,:]),origin='lower', cmap='rainbow')
         plt.title('Difference')
         plt.colorbar()
-        ax = plt.subplot(1,5,4)
+        
+        ax = plt.subplot(2,3,4)
         syst = (model_cl_true[ibin,:,:]-model_mcmc['cluster'][ibin,:,:])/model_cl_true[ibin,:,:]*100
-        vmin = np.mean(syst[np.isfinite(syst)]) - np.std(syst[np.isfinite(syst)])
-        vmax = np.mean(syst[np.isfinite(syst)]) + np.std(syst[np.isfinite(syst)])
-        plt.imshow(syst, origin='lower', vmin=vmin, vmax=vmax)
-        plt.title('Systematic error (%)')
+        plt.imshow(syst, origin='lower', cmap='rainbow')
+        plt.title('Difference/true x 100')
         plt.colorbar()
-        ax = plt.subplot(1,5,5)
+        
+        ax = plt.subplot(2,3,5)
+        syst = (model_cl_true[ibin,:,:]-model_mcmc['cluster'][ibin,:,:])/model_cl_true[ibin,:,:]*100
+        vmin = np.mean(syst[np.isfinite(syst)]) - 2*np.std(syst[np.isfinite(syst)])
+        vmax = np.mean(syst[np.isfinite(syst)]) + 2*np.std(syst[np.isfinite(syst)])
+        plt.imshow(syst, origin='lower', vmin=vmin, vmax=vmax, cmap='rainbow')
+        plt.title(r'Difference/true x 100 ($\pm 2 \sigma$ clipped)')
+        plt.colorbar()
+        
+        ax = plt.subplot(2,3,6)
         syst = (model_cl_true[ibin,:,:]-model_mcmc['cluster'][ibin,:,:])/model_cl_true[ibin,:,:]**0.5
-        plt.imshow(syst, origin='lower')
+        plt.imshow(syst, origin='lower', cmap='rainbow')
         plt.title('Difference/true$^{1/2}$')
         plt.colorbar()
+        
         pdf_pages.savefig(fig)
         plt.close()
     pdf_pages.close()
@@ -425,37 +439,50 @@ def validation_model_grid_itpl(param_test, input_files, cpipe, subdir, rad, prof
     model_bk_true  = hdu[0].data
     hdu.close()
 
-    pdf_pages = PdfPages(subdir+'/ValidationItpl/Background.pdf')
+    pdf_pages = PdfPages(subdir+'/ValidationItpl/Background_par_'+ext_name+'.pdf')
     for ibin in range(Nebin):
-        fig = plt.figure(0, figsize=(20, 4))
-        ax = plt.subplot(1,5,1)
-        plt.imshow(model_mcmc['background'][ibin,:,:], origin='lower')
-        plt.title('Interpolated model')
-        plt.colorbar()
-        ax = plt.subplot(1,5,2)
-        plt.imshow(model_bk_true[ibin,:,:], origin='lower')
+        fig = plt.figure(0, figsize=(15, 10))
+        ax = plt.subplot(2,3,1)
+        vmin = np.nanmin(model_bk_true[ibin,:,:])
+        vmax = np.nanmax(model_bk_true[ibin,:,:])
+        plt.imshow(model_bk_true[ibin,:,:], origin='lower', cmap='viridis', vmin=vmin, vmax=vmax)
         plt.title('True model')
         plt.colorbar()
-        ax = plt.subplot(1,5,3)
-        plt.imshow((model_bk_true[ibin,:,:]-model_mcmc['background'][ibin,:,:]),origin='lower')
+        
+        ax = plt.subplot(2,3,2)
+        plt.imshow(model_mcmc['background'][ibin,:,:], origin='lower', cmap='viridis', vmin=vmin, vmax=vmax)
+        plt.title('Interpolated model')
+        plt.colorbar()
+
+        ax = plt.subplot(2,3,3)
+        plt.imshow((model_bk_true[ibin,:,:]-model_mcmc['background'][ibin,:,:]), origin='lower', cmap='rainbow')
         plt.title('Difference')
         plt.colorbar()
-        ax = plt.subplot(1,5,4)
+                
+        ax = plt.subplot(2,3,4)
         syst = (model_bk_true[ibin,:,:]-model_mcmc['background'][ibin,:,:])/model_bk_true[ibin,:,:]*100
-        vmin = np.mean(syst[np.isfinite(syst)]) - np.std(syst[np.isfinite(syst)])
-        vmax = np.mean(syst[np.isfinite(syst)]) + np.std(syst[np.isfinite(syst)])
-        plt.imshow(syst, vmin=vmin, vmax=vmax, origin='lower')
-        plt.title('Systematic error (%)')
+        plt.imshow(syst, origin='lower', cmap='rainbow')
+        plt.title('Difference/true x 100')
         plt.colorbar()
-        ax = plt.subplot(1,5,5)
+
+        ax = plt.subplot(2,3,5)
+        syst = (model_bk_true[ibin,:,:]-model_mcmc['background'][ibin,:,:])/model_bk_true[ibin,:,:]*100
+        vmin = np.mean(syst[np.isfinite(syst)]) - 2*np.std(syst[np.isfinite(syst)])
+        vmax = np.mean(syst[np.isfinite(syst)]) + 2*np.std(syst[np.isfinite(syst)])
+        plt.imshow(syst, vmin=vmin, vmax=vmax, origin='lower', cmap='rainbow')
+        plt.title(r'Difference/true x 100 ($\pm 2 \sigma$ clipped)')
+        plt.colorbar()
+
+        ax = plt.subplot(2,3,6)
         syst = (model_bk_true[ibin,:,:]-model_mcmc['background'][ibin,:,:])/model_bk_true[ibin,:,:]**0.5
-        plt.imshow(syst, origin='lower')
+        plt.imshow(syst, origin='lower', cmap='rainbow')
         plt.title('Difference/true$^{1/2}$')
         plt.colorbar()
+        
         pdf_pages.savefig(fig)
         plt.close()
     pdf_pages.close()
-
+    
     #----------- Show the difference (point sources)
     for ips in range(Nps):
         srcname = cpipe.compact_source.name[ips]
@@ -464,33 +491,46 @@ def validation_model_grid_itpl(param_test, input_files, cpipe, subdir, rad, prof
         model_ps_true  = hdu[0].data
         hdu.close()        
 
-        pdf_pages = PdfPages(subdir+'/ValidationItpl/'+srcname+'.pdf')
+        pdf_pages = PdfPages(subdir+'/ValidationItpl/'+srcname+'_par_'+ext_name+'.pdf')
         for ibin in range(Nebin):
-            fig = plt.figure(0, figsize=(20, 4))
-            ax = plt.subplot(1,5,1)
-            plt.imshow(model_mcmc['point_sources'][ips][ibin,:,:], origin='lower')
+            fig = plt.figure(0, figsize=(15, 10))
+            ax = plt.subplot(2,3,1)
+            vmin = np.nanmin(model_mcmc['point_sources'][ips][ibin,:,:])
+            vmax = np.nanmax(model_mcmc['point_sources'][ips][ibin,:,:])
+            plt.imshow(model_mcmc['point_sources'][ips][ibin,:,:], origin='lower', cmap='viridis', vmin=vmin, vmax=vmax)
             plt.title('Interpolated model')
             plt.colorbar()
-            ax = plt.subplot(1,5,2)
-            plt.imshow(model_ps_true[ibin,:,:], origin='lower')
+            
+            ax = plt.subplot(2,3,2)
+            plt.imshow(model_ps_true[ibin,:,:], origin='lower', cmap='viridis', vmin=vmin, vmax=vmax)
             plt.title('True model')
             plt.colorbar()
-            ax = plt.subplot(1,5,3)
-            plt.imshow((model_ps_true[ibin,:,:]-model_mcmc['point_sources'][ips][ibin,:,:]),origin='lower')
+            
+            ax = plt.subplot(2,3,3)
+            plt.imshow((model_ps_true[ibin,:,:]-model_mcmc['point_sources'][ips][ibin,:,:]), origin='lower', cmap='rainbow')
             plt.title('Difference')
             plt.colorbar()
-            ax = plt.subplot(1,5,4)
+
+            ax = plt.subplot(2,3,4)
             syst = (model_ps_true[ibin,:,:]-model_mcmc['point_sources'][ips][ibin,:,:])/model_ps_true[ibin,:,:]*100
-            vmin = np.mean(syst[np.isfinite(syst)]) - np.std(syst[np.isfinite(syst)])
-            vmax = np.mean(syst[np.isfinite(syst)]) + np.std(syst[np.isfinite(syst)])
-            plt.imshow(syst, vmin=vmin, vmax=vmax, origin='lower')
-            plt.title('Systematic error (%)')
+            plt.imshow(syst, origin='lower', cmap='rainbow')
+            plt.title('Difference/true x 100')
             plt.colorbar()
-            ax = plt.subplot(1,5,5)
+            
+            ax = plt.subplot(2,3,5)
+            syst = (model_ps_true[ibin,:,:]-model_mcmc['point_sources'][ips][ibin,:,:])/model_ps_true[ibin,:,:]*100
+            vmin = np.mean(syst[np.isfinite(syst)]) - 2*np.std(syst[np.isfinite(syst)])
+            vmax = np.mean(syst[np.isfinite(syst)]) + 2*np.std(syst[np.isfinite(syst)])
+            plt.imshow(syst, vmin=vmin, vmax=vmax, origin='lower', cmap='rainbow')
+            plt.title(r'Difference/true x 100 ($\pm 2 \sigma$ clipped)')
+            plt.colorbar()
+            
+            ax = plt.subplot(2,3,6)
             syst = (model_ps_true[ibin,:,:]-model_mcmc['point_sources'][ips][ibin,:,:])/model_ps_true[ibin,:,:]**0.5
-            plt.imshow(syst, origin='lower')
+            plt.imshow(syst, origin='lower', cmap='rainbow')
             plt.title('Difference/true$^{1/2}$')
             plt.colorbar()
+            
             pdf_pages.savefig(fig)
             plt.close()
         pdf_pages.close()
