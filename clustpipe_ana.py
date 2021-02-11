@@ -1753,6 +1753,11 @@ class CTAana(object):
                                                        includeIC=includeIC, rm_tmp=rm_tmp)
         #===== Validation of the grid interpolation
         if Ngrid_validation>0:
+            print('Spectral values used for the grid:')
+            print(spectral_value)
+            print('Spatial values used for the grid:')
+            print(spatial_value)
+            
             for ipar in range(Ngrid_validation):
                 spec_ps = np.random.uniform(ps_spectral_range[0], ps_spectral_range[1])
                 param = [1.0,
