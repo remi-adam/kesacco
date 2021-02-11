@@ -1159,7 +1159,7 @@ class CTAana(object):
                                                 calc_ts=True,
                                                 calc_ulim=True,
                                                 fix_srcs=True,
-                                                fix_bkg=False,
+                                                fix_bkg=True,
                                                 dll_sigstep=1,
                                                 dll_sigmax=7,
                                                 logfile=self.output_dir+'/Ana_Spectrum_'+srcname+'_log.txt',
