@@ -406,18 +406,18 @@ def validation_model_grid_itpl(param_test, input_files, cpipe, subdir, rad, prof
         plt.colorbar()
         
         ax = plt.subplot(2,3,3)
-        plt.imshow((model_cl_true[ibin,:,:]-model_mcmc['cluster'][ibin,:,:]),origin='lower', cmap='rainbow')
-        plt.title('Difference')
+        plt.imshow((model_mcmc['cluster'][ibin,:,:]-model_cl_true[ibin,:,:]),origin='lower', cmap='rainbow')
+        plt.title('Difference (itpl-true)')
         plt.colorbar()
         
         ax = plt.subplot(2,3,4)
-        syst = (model_cl_true[ibin,:,:]-model_mcmc['cluster'][ibin,:,:])/model_cl_true[ibin,:,:]*100
+        syst = (model_mcmc['cluster'][ibin,:,:]-model_cl_true[ibin,:,:])/model_cl_true[ibin,:,:]*100
         plt.imshow(syst, origin='lower', cmap='rainbow')
         plt.title('Difference/true x 100')
         plt.colorbar()
         
         ax = plt.subplot(2,3,5)
-        syst = (model_cl_true[ibin,:,:]-model_mcmc['cluster'][ibin,:,:])/model_cl_true[ibin,:,:]*100
+        syst = (model_mcmc['cluster'][ibin,:,:]-model_cl_true[ibin,:,:])/model_cl_true[ibin,:,:]*100
         vmin = np.mean(syst[np.isfinite(syst)]) - 2*np.std(syst[np.isfinite(syst)])
         vmax = np.mean(syst[np.isfinite(syst)]) + 2*np.std(syst[np.isfinite(syst)])
         plt.imshow(syst, origin='lower', vmin=vmin, vmax=vmax, cmap='rainbow')
@@ -425,7 +425,7 @@ def validation_model_grid_itpl(param_test, input_files, cpipe, subdir, rad, prof
         plt.colorbar()
         
         ax = plt.subplot(2,3,6)
-        syst = (model_cl_true[ibin,:,:]-model_mcmc['cluster'][ibin,:,:])/model_cl_true[ibin,:,:]**0.5
+        syst = (model_mcmc['cluster'][ibin,:,:]-model_cl_true[ibin,:,:])/model_cl_true[ibin,:,:]**0.5
         plt.imshow(syst, origin='lower', cmap='rainbow')
         plt.title('Difference/true$^{1/2}$')
         plt.colorbar()
@@ -455,18 +455,18 @@ def validation_model_grid_itpl(param_test, input_files, cpipe, subdir, rad, prof
         plt.colorbar()
 
         ax = plt.subplot(2,3,3)
-        plt.imshow((model_bk_true[ibin,:,:]-model_mcmc['background'][ibin,:,:]), origin='lower', cmap='rainbow')
-        plt.title('Difference')
+        plt.imshow((model_mcmc['background'][ibin,:,:]-model_bk_true[ibin,:,:]), origin='lower', cmap='rainbow')
+        plt.title('Difference (itpl-true)')
         plt.colorbar()
                 
         ax = plt.subplot(2,3,4)
-        syst = (model_bk_true[ibin,:,:]-model_mcmc['background'][ibin,:,:])/model_bk_true[ibin,:,:]*100
+        syst = (model_mcmc['background'][ibin,:,:]-model_bk_true[ibin,:,:])/model_bk_true[ibin,:,:]*100
         plt.imshow(syst, origin='lower', cmap='rainbow')
         plt.title('Difference/true x 100')
         plt.colorbar()
 
         ax = plt.subplot(2,3,5)
-        syst = (model_bk_true[ibin,:,:]-model_mcmc['background'][ibin,:,:])/model_bk_true[ibin,:,:]*100
+        syst = (model_mcmc['background'][ibin,:,:]-model_bk_true[ibin,:,:])/model_bk_true[ibin,:,:]*100
         vmin = np.mean(syst[np.isfinite(syst)]) - 2*np.std(syst[np.isfinite(syst)])
         vmax = np.mean(syst[np.isfinite(syst)]) + 2*np.std(syst[np.isfinite(syst)])
         plt.imshow(syst, vmin=vmin, vmax=vmax, origin='lower', cmap='rainbow')
@@ -474,7 +474,7 @@ def validation_model_grid_itpl(param_test, input_files, cpipe, subdir, rad, prof
         plt.colorbar()
 
         ax = plt.subplot(2,3,6)
-        syst = (model_bk_true[ibin,:,:]-model_mcmc['background'][ibin,:,:])/model_bk_true[ibin,:,:]**0.5
+        syst = (model_mcmc['background'][ibin,:,:]-model_bk_true[ibin,:,:])/model_bk_true[ibin,:,:]**0.5
         plt.imshow(syst, origin='lower', cmap='rainbow')
         plt.title('Difference/true$^{1/2}$')
         plt.colorbar()
@@ -507,18 +507,18 @@ def validation_model_grid_itpl(param_test, input_files, cpipe, subdir, rad, prof
             plt.colorbar()
             
             ax = plt.subplot(2,3,3)
-            plt.imshow((model_ps_true[ibin,:,:]-model_mcmc['point_sources'][ips][ibin,:,:]), origin='lower', cmap='rainbow')
-            plt.title('Difference')
+            plt.imshow((model_mcmc['point_sources'][ips][ibin,:,:]-model_ps_true[ibin,:,:]), origin='lower', cmap='rainbow')
+            plt.title('Difference (itpl-true)')
             plt.colorbar()
 
             ax = plt.subplot(2,3,4)
-            syst = (model_ps_true[ibin,:,:]-model_mcmc['point_sources'][ips][ibin,:,:])/model_ps_true[ibin,:,:]*100
+            syst = (model_mcmc['point_sources'][ips][ibin,:,:]-model_ps_true[ibin,:,:])/model_ps_true[ibin,:,:]*100
             plt.imshow(syst, origin='lower', cmap='rainbow')
             plt.title('Difference/true x 100')
             plt.colorbar()
             
             ax = plt.subplot(2,3,5)
-            syst = (model_ps_true[ibin,:,:]-model_mcmc['point_sources'][ips][ibin,:,:])/model_ps_true[ibin,:,:]*100
+            syst = (model_mcmc['point_sources'][ips][ibin,:,:]-model_ps_true[ibin,:,:])/model_ps_true[ibin,:,:]*100
             vmin = np.mean(syst[np.isfinite(syst)]) - 2*np.std(syst[np.isfinite(syst)])
             vmax = np.mean(syst[np.isfinite(syst)]) + 2*np.std(syst[np.isfinite(syst)])
             plt.imshow(syst, vmin=vmin, vmax=vmax, origin='lower', cmap='rainbow')
@@ -526,7 +526,7 @@ def validation_model_grid_itpl(param_test, input_files, cpipe, subdir, rad, prof
             plt.colorbar()
             
             ax = plt.subplot(2,3,6)
-            syst = (model_ps_true[ibin,:,:]-model_mcmc['point_sources'][ips][ibin,:,:])/model_ps_true[ibin,:,:]**0.5
+            syst = (model_mcmc['point_sources'][ips][ibin,:,:]-model_ps_true[ibin,:,:])/model_ps_true[ibin,:,:]**0.5
             plt.imshow(syst, origin='lower', cmap='rainbow')
             plt.title('Difference/true$^{1/2}$')
             plt.colorbar()
