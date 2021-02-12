@@ -353,7 +353,22 @@ def read_data(specfile):
     data['e2dnde_err']    = e2dnde_err.to_value('MeV cm-2 s-1')
     data['norm_scan']     = norm_scan
     data['dloglike_scan'] = dloglike_scan
-    
+
+    # Warning if the error bars look weird
+    TSbis = spectrum['norm']/spectrum['norm_err']
+    test = TSbis/TS**0.5
+    w_suspect = np.where(test > 3)[0]
+    if len(w_suspect) > 0:
+        print('-----> WARNING: some error bars are likely to be highly underestimated')
+        print('       Index are ', w_suspect)
+        print('       The errors are replaced by TS^{1/2}')
+        print('       This does not affect if the likelihood scan is used (only the plot)')
+        e2dnde_err_bis = spectrum['norm']*spectrum['ref_e2dnde'] / TS**0.5
+        dnde_err_bis   = spectrum['norm']*spectrum['ref_dnde']   / TS**0.5
+        unit = (1*u.erg/u.cm**2/u.s).to_value('MeV cm-2 s-1')        
+        data['e2dnde_err'][w_suspect] = e2dnde_err_bis[w_suspect] * unit
+        data['dnde_err'][w_suspect]   = dnde_err_bis[w_suspect]   * unit
+        
     return data
 
     
