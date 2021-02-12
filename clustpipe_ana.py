@@ -345,8 +345,9 @@ class CTAana(object):
             outs.append(psfcube)
             
         # Background
-        bkgcubeexist = os.path.exists(self.output_dir+'/Ana_Bkgcube.fits')
-        if not overwrite_irfs and bkgcubeexist:
+        bkgcubeexist1 = os.path.exists(self.output_dir+'/Ana_Bkgcube.fits')
+        bkgcubeexist2 = os.path.exists(self.output_dir+'/Ana_Model_Input_Stack.xml')
+        if not overwrite_irfs and bkgcubeexist1 and bkgcubeexist2:
             if not self.silent:
                 print('-----> Skipping background cubemaking')
         else:
