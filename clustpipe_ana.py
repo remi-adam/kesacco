@@ -1142,7 +1142,7 @@ class CTAana(object):
                 #----- Compute spectra
                 if do_Spec:
                     if srcname == self.cluster.name:
-                        dll_sigstep = 1.0
+                        dll_sigstep = 0.5
                         dll_sigmax  = 7.0
                     else:
                         dll_sigstep = 0.0
