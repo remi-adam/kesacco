@@ -571,7 +571,7 @@ class CTAana(object):
 
         # Log file
         like['logfile'] = self.output_dir+'/Ana_Model_Output_log.txt'
-
+        
         if not self.silent:
             print(like)
         like.logFileOpen()
@@ -583,12 +583,12 @@ class CTAana(object):
             print(like.obs())
             print(like.obs().models())
             print('')
-
+        
         #========== Compute a fit model file without the cluster
         self._rm_source_xml(self.output_dir+'/Ana_Model_Output.xml',
                             self.output_dir+'/Ana_Model_Output_Cluster.xml',
                             self.cluster.name)
-
+        
         #========== Compute the binned model
         if compute_bestfit:
             modcube = cubemaking.model_cube(self.output_dir,
@@ -1141,33 +1141,34 @@ class CTAana(object):
 
                 #----- Compute spectra
                 if do_Spec:
-                    try:
-                        tools_spectral.spectrum(inobs,  self.output_dir+'/Ana_Model_Output.xml',
-                                                srcname, self.output_dir+'/Ana_Spectrum_'+srcname+'.fits',
-                                                emin=self.spec_emin.to_value('TeV'),
-                                                emax=self.spec_emax.to_value('TeV'),
-                                                enumbins=self.spec_enumbins, ebinalg=self.spec_ebinalg,
-                                                expcube=expcube,
-                                                psfcube=psfcube,
-                                                bkgcube=bkgcube,
-                                                edispcube=edispcube,
-                                                caldb=None,
-                                                irf=None,
-                                                edisp=self.spec_edisp,
-                                                method='SLICE',
-                                                statistic=self.method_stat,
-                                                calc_ts=True,
-                                                calc_ulim=True,
-                                                fix_srcs=True,
-                                                fix_bkg=True,
-                                                dll_sigstep=1,
-                                                dll_sigmax=7,
-                                                logfile=self.output_dir+'/Ana_Spectrum_'+srcname+'_log.txt',
-                                                silent=self.silent)
-                    except ZeroDivisionError:
-                        print(srcname+' spectrum not computed due to ZeroDivisionError')
-                    except ValueError:
-                        print(srcname+' spectrum not computed due to ValueError.')
+                    if srcname == self.cluster.name:
+                        dll_sigstep = 1.0
+                        dll_sigmax  = 7.0
+                    else:
+                        dll_sigstep = 0.0
+                        dll_sigmax  = 5.0
+                    tools_spectral.spectrum(inobs,  self.output_dir+'/Ana_Model_Output.xml',
+                                            srcname, self.output_dir+'/Ana_Spectrum_'+srcname+'.fits',
+                                            emin=self.spec_emin.to_value('TeV'),
+                                            emax=self.spec_emax.to_value('TeV'),
+                                            enumbins=self.spec_enumbins, ebinalg=self.spec_ebinalg,
+                                            expcube=expcube,
+                                            psfcube=psfcube,
+                                            bkgcube=bkgcube,
+                                            edispcube=edispcube,
+                                            caldb=None,
+                                            irf=None,
+                                            edisp=self.spec_edisp,
+                                            method='SLICE',
+                                            statistic=self.method_stat,
+                                            calc_ts=True,
+                                            calc_ulim=True,
+                                            fix_srcs=False,
+                                            fix_bkg=False,
+                                            dll_sigstep=dll_sigstep,
+                                            dll_sigmax=dll_sigmax,
+                                            logfile=self.output_dir+'/Ana_Spectrum_'+srcname+'_log.txt',
+                                            silent=self.silent)
 
                 #----- Compute butterfly
                 if do_Butterfly:

@@ -1421,7 +1421,8 @@ def model_specimg(modgrid, params):
     outf_cl = interpn((modgrid['spa_val'], modgrid['spe_val'],
                        modgrid['e_val'], modgrid['y_val'], modgrid['x_val']),
                       modgrid['models_cl'],
-                      (params[1], params[2], modgrid['eef_val'], modgrid['yyf_val'], modgrid['xxf_val']))
+                      (params[1], params[2], modgrid['eef_val'], modgrid['yyf_val'], modgrid['xxf_val']),
+                      method='linear')
     out_cl = np.reshape(outf_cl, modgrid['xx_val'].shape)
     out_cl = params[0]*out_cl
     

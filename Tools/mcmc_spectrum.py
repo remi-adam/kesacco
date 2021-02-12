@@ -472,12 +472,12 @@ def model_dNdEdSdt(cluster, energy, params):
     cluster.spectrum_crp_model = {'name':'PowerLaw', 'Index':params[1]}
     
     #---------- Run the test model computation
-    eng, model_dNdEdSdt = cluster.get_gamma_spectrum(energy*u.GeV,
+    eng, dNdEdSdt = cluster.get_gamma_spectrum(energy*u.GeV,
                                                      Rmin=None, Rmax=cluster.R_truncation,
                                                      Rmin_los=None, NR500_los=5.0,
                                                      type_integral='spherical')
     
-    output_model = (eng**2 * model_dNdEdSdt).to_value('MeV cm-2 s-1')
+    output_model = (eng**2 * dNdEdSdt).to_value('MeV cm-2 s-1')
     
     return output_model
 
@@ -537,7 +537,6 @@ def run_constraint(cluster_test,
     chainplot_file = cluster_test.output_dir+'/Ana_MCMC_spectrum'
     global_file    = cluster_test.output_dir+'/Ana_MCMC_spectrum_globalprop.txt'
 
-    
     #========== Start running MCMC definition and sampling
     #---------- Check if a MCMC sampler was already recorded
     sampler_exist = os.path.exists(sampler_file)
