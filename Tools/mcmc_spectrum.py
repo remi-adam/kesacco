@@ -327,7 +327,7 @@ def read_data(specfile):
 
     e_ref         = spectrum['e_ref']*u.TeV
     e_min         = spectrum['e_min']*u.TeV
-    e_max         = spectrum['e_min']*u.TeV
+    e_max         = spectrum['e_max']*u.TeV
     npred         = spectrum['norm']*spectrum['ref_npred']
     e2dnde        = spectrum['norm']*spectrum['ref_e2dnde']*u.erg/u.cm**2/u.s
     dnde          = spectrum['norm']*spectrum['ref_dnde']/u.MeV/u.cm**2/u.s
@@ -343,6 +343,8 @@ def read_data(specfile):
     # Fill my data
     data = Table()
     data['e_ref']         = e_ref.to_value('GeV')
+    data['e_min']         = e_min.to_value('GeV') # Emin_bin = Eref-Emin
+    data['e_max']         = e_max.to_value('GeV') # Emin_bin = Eref+Emax
     data['ref_dnde']      = (spectrum['ref_dnde']/u.MeV/u.cm**2/u.s).to_value('MeV-1 cm-2 s-1')
     data['ref_e2dnde']    = (spectrum['ref_e2dnde']*u.erg/u.cm**2/u.s).to_value('MeV cm-2 s-1')
     data['dnde']          = dnde.to_value('MeV-1 cm-2 s-1')
