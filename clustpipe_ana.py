@@ -1078,6 +1078,10 @@ class CTAana(object):
                          do_Spec=True,
                          do_Butterfly=True,
                          do_Res=True,
+                         use_Lfit_model=True,
+                         fix_srcs=False,
+                         fix_bkg=True,
+                         method='SLICE',
                          name=None):
         """
         Run the spectral analysis
@@ -1087,6 +1091,10 @@ class CTAana(object):
         - do_Spec (bool): compute spectra
         - do_Butterfly (bool): compute butterfly
         - do_Res (bool): compute residual spectra
+        - use_Lfit_mode (bool): use the model obtained from likelihood fit
+        - fix_srcs (bool): fix the point sources in the fit
+        - fix_bkg (bool): fix the background in the fit
+        - method (str): metgod for computing the spectrum (SLICE/NODES)
         - name (str): name of the source to consider (default all source used)
         
         Outputs files
@@ -1148,7 +1156,14 @@ class CTAana(object):
                     else:
                         dll_sigstep = 0.0
                         dll_sigmax  = 5.0
-                    tools_spectral.spectrum(inobs,  self.output_dir+'/Ana_Model_Output.xml',
+
+                    if use_Lfit_model:
+                        model_file = self.output_dir+'/Ana_Model_Output.xml'
+                    else:
+                        model_file = inmodel
+        
+                    tools_spectral.spectrum(inobs,
+                                            model_file,
                                             srcname, self.output_dir+'/Ana_Spectrum_'+srcname+'.fits',
                                             emin=self.spec_emin.to_value('TeV'),
                                             emax=self.spec_emax.to_value('TeV'),
@@ -1160,12 +1175,12 @@ class CTAana(object):
                                             caldb=None,
                                             irf=None,
                                             edisp=self.spec_edisp,
-                                            method='SLICE',
+                                            method=method,
                                             statistic=self.method_stat,
                                             calc_ts=True,
                                             calc_ulim=True,
-                                            fix_srcs=False,
-                                            fix_bkg=False,
+                                            fix_srcs=fix_srcs,
+                                            fix_bkg=fix_bkg,
                                             dll_sigstep=dll_sigstep,
                                             dll_sigmax=dll_sigmax,
                                             logfile=self.output_dir+'/Ana_Spectrum_'+srcname+'_log.txt',
@@ -1196,7 +1211,7 @@ class CTAana(object):
 
         #----- Compute residual in R500
         if do_Res:
-            tools_spectral.residual(inobs, self.output_dir+'/Ana_Model_Output.xml',
+            tools_spectral.residual(inobs, model_file,
                                     self.output_dir+'/Ana_Spectrum_Residual.fits',
                                     npix, self.map_reso.to_value('deg'),
                                     self.map_coord.icrs.ra.to_value('deg'),

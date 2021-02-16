@@ -368,7 +368,13 @@ def read_data(specfile):
         unit = (1*u.erg/u.cm**2/u.s).to_value('MeV cm-2 s-1')        
         data['e2dnde_err'][w_suspect] = e2dnde_err_bis[w_suspect] * unit
         data['dnde_err'][w_suspect]   = dnde_err_bis[w_suspect]   * unit
-        
+
+    # Warning if likelihood scan is weird
+    for i in range(dloglike_scan.shape[1]):
+        if np.amax(dloglike_scan[i,:]) - np.amin(dloglike_scan[i,:]) < 1:
+            print('WARNING: the likelihood scan in bin '+str(i)+' stays constant!')
+            print('         this bin will be excluded')
+            
     return data
 
     
@@ -451,11 +457,16 @@ def lnlike(params, cluster, data, par_min, par_max,
         Nbin = len(data['e_ref'])
         lnL_i = np.zeros(Nbin)
         for i in range(Nbin):
-            # Interpolate the likelihood scan at the location of the model flux
-            f = interp1d(data['norm_scan'][i,:]*data['ref_e2dnde'][i], data['dloglike_scan'][i,:],
-                         fill_value='extrapolate') # extrapolate tested to work well on few sample
-            lnL_i[i] = f(test_model[i])
-            
+            # Check the the likelihood scan is ok (some scans stays there)
+            cond = (np.amax(data['dloglike_scan'][i,:])-np.amin(data['dloglike_scan'][i,:])) > 1.0
+            if cond: 
+                # Interpolate the likelihood scan at the location of the model flux
+                f = interp1d(data['norm_scan'][i,:]*data['ref_e2dnde'][i], data['dloglike_scan'][i,:],
+                             fill_value='extrapolate') # extrapolate tested to work well on few sample
+                lnL_i[i] = f(test_model[i])
+            else:
+                lnL_i[i] = 0.0
+                
         lnL = np.sum(lnL_i)
 
     # In case of NaN, goes to infinity
