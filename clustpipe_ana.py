@@ -160,7 +160,8 @@ class CTAana(object):
                          exclu_rad=0.2*u.deg,
                          use_model_bkg=False,
                          overwrite_data=True,
-                         overwrite_irfs=True):
+                         overwrite_irfs=True,
+                         PSFmapreso=None):
         """
         This function is used to prepare the data to the 
         analysis.
@@ -176,6 +177,9 @@ class CTAana(object):
         - use_model_bkg (bool): do we use background model in on off analysis
         - overwrite_{sel,} (bool): recompute and overwrite existing file, or use them 
         without recomputing
+        - PSFmapreso (float, quantity): in the case of large data, the PSF map resolution 
+        can be reduced. ctools encourage to use 1.0 deg. By default, we use the standard 
+        value but this may produce very large files for small bining and large FoV
 
         Outputs files
         -------------
@@ -337,8 +341,12 @@ class CTAana(object):
             if not self.silent:
                 print('-----> Skipping PSF cubemaking')
         else:
+            if PSFmapreso is not None:
+                map_reso_psf = PSFmapreso
+            else:
+                map_reso_psf = self.map_reso
             psfcube = cubemaking.psf_cube(self.output_dir,
-                                          self.map_reso, self.map_coord, self.map_fov,
+                                          map_reso_psf, self.map_coord, self.map_fov,
                                           self.spec_emin, self.spec_emax,
                                           self.spec_enumbins, self.spec_ebinalg,
                                           logfile=self.output_dir+'/Ana_Psfcube_log.txt',
