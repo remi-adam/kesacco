@@ -165,7 +165,8 @@ def psf_cube(output_dir,
              emin, emax, enumbins, ebinalg,
              amax=0.3, anumbins=200,
              logfile=None,
-             silent=False):
+             silent=False,
+             useincube=True):
     """
     Compute a PSF cube.
     http://cta.irap.omp.eu/ctools/users/reference_manual/ctpsfcube.html
@@ -198,7 +199,10 @@ def psf_cube(output_dir,
     psfcube = ctools.ctpsfcube()
 
     psfcube['inobs']      = output_dir+'/Ana_EventsSelected.xml'
-    psfcube['incube']     = output_dir+'/Ana_Countscube.fits'
+    if useincube:
+        psfcube['incube'] = output_dir+'/Ana_Countscube.fits'
+    else:
+        psfcube['incube'] = 'NONE'
     #psfcube['caldb']      =
     #psfcube['irf']        =
     psfcube['outcube']    = output_dir+'/Ana_Psfcube.fits'

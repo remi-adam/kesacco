@@ -343,14 +343,16 @@ class CTAana(object):
         else:
             if PSFmapreso is not None:
                 map_reso_psf = PSFmapreso
+                useincube = False
             else:
                 map_reso_psf = self.map_reso
+                useincube = True
             psfcube = cubemaking.psf_cube(self.output_dir,
                                           map_reso_psf, self.map_coord, self.map_fov,
                                           self.spec_emin, self.spec_emax,
                                           self.spec_enumbins, self.spec_ebinalg,
                                           logfile=self.output_dir+'/Ana_Psfcube_log.txt',
-                                          silent=self.silent)
+                                          silent=self.silent, useincube=useincube)
             outs.append(psfcube)
             
         # Background
