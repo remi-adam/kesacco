@@ -246,7 +246,8 @@ class CTAana(object):
         #----- Get the events xml file for the considered obsID
         self._write_new_xmlevent_from_obsid(self.output_dir+'/Events.xml',
                                             self.output_dir+'/Ana_Events.xml',
-                                            obsID)
+                                            obsID, self.obs_setup,
+                                            updateIRF=True)
 
         #----- Data selection
         selexist = os.path.exists(self.output_dir+'/Ana_EventsSelected.xml')

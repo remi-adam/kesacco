@@ -192,7 +192,8 @@ class Common():
     # Write new events.xml file based on obsID
     #==================================================
     
-    def _write_new_xmlevent_from_obsid(self, xmlin, xmlout, obsID):
+    def _write_new_xmlevent_from_obsid(self, xmlin, xmlout, obsID, obs_setup,
+                                       updateIRF=True):
         """
         Read the xml file gathering the event list, remove the event
         files that are not selected, and write a new xml file.
@@ -202,6 +203,10 @@ class Common():
         - xmlin (str): input xml file
         - xmlout (str): output xml file
         - obsID (list): list of str
+        - obs_setup (dict): the observation setup
+        - updateIRF (bool): update the IRF or force the true simulated IRF 
+        (this is in case you want to simulate the data with a given IRF, but 
+        analyse them with another one)
 
         Outputs
         -------
@@ -211,14 +216,32 @@ class Common():
         xml     = gammalib.GXml(xmlin)
         obslist = xml.element('observation_list')
         obsid_in = []
+        
+        # Remove unwanted obsid
         for i in range(len(obslist))[::-1]:
             if obslist[i].attribute('id') not in obsID:
                 obslist.remove(i)
             else:
                 obsid_in.append(obslist[i].attribute('id'))
+                
+        # Warning if wanted obsid not available
         for i in range(len(obsID)):
             if obsID[i] not in obsid_in:
                 print('WARNING: Event file with obsID '+obsID[i]+' does not exist. It is ignored.')
+
+        # Update IRF
+        if updateIRF:
+            obslist = xml.element('observation_list')
+            for i in range(len(obslist)):
+                wobsid = np.where(np.array(obs_setup.obsid) == obslist[i].attribute('id'))[0]
+                if len(wobsid) != 1:
+                    raise ValueError('Problem with obsid matching')
+                db   = obs_setup.caldb[wobsid[0]]
+                resp = obs_setup.irf[wobsid[0]]
+                obslist[i][0].attribute(1).value(db)   # database
+                obslist[i][0].attribute(2).value(resp) # response
+
+        # Save
         xml.save(xmlout)
 
 
