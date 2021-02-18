@@ -370,7 +370,7 @@ def read_data(specfile):
         data['dnde_err'][w_suspect]   = dnde_err_bis[w_suspect]   * unit
 
     # Warning if likelihood scan is weird
-    for i in range(dloglike_scan.shape[1]):
+    for i in range(dloglike_scan.shape[0]):
         if np.amax(dloglike_scan[i,:]) - np.amin(dloglike_scan[i,:]) < 1:
             print('WARNING: the likelihood scan in bin '+str(i)+' stays constant!')
             print('         this bin will be excluded')
