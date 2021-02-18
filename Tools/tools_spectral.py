@@ -29,6 +29,7 @@ def spectrum(inobs, inmodel, srcname, outfile,
              fix_bkg=False,
              dll_sigstep=1,
              dll_sigmax=7,
+             dll_freenodes=False,
              logfile=None,
              silent=False):    
     """
@@ -60,6 +61,7 @@ def spectrum(inobs, inmodel, srcname, outfile,
     - fix_bkg (bool): Fix background model parameters?
     - dll_sigstep (float): sigma steps for the likelihood scan
     - dll_sigmax (float): sigma max for the likelihood scan
+    - dll_freenodes (bool): free nodes for method = NODES 
     - silent (bool): print information or not
 
     Outputs
@@ -95,6 +97,7 @@ def spectrum(inobs, inmodel, srcname, outfile,
     spec['fix_bkg']   = fix_bkg
     spec['dll_sigstep'] = dll_sigstep
     spec['dll_sigmax']  = dll_sigmax
+    spec['dll_freenodes'] = dll_freenodes
 
     if logfile is not None: spec['logfile'] = logfile
 

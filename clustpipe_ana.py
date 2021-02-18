@@ -1194,6 +1194,7 @@ class CTAana(object):
                                             fix_bkg=fix_bkg,
                                             dll_sigstep=dll_sigstep,
                                             dll_sigmax=dll_sigmax,
+                                            dll_freenodes=False,
                                             logfile=self.output_dir+'/Ana_Spectrum_'+srcname+'_log.txt',
                                             silent=self.silent)
 
