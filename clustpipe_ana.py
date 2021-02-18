@@ -1186,7 +1186,7 @@ class CTAana(object):
                                             caldb=None,
                                             irf=None,
                                             edisp=self.spec_edisp,
-                                            method=method,
+                                            method=method, # No impact seen except NODES more robust (no bad pt)
                                             statistic=self.method_stat,
                                             calc_ts=True,
                                             calc_ulim=True,
@@ -1194,7 +1194,7 @@ class CTAana(object):
                                             fix_bkg=fix_bkg,
                                             dll_sigstep=dll_sigstep,
                                             dll_sigmax=dll_sigmax,
-                                            dll_freenodes=False,
+                                            dll_freenodes=False,# Errors with True...
                                             logfile=self.output_dir+'/Ana_Spectrum_'+srcname+'_log.txt',
                                             silent=self.silent)
 
