@@ -472,7 +472,7 @@ def lnlike(params, cluster, data, par_min, par_max,
     # In case of NaN, goes to infinity
     if np.isnan(lnL):
         lnL = -np.inf
-        
+
     return lnL + prior
 
 
@@ -496,9 +496,16 @@ def model_dNdEdSdt(cluster, energy, params):
     '''
     
     #---------- Change parameters here
-    cluster.X_crp_E            = {'X':params[0], 'R_norm':cluster.R500}
-    cluster.spectrum_crp_model = {'name':'PowerLaw', 'Index':params[1]}
-    
+    cluster.X_crp_E = {'X':params[0], 'R_norm':cluster.R500}
+    if cluster.spectrum_crp_model['name'] == 'PowerLaw':
+        cluster.spectrum_crp_model = {'name':'PowerLaw', 'Index':params[1]}
+    elif cluster.spectrum_crp_model['name'] == 'MomentumPowerLaw':
+        cluster.spectrum_crp_model = {'name':'MomentumPowerLaw',
+                                      'Index':params[1],
+                                      'Mass':cluster.spectrum_crp_model['Mass']}
+    else:
+        raise ValueError('Only PowerLaw and MomentumPowerLaw implemented here')
+        
     #---------- Run the test model computation
     eng, dNdEdSdt = cluster.get_gamma_spectrum(energy*u.GeV,
                                                      Rmin=None, Rmax=cluster.R_truncation,

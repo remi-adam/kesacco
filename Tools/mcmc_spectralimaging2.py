@@ -109,8 +109,15 @@ def build_model_grid(cpipe,
             # Re-scaling        
             cluster_tmp.density_crp_model  = {'name':'User',
                                               'radius':rad, 'profile':prof_ini.value ** spatial_i}
-            cluster_tmp.spectrum_crp_model = {'name':'PowerLaw', 'Index':spectral_j}
-            
+            if cluster_tmp.spectrum_crp_model['name'] == 'PowerLaw':
+                cluster_tmp.spectrum_crp_model = {'name':'PowerLaw', 'Index':spectral_j}
+            elif cluster_tmp.spectrum_crp_model['name'] == 'MomentumPowerLaw':
+                cluster_tmp.spectrum_crp_model = {'name':'MomentumPowerLaw',
+                                                  'Index':spectral_j,
+                                                  'Mass':cluster_tmp.spectrum_crp_model['Mass']}
+            else:
+                raise ValueError('Only PowerLaw and MomentumPowerLaw implemented here')
+        
             # Cluster model
             make_cluster_template.make_map(cluster_tmp,
                                            subdir+'/Model_Cluster_Map_'+extij+'.fits',
