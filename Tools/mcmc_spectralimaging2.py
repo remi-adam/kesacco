@@ -97,76 +97,79 @@ def build_model_grid(cpipe,
     #===== Loop over all cluster models to be tested
     for imod in range(spatial_npt):
         for jmod in range(spectral_npt):
-            print('--- Building cluster template '+str(1+jmod+imod*spectral_npt)+'/'+str(spatial_npt*spectral_npt))
-            print('    ---> spectral = '+str(spectral_value[jmod])+', spatial = '+str(spatial_value[imod]))
+            #special_condition = 1+jmod+imod*spectral_npt > 75
+            special_condition = True
+            if special_condition:
+                print('--- Building cluster template '+str(1+jmod+imod*spectral_npt)+'/'+str(spatial_npt*spectral_npt))
+                print('    ---> spectral = '+str(spectral_value[jmod])+', spatial = '+str(spatial_value[imod]))
 
-            #---------- Indexing
-            spatial_i = spatial_value[imod]            
-            spectral_j   = spectral_value[jmod]
-            extij = 'TMP_'+str(imod)+'_'+str(jmod)
-                
-            fexist = os.path.exists(subdir+'/Model_Cluster_Cube_'+extij+'.fits')
-            if fexist:
-                print(subdir+'/Model_Cluster_Cube_'+extij+'.fits already exist, skip it')
-            else:
-                #---------- Compute the model spectrum, map, and xml model file
-                # Re-scaling        
-                cluster_tmp.density_crp_model  = {'name':'User',
-                                                  'radius':rad, 'profile':prof_ini.value ** spatial_i}
-                if cluster_tmp.spectrum_crp_model['name'] == 'PowerLaw':
-                    cluster_tmp.spectrum_crp_model = {'name':'PowerLaw', 'Index':spectral_j}
-                elif cluster_tmp.spectrum_crp_model['name'] == 'MomentumPowerLaw':
-                    cluster_tmp.spectrum_crp_model = {'name':'MomentumPowerLaw',
-                                                      'Index':spectral_j,
-                                                      'Mass':cluster_tmp.spectrum_crp_model['Mass']}
+                #---------- Indexing
+                spatial_i = spatial_value[imod]            
+                spectral_j   = spectral_value[jmod]
+                extij = 'TMP_'+str(imod)+'_'+str(jmod)
+                    
+                fexist = os.path.exists(subdir+'/Model_Cluster_Cube_'+extij+'.fits')
+                if fexist:
+                    print(subdir+'/Model_Cluster_Cube_'+extij+'.fits already exist, skip it')
                 else:
-                    raise ValueError('Only PowerLaw and MomentumPowerLaw implemented here')
-            
-                # Cluster model
-                make_cluster_template.make_map(cluster_tmp,
-                                               subdir+'/Model_Cluster_Map_'+extij+'.fits',
-                                               Egmin=cpipe.obs_setup.get_emin(),Egmax=cpipe.obs_setup.get_emax(),
-                                               includeIC=includeIC)
-                make_cluster_template.make_spectrum(cluster_tmp,
-                                                    subdir+'/Model_Cluster_Spectrum_'+extij+'.txt',
-                                                    energy=np.logspace(-1,5,1000)*u.GeV,
-                                                    includeIC=includeIC)
-    
-                # xml model
-                model_tot = gammalib.GModels(cpipe.output_dir+'/Ana_Model_Input_Stack.xml')
-                clencounter = 0
-                for i in range(len(model_tot)):
-                    if model_tot[i].name() == cluster_tmp.name:
-                        spefn = subdir+'/Model_Cluster_Spectrum_'+extij+'.txt'
-                        model_tot[i].spectral().filename(spefn)
-                        spafn = subdir+'/Model_Cluster_Map_'+extij+'.fits'
-                        model_tot[i].spatial(gammalib.GModelSpatialDiffuseMap(spafn))
-                        clencounter += 1
-                if clencounter != 1:
-                    raise ValueError('No cluster encountered in the input stack model')
-                model_tot.save(subdir+'/Model_Cluster_'+extij+'.xml')
-    
-                # Remove background and point sources
-                cpipe._rm_source_xml(subdir+'/Model_Cluster_'+extij+'.xml',
-                                     subdir+'/Model_Cluster_'+extij+'.xml',
-                                     'BackgroundModel')
+                    #---------- Compute the model spectrum, map, and xml model file
+                    # Re-scaling        
+                    cluster_tmp.density_crp_model  = {'name':'User',
+                                                      'radius':rad, 'profile':prof_ini.value ** spatial_i}
+                    if cluster_tmp.spectrum_crp_model['name'] == 'PowerLaw':
+                        cluster_tmp.spectrum_crp_model = {'name':'PowerLaw', 'Index':spectral_j}
+                    elif cluster_tmp.spectrum_crp_model['name'] == 'MomentumPowerLaw':
+                        cluster_tmp.spectrum_crp_model = {'name':'MomentumPowerLaw',
+                                                          'Index':spectral_j,
+                                                          'Mass':cluster_tmp.spectrum_crp_model['Mass']}
+                    else:
+                        raise ValueError('Only PowerLaw and MomentumPowerLaw implemented here')
                 
-                for i in range(len(cpipe.compact_source.name)):
+                    # Cluster model
+                    make_cluster_template.make_map(cluster_tmp,
+                                                   subdir+'/Model_Cluster_Map_'+extij+'.fits',
+                                                   Egmin=cpipe.obs_setup.get_emin(),Egmax=cpipe.obs_setup.get_emax(),
+                                                   includeIC=includeIC)
+                    make_cluster_template.make_spectrum(cluster_tmp,
+                                                        subdir+'/Model_Cluster_Spectrum_'+extij+'.txt',
+                                                        energy=np.logspace(-1,5,1000)*u.GeV,
+                                                        includeIC=includeIC)
+           
+                    # xml model
+                    model_tot = gammalib.GModels(cpipe.output_dir+'/Ana_Model_Input_Stack.xml')
+                    clencounter = 0
+                    for i in range(len(model_tot)):
+                        if model_tot[i].name() == cluster_tmp.name:
+                            spefn = subdir+'/Model_Cluster_Spectrum_'+extij+'.txt'
+                            model_tot[i].spectral().filename(spefn)
+                            spafn = subdir+'/Model_Cluster_Map_'+extij+'.fits'
+                            model_tot[i].spatial(gammalib.GModelSpatialDiffuseMap(spafn))
+                            clencounter += 1
+                    if clencounter != 1:
+                        raise ValueError('No cluster encountered in the input stack model')
+                    model_tot.save(subdir+'/Model_Cluster_'+extij+'.xml')
+           
+                    # Remove background and point sources
                     cpipe._rm_source_xml(subdir+'/Model_Cluster_'+extij+'.xml',
                                          subdir+'/Model_Cluster_'+extij+'.xml',
-                                         cpipe.compact_source.name[i])
-                
-                #---------- Compute the 3D cluster cube            
-                modcube = cubemaking.model_cube(cpipe.output_dir,
-                                                cpipe.map_reso, cpipe.map_coord, cpipe.map_fov,
-                                                cpipe.spec_emin, cpipe.spec_emax, cpipe.spec_enumbins,
-                                                cpipe.spec_ebinalg,
-                                                edisp=cpipe.spec_edisp,
-                                                stack=cpipe.method_stack,
-                                                silent=True,
-                                                logfile=subdir+'/Model_Cluster_Cube_log_'+extij+'.txt',
-                                                inmodel_usr=subdir+'/Model_Cluster_'+extij+'.xml',
-                                                outmap_usr=subdir+'/Model_Cluster_Cube_'+extij+'.fits')
+                                         'BackgroundModel')
+                    
+                    for i in range(len(cpipe.compact_source.name)):
+                        cpipe._rm_source_xml(subdir+'/Model_Cluster_'+extij+'.xml',
+                                             subdir+'/Model_Cluster_'+extij+'.xml',
+                                             cpipe.compact_source.name[i])
+                    
+                    #---------- Compute the 3D cluster cube            
+                    modcube = cubemaking.model_cube(cpipe.output_dir,
+                                                    cpipe.map_reso, cpipe.map_coord, cpipe.map_fov,
+                                                    cpipe.spec_emin, cpipe.spec_emax, cpipe.spec_enumbins,
+                                                    cpipe.spec_ebinalg,
+                                                    edisp=cpipe.spec_edisp,
+                                                    stack=cpipe.method_stack,
+                                                    silent=True,
+                                                    logfile=subdir+'/Model_Cluster_Cube_log_'+extij+'.txt',
+                                                    inmodel_usr=subdir+'/Model_Cluster_'+extij+'.xml',
+                                                    outmap_usr=subdir+'/Model_Cluster_Cube_'+extij+'.fits')
     
     #===== Loop over all background models to be tested
     for jmod in range(bkg_spectral_npt):
