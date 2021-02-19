@@ -220,7 +220,7 @@ def modelplot(data, cluster_test, par_best, param_chains, MC_eng, MC_model, conf
     rngyp  = np.amax(np.array([rngyp1,rngyp2]))
     rngym = 0.5*np.nanmin(data['e2dnde'])
     ylim = [rngym, rngyp]
-
+    
     ax1.plot(MC_eng, bf_model2,    ls='-', linewidth=2, color='k', label='Maximum likelihood model')
     ax1.plot(MC_eng, MC_perc[1,:], ls='--', linewidth=2, color='b', label='Median')
     ax1.plot(MC_eng, MC_perc[0,:], ls=':', linewidth=1, color='b')
