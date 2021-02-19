@@ -353,7 +353,7 @@ def read_data(specfile):
     data['e2dnde_err']    = e2dnde_err.to_value('MeV cm-2 s-1')
     data['norm_scan']     = norm_scan
     data['dloglike_scan'] = dloglike_scan
-
+    
     # Warning if the error bars look weird
     TSbis = spectrum['norm']/spectrum['norm_err']
     test = TSbis/TS**0.5
@@ -374,6 +374,10 @@ def read_data(specfile):
         if np.amax(dloglike_scan[i,:]) - np.amin(dloglike_scan[i,:]) < 1:
             print('WARNING: the likelihood scan in bin '+str(i)+' stays constant!')
             print('         this bin will be excluded')
+        if np.sum(np.isnan(dloglike_scan[i,:])) >0:
+            print('WARNING: the likelihood scan in bin '+str(i)+' contains nan')
+            print('         this bin will be excluded')
+            data['dloglike_scan'][i,:] = 0.0
             
     return data
 
