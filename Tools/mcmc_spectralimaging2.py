@@ -1512,7 +1512,7 @@ def run_constraint(input_files,
     
     #========== Guess parameter definition
     # Normalization, scaling profile \propto profile_input^eta, CRp index
-    parname = ['X_{CRp}/X_{CRp,0}', '\\eta_{CRp}', '\\alpha_{CRp}', 'A_{bkg}', '\\alpha_{bkg}']    
+    parname = ['X_{CRp}/X_{CRp,0}', '\\eta_{CRp}', '\\alpha_{CRp}', 'A_{bkg}', '\\Delta \\alpha_{bkg}']    
     par0 = np.array([1.0, np.mean(modgrid['spa_val']), np.mean(modgrid['spe_val']),
                      1.0, np.mean(modgrid['bk_spe_val'])])
     par_min = [0,      np.amin(modgrid['spa_val']), np.amin(modgrid['spe_val']),
@@ -1521,7 +1521,7 @@ def run_constraint(input_files,
                np.inf, np.amax(modgrid['bk_spe_val'])]
     for i in range(len(modgrid['models_ps_list'])):
         parname.append('A_{ps,'+str(i+1)+'}')
-        parname.append('\\alpha_{ps,'+str(i+1)+'}')
+        parname.append('\\Delta \\alpha_{ps,'+str(i+1)+'}')
         par0 = np.append(par0, 1.0)
         par0 = np.append(par0, np.mean(modgrid['ps_spe_val']))
         par_min.append(0.0)
