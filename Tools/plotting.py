@@ -153,9 +153,9 @@ def correlation_from_covariance(covariance):
 # Get the CTA PSF given the IRF
 #==================================================
 
-def get_cta_psf(caldb, irf, emin, emax, w8_slope=-2):
+def get_cta_psf(caldb, irf, emin, emax, w8_slope=-2, case='FWHM'):
     """
-    Return the on-axis maximum PSF between emin and emax.
+    Return the on-axis FWHM between emin and emax.
 
     Parameters
     ----------
@@ -165,32 +165,45 @@ def get_cta_psf(caldb, irf, emin, emax, w8_slope=-2):
     - emax (float): the maximum energy considered (TeV)
     - w8_slope (float): spectral slope assumed to weight 
     the PSF when extracting the mean
+    - case (string): 'FWHM', 'sigma', '68containment'
 
     Outputs
     --------
-    - PSF (FWHM, deg): on axis point spread function
+    - PSF (FWHM, deg): on axis point spread function (FWHM)
     """
 
     CTOOLS_dir = os.getenv('CTOOLS')
 
+    # Read data
     data_file = CTOOLS_dir+'/share/caldb/data/cta/'+caldb+'/bcf/'+irf+'/irf_file.fits'
     hdul = fits.open(data_file)
     data_PSF = hdul[2].data
     hdul.close()
 
+    # Extract data
     theta_mean = (data_PSF['THETA_LO'][0,:]+data_PSF['THETA_HI'][0,:])/2.0
     eng_mean = (data_PSF['ENERG_LO'][0,:]+data_PSF['ENERG_HI'][0,:])/2.0
     PSF_E = data_PSF['SIGMA_1'][0,0,:] # This is on axis
     
     fitpl  = interpolate.interp1d(eng_mean, PSF_E, kind='cubic')
     e_itpl = np.logspace(np.log10(emin), np.log10(emax), 1000)
-    PSF_itpl = fitpl(e_itpl)
-    PSF_itpl = PSF_itpl * 2*np.sqrt(2*np.log(2)) # Convert to FWHM
-                     
-    weng = (e_itpl > emin) * (e_itpl < emax)
 
-    PSF = np.sum(PSF_itpl[weng] * e_itpl[weng]**w8_slope) / np.sum(e_itpl[weng]**w8_slope)
-    
+    # Different cases
+    PSFsigma = fitpl(e_itpl)                         # Interpolate for sigma
+    PSF68    = PSFsigma * np.sqrt(-2*np.log(1-0.68)) # Get 68% containment
+    PSFfwhm  = PSFsigma * 2*np.sqrt(2*np.log(2))     # Convert to FWHM
+
+    # Energy weighting
+    weng = (e_itpl > emin) * (e_itpl < emax)
+    if case == 'FWHM':
+        PSF = np.sum(PSFfwhm[weng] * e_itpl[weng]**w8_slope) / np.sum(e_itpl[weng]**w8_slope)
+    elif case == 'sigma':
+        PSF = np.sum(PSFsigma[weng] * e_itpl[weng]**w8_slope) / np.sum(e_itpl[weng]**w8_slope)
+    elif case == '68containment':
+        PSF = np.sum(PSF68[weng] * e_itpl[weng]**w8_slope) / np.sum(e_itpl[weng]**w8_slope)
+    else:
+        raise ValueError('case not available. Use only FWHM, sigma or 68containment')
+
     return PSF
 
 
