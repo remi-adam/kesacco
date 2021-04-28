@@ -128,7 +128,8 @@ def build_model_grid(cpipe,
                     # Cluster model
                     make_cluster_template.make_map(cluster_tmp,
                                                    subdir+'/Model_Cluster_Map_'+extij+'.fits',
-                                                   Egmin=cpipe.obs_setup.get_emin(),Egmax=cpipe.obs_setup.get_emax(),
+                                                   Egmin=cpipe.obs_setup.get_emin(),
+                                                   Egmax=cpipe.obs_setup.get_emax(),
                                                    includeIC=includeIC)
                     make_cluster_template.make_spectrum(cluster_tmp,
                                                         subdir+'/Model_Cluster_Spectrum_'+extij+'.txt',

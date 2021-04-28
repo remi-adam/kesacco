@@ -725,7 +725,8 @@ class CTAana(object):
             print('')
         
         return sens
-            
+
+    
     #==================================================
     # Upper limit
     #==================================================
@@ -879,7 +880,8 @@ class CTAana(object):
             print('')
 
         return UL
-        
+
+    
     #==================================================
     # Run the imaging analysis
     #==================================================
@@ -1865,7 +1867,6 @@ class CTAana(object):
         - Many plots are obtained from the available file products
 
         """
-
 
         #===== Information
         if not self.silent:
