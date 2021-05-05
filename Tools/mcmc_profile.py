@@ -65,11 +65,12 @@ def build_model_grid(cpipe,
     
     for imod in range(spatial_npt):
         print('--- Building model template '+str(1+imod)+'/'+str(spatial_npt))
-
+        
         #---------- Indexing
         spatial_i = spatial_value[imod]            
         exti = 'TMP_'+str(imod)
-
+        print('    spatial = ', str(spatial_i), ', ext = ', exti)
+        
         #---------- Compute the model spectrum, map, and xml model file
         # Re-scaling        
         cluster_tmp.density_crp_model  = {'name':'User',
@@ -84,7 +85,7 @@ def build_model_grid(cpipe,
                                             subdir+'/Model_Spectrum_'+exti+'.txt',
                                             energy=np.logspace(-1,5,1000)*u.GeV,
                                             includeIC=includeIC)
-
+    
         # xml model
         model_tot = gammalib.GModels(cpipe.output_dir+'/Ana_Model_Input_Stack.xml')
         clencounter = 0
@@ -98,7 +99,7 @@ def build_model_grid(cpipe,
         if clencounter != 1:
             raise ValueError('No cluster encountered in the input stack model')
         model_tot.save(subdir+'/Model_Input_'+exti+'.xml')
-
+    
         #---------- Likelihood fit
         like = ctools.ctlike()
         like['inobs']           = cpipe.output_dir+'/Ana_Countscube.fits'
@@ -119,7 +120,7 @@ def build_model_grid(cpipe,
         like.logFileOpen()
         like.execute()
         like.logFileClose()
-
+    
         #---------- Compute the 3D residual cube
         cpipe._rm_source_xml(subdir+'/Model_Output_'+exti+'.xml',
                              subdir+'/Model_Output_Cluster_'+exti+'.xml',
@@ -311,8 +312,8 @@ def modelplot(data, Best_model, MC_model, subdir, conf=68.0):
     ax1 = plt.subplot(gs[0])
     ax3 = plt.subplot(gs[1])
 
-    xlim = [np.amin(data['radius'])/2.0, np.amax(data['radius'])*2.0]
-    rngyp = 1.2*np.nanmax(data['profile']-Best_model['background'])
+    xlim = [np.amin(data['radius'])*0.9, np.amax(data['radius'])*1.1]
+    rngyp = 1.2*np.nanmax(data['profile']+(area*data['profile'])**0.5/area-Best_model['background'])
     rngym = 0.5*np.nanmin((data['profile']-Best_model['background'])[data['profile']-Best_model['background'] > 0])
     ylim = [rngym, rngyp]
 
@@ -366,8 +367,8 @@ def modelplot(data, Best_model, MC_model, subdir, conf=68.0):
     ax1 = plt.subplot(gs[0])
     ax3 = plt.subplot(gs[1])
 
-    xlim = [np.amin(data['radius'])/2.0, np.amax(data['radius'])*2.0]
-    rngyp = 1.2*np.nanmax(data['profile'])
+    xlim = [np.amin(data['radius'])*0.9, np.amax(data['radius'])*1.1]
+    rngyp = 1.2*np.nanmax(data['profile']+(area*data['profile'])**0.5/area)
     rngym = 0.5*np.nanmin((data['profile'])[data['profile'] > 0])
     ylim = [rngym, rngyp]
 
