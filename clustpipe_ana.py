@@ -1693,6 +1693,10 @@ class CTAana(object):
                 print('      (using background marginalization)          ')
             else:
                 print('      (including the background in the grid model)')
+            print('                                                      ')
+            print('Note that eta is defined as n_CR_fit ~ n_CR_input^eta ')
+            print('If you want eta to be as n_CR_fit ~ n_gas^eta, you may')
+            print('set your cluster CR model to verify n_CR_input ~ n_gas')
             print('======================================================')
             print('')
             
@@ -1784,9 +1788,11 @@ class CTAana(object):
                                                        includeIC=includeIC, rm_tmp=rm_tmp)
         #===== Validation of the grid interpolation
         if Ngrid_validation>0:
-            print('Spectral values used for the grid:')
+            print('')
+            print('----> Running '+str(Ngrid_validation)+' random validation points in the parameters space')
+            print('- Spectral values used for the grid:')
             print(spectral_value)
-            print('Spatial values used for the grid:')
+            print('- Spatial values used for the grid:')
             print(spatial_value)
             
             for ipar in range(Ngrid_validation):

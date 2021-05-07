@@ -29,6 +29,7 @@ import ctools
 import gammalib
 import warnings
 import glob
+from multiprocessing import Pool, cpu_count
 
 from minot.model_tools import trapz_loglog
 from minot.ClusterTools import map_tools
@@ -97,10 +98,11 @@ def build_model_grid(cpipe,
     #===== Loop over all cluster models to be tested
     for imod in range(spatial_npt):
         for jmod in range(spectral_npt):
-            #special_condition = 1+jmod+imod*spectral_npt > 75
-            special_condition = True
+            special_condition = 1+jmod+imod*spectral_npt > 49
+            #special_condition = True
             if special_condition:
-                print('--- Building cluster template '+str(1+jmod+imod*spectral_npt)+'/'+str(spatial_npt*spectral_npt))
+                cl_tmp = str(1+jmod+imod*spectral_npt)+'/'+str(spatial_npt*spectral_npt)
+                print('--- Building cluster template '+cl_tmp)
                 print('    ---> spectral = '+str(spectral_value[jmod])+', spatial = '+str(spatial_value[imod]))
 
                 #---------- Indexing
@@ -181,39 +183,43 @@ def build_model_grid(cpipe,
         spectral_j   = bkg_spectral_value[jmod]
         extij = 'TMP_'+str(jmod)
 
-        #---------- xml model
-        model_tot = gammalib.GModels(cpipe.output_dir+'/Ana_Model_Input_Stack.xml')
-        bkencounter = 0
-        for i in range(len(model_tot)):
-            if model_tot[i].name() == 'BackgroundModel':
-                model_tot[i].spectral().index(model_tot[i].spectral().index() + spectral_j)
-                bkencounter += 1
-                
-        if bkencounter != 1:
-            raise ValueError('No background encountered in the input stack model')
-        model_tot.save(subdir+'/Model_Background_'+extij+'.xml')
-        
-        # Remove Cluster and point sources
-        cpipe._rm_source_xml(subdir+'/Model_Background_'+extij+'.xml',
-                             subdir+'/Model_Background_'+extij+'.xml',
-                             cpipe.cluster.name)
-        
-        for i in range(len(cpipe.compact_source.name)):
+        fexist = os.path.exists(subdir+'/Model_Background_Cube_'+extij+'.fits')
+        if fexist:
+            print(subdir+'/Model_Background_Cube_'+extij+'.fits already exist, skip it')
+        else:
+            #---------- xml model
+            model_tot = gammalib.GModels(cpipe.output_dir+'/Ana_Model_Input_Stack.xml')
+            bkencounter = 0
+            for i in range(len(model_tot)):
+                if model_tot[i].name() == 'BackgroundModel':
+                    model_tot[i].spectral().index(model_tot[i].spectral().index() + spectral_j)
+                    bkencounter += 1
+                    
+            if bkencounter != 1:
+                raise ValueError('No background encountered in the input stack model')
+            model_tot.save(subdir+'/Model_Background_'+extij+'.xml')
+            
+            # Remove Cluster and point sources
             cpipe._rm_source_xml(subdir+'/Model_Background_'+extij+'.xml',
                                  subdir+'/Model_Background_'+extij+'.xml',
-                                 cpipe.compact_source.name[i])
-
-        #---------- Compute the 3D background cube            
-        modcube = cubemaking.model_cube(cpipe.output_dir,
-                                        cpipe.map_reso, cpipe.map_coord, cpipe.map_fov,
-                                        cpipe.spec_emin, cpipe.spec_emax, cpipe.spec_enumbins,
-                                        cpipe.spec_ebinalg,
-                                        edisp=cpipe.spec_edisp,
-                                        stack=cpipe.method_stack,
-                                        silent=True,
-                                        logfile=subdir+'/Model_Background_Cube_log_'+extij+'.txt',
-                                        inmodel_usr=subdir+'/Model_Background_'+extij+'.xml',
-                                        outmap_usr=subdir+'/Model_Background_Cube_'+extij+'.fits')
+                                 cpipe.cluster.name)
+            
+            for i in range(len(cpipe.compact_source.name)):
+                cpipe._rm_source_xml(subdir+'/Model_Background_'+extij+'.xml',
+                                     subdir+'/Model_Background_'+extij+'.xml',
+                                     cpipe.compact_source.name[i])
+         
+            #---------- Compute the 3D background cube            
+            modcube = cubemaking.model_cube(cpipe.output_dir,
+                                            cpipe.map_reso, cpipe.map_coord, cpipe.map_fov,
+                                            cpipe.spec_emin, cpipe.spec_emax, cpipe.spec_enumbins,
+                                            cpipe.spec_ebinalg,
+                                            edisp=cpipe.spec_edisp,
+                                            stack=cpipe.method_stack,
+                                            silent=True,
+                                            logfile=subdir+'/Model_Background_Cube_log_'+extij+'.txt',
+                                            inmodel_usr=subdir+'/Model_Background_'+extij+'.xml',
+                                            outmap_usr=subdir+'/Model_Background_Cube_'+extij+'.fits')
     
     #===== Loop over all point source models to be tested
     for ips in range(len(cpipe.compact_source.name)):
@@ -226,46 +232,51 @@ def build_model_grid(cpipe,
             spectral_j   = ps_spectral_value[jmod]
             extij = 'TMP_'+str(jmod)
 
-            #---------- xml model
-            model_tot = gammalib.GModels(cpipe.output_dir+'/Ana_Model_Input_Stack.xml')
-            psencounter = 0
-            for i in range(len(model_tot)):
-                if model_tot[i].name() == cpipe.compact_source.name[ips]:
-                    #model_tot[i].spectral().index(model_tot[i].spectral().index() + spectral_j)
-                    model_tot[i].spectral()[1].value(model_tot[i].spectral()[1].value() + spectral_j)
-                    psencounter += 1
 
-            if psencounter != 1:
-                raise ValueError('No point source encountered in the input stack model')
-            model_tot.save(subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml')
-        
-            # Remove Cluster and background
-            cpipe._rm_source_xml(subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
-                                 subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
-                                 cpipe.cluster.name)
+            fexist = os.path.exists(subdir+'/Model_'+cpipe.compact_source.name[ips]+'_Cube_'+extij+'.fits')
+            if fexist:
+                print(subdir+'/Model_'+cpipe.compact_source.name[ips]+'_Cube_'+extij+'.fits already exist, skip')
+            else:
+                #---------- xml model
+                model_tot = gammalib.GModels(cpipe.output_dir+'/Ana_Model_Input_Stack.xml')
+                psencounter = 0
+                for i in range(len(model_tot)):
+                    if model_tot[i].name() == cpipe.compact_source.name[ips]:
+                        #model_tot[i].spectral().index(model_tot[i].spectral().index() + spectral_j)
+                        model_tot[i].spectral()[1].value(model_tot[i].spectral()[1].value() + spectral_j)
+                        psencounter += 1
+    
+                if psencounter != 1:
+                    raise ValueError('No point source encountered in the input stack model')
+                model_tot.save(subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml')
             
-            cpipe._rm_source_xml(subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
-                                 subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
-                                 'BackgroundModel')
-
-            # Remove other point sources
-            for jps in range(len(cpipe.compact_source.name)):
-                if jps != ips:
-                    cpipe._rm_source_xml(subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
-                                         subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
-                                         cpipe.compact_source.name[jps])
-            
-            #---------- Compute the 3D background cube            
-            modcube = cubemaking.model_cube(cpipe.output_dir,
-                                            cpipe.map_reso, cpipe.map_coord, cpipe.map_fov,
-                                            cpipe.spec_emin, cpipe.spec_emax, cpipe.spec_enumbins,
-                                            cpipe.spec_ebinalg,
-                                            edisp=cpipe.spec_edisp,
-                                            stack=cpipe.method_stack,
-                                            silent=True,
-                                            logfile=subdir+'/Model_'+cpipe.compact_source.name[ips]+'_Cube_log_'+extij+'.txt',
-                                            inmodel_usr=subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
-                                            outmap_usr=subdir+'/Model_'+cpipe.compact_source.name[ips]+'_Cube_'+extij+'.fits')
+                # Remove Cluster and background
+                cpipe._rm_source_xml(subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
+                                     subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
+                                     cpipe.cluster.name)
+                
+                cpipe._rm_source_xml(subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
+                                     subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
+                                     'BackgroundModel')
+    
+                # Remove other point sources
+                for jps in range(len(cpipe.compact_source.name)):
+                    if jps != ips:
+                        cpipe._rm_source_xml(subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
+                                             subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
+                                             cpipe.compact_source.name[jps])
+                
+                #---------- Compute the 3D background cube            
+                modcube = cubemaking.model_cube(cpipe.output_dir,
+                                                cpipe.map_reso, cpipe.map_coord, cpipe.map_fov,
+                                                cpipe.spec_emin, cpipe.spec_emax, cpipe.spec_enumbins,
+                                                cpipe.spec_ebinalg,
+                                                edisp=cpipe.spec_edisp,
+                                                stack=cpipe.method_stack,
+                                                silent=True,
+                                                logfile=subdir+'/Model_'+cpipe.compact_source.name[ips]+'_Cube_log_'+extij+'.txt',
+                                                inmodel_usr=subdir+'/Model_'+cpipe.compact_source.name[ips]+'_'+extij+'.xml',
+                                                outmap_usr=subdir+'/Model_'+cpipe.compact_source.name[ips]+'_Cube_'+extij+'.fits')
     
     #===== Build the grid
     # Get the grid info
@@ -1531,17 +1542,19 @@ def run_constraint(input_files,
         par_max.append(np.amax(modgrid['ps_spe_val']))
 
     #========== Names
-    sampler_file   = subdir+'/MCMC_sampler.pkl'
+    sampler_file1  = subdir+'/MCMC_sampler.pkl'
+    sampler_file2  = subdir+'/MCMC_sampler.h5'
     chainstat_file = subdir+'/MCMC_chainstat.txt'
     chainplot_file = subdir+'/MCMC_chainplot'
     
     #========== Start running MCMC definition and sampling    
     #---------- Check if a MCMC sampler was already recorded
-    sampler_exist = os.path.exists(sampler_file)
+    sampler_exist = os.path.exists(sampler_file2)
     if sampler_exist:
-        sampler = mcmc_common.load_object(sampler_file)
-        print('    Existing sampler: '+sampler_file)
-    
+        print('    Existing sampler: '+sampler_file2)
+    else:
+        print('    No existing sampler found')
+        
     #---------- MCMC parameters
     ndim = len(par0)
     if nwalkers < 2*ndim:
@@ -1560,30 +1573,39 @@ def run_constraint(input_files,
     print('    Gaussian likelihood = '+str(GaussLike))
 
     #---------- Defines the start
+    backend = emcee.backends.HDFBackend(sampler_file2)
+    pos = mcmc_common.chains_starting_point(par0, 0.1, par_min, par_max, nwalkers)
     if sampler_exist:
         if reset_mcmc:
-            print('--- Reset MCMC even though sampler already exists')
-            pos = mcmc_common.chains_starting_point(par0, 0.1, par_min, par_max, nwalkers)
-            sampler.reset()
-            sampler = emcee.EnsembleSampler(nwalkers, ndim, lnlike,
-                                            args=[data, modgrid, par_min, par_max, GaussLike])
+            print('    Reset MCMC even though sampler already exists')
+            backend.reset(nwalkers, ndim)
         else:
-            print('--- Start from already existing sampler')
-            pos = sampler.chain[:,-1,:]
+            print('    Use existing MCMC sampler')
+            print("    --> Initial size: {0}".format(backend.iteration))
+            pos = None
     else:
-        print('--- No pre-existing sampler, start from scratch')
-        pos = mcmc_common.chains_starting_point(par0, 0.1, par_min, par_max, nwalkers)
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, lnlike,
-                                        args=[data, modgrid, par_min, par_max, GaussLike])
-        
+        print('    No pre-existing sampler, start from scratch')
+        backend.reset(nwalkers, ndim)
+
+    moves = emcee.moves.StretchMove(a=2.0)
+    sampler = emcee.EnsembleSampler(nwalkers, ndim, lnlike,
+                                    args=[data, modgrid, par_min, par_max, GaussLike],
+                                    pool=Pool(cpu_count()), moves=moves,
+                                    backend=backend)
+
     #---------- Run the MCMC
     if run_mcmc:
         print('--- Runing '+str(nsteps)+' MCMC steps')
-        sampler.run_mcmc(pos, nsteps, progress=True)
+        res = sampler.run_mcmc(pos, nsteps, progress=True)
 
-    #---------- Save the MCMC after the run
-    mcmc_common.save_object(sampler, sampler_file)
-
+        # Save the MCMC after the run
+        mcmc_common.save_object(sampler, sampler_file1)
+        
+    #----- Restore chains
+    else:
+        with open(sampler_file1, 'rb') as f:
+            sampler = pickle.load(f)
+        
     #---------- Burnin
     param_chains = sampler.chain[:, burnin:, :]
     lnL_chains = sampler.lnprobability[:, burnin:]

@@ -22,6 +22,7 @@ import seaborn as sns
 import pandas as pd
 import emcee
 import corner
+from multiprocessing import Pool, cpu_count
 
 from minot.model_tools import trapz_loglog
 from kesacco.Tools import plotting
@@ -572,17 +573,19 @@ def run_constraint(cluster_test,
     par_max = [np.inf, 5.0]
 
     #========== Names
-    sampler_file   = cluster_test.output_dir+'/Ana_MCMC_spectrum_sampler.pkl'
+    sampler_file1   = cluster_test.output_dir+'/Ana_MCMC_spectrum_sampler.pkl'
+    sampler_file2   = cluster_test.output_dir+'/Ana_MCMC_spectrum_sampler.h5'
     chainstat_file = cluster_test.output_dir+'/Ana_MCMC_spectrum_chainstat.txt'
     chainplot_file = cluster_test.output_dir+'/Ana_MCMC_spectrum'
     global_file    = cluster_test.output_dir+'/Ana_MCMC_spectrum_globalprop.txt'
 
     #========== Start running MCMC definition and sampling
     #---------- Check if a MCMC sampler was already recorded
-    sampler_exist = os.path.exists(sampler_file)
+    sampler_exist = os.path.exists(sampler_file2)
     if sampler_exist:
-        sampler = mcmc_common.load_object(sampler_file)
-        print('    Existing sampler: '+sampler_file)
+        print('    Existing sampler: '+sampler_file2)
+    else:
+        print('    No existing sampler found')
         
     #---------- Read the data
     data = read_data(spectrum_file)
@@ -600,30 +603,39 @@ def run_constraint(cluster_test,
     print('    Gaussian likelihood = '+str(GaussLike))
 
     #---------- Defines the start
+    backend = emcee.backends.HDFBackend(sampler_file2)
+    pos = mcmc_common.chains_starting_point(par0, 0.1, par_min, par_max, nwalkers)
     if sampler_exist:
         if reset_mcmc:
-            print('--- Reset MCMC even though sampler already exists')
-            pos = mcmc_common.chains_starting_point(par0, 0.1, par_min, par_max, nwalkers)
-            sampler.reset()
-            sampler = emcee.EnsembleSampler(nwalkers, ndim, lnlike,
-                                            args=[cluster_test, data, par_min, par_max, GaussLike])
+            print('    Reset MCMC even though sampler already exists')
+            backend.reset(nwalkers, ndim)
         else:
-            print('--- Start from already existing sampler')
-            pos = sampler.chain[:,-1,:]
+            print('    Use existing MCMC sampler')
+            print("    --> Initial size: {0}".format(backend.iteration))
+            pos = None
     else:
-        print('--- No pre-existing sampler, start from scratch')
-        pos = mcmc_common.chains_starting_point(par0, 0.1, par_min, par_max, nwalkers)
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, lnlike,
-                                        args=[cluster_test, data, par_min, par_max, GaussLike])
+        print('    No pre-existing sampler, start from scratch')
+        backend.reset(nwalkers, ndim)
+
+    moves = emcee.moves.StretchMove(a=2.0)
+    sampler = emcee.EnsembleSampler(nwalkers, ndim, lnlike,
+                                    args=[cluster_test, data, par_min, par_max, GaussLike],
+                                    pool=Pool(cpu_count()), moves=moves,
+                                    backend=backend)
         
     #---------- Run the MCMC
     if run_mcmc:
         print('--- Runing '+str(nsteps)+' MCMC steps')
-        sampler.run_mcmc(pos, nsteps, progress=True)
+        res = sampler.run_mcmc(pos, nsteps, progress=True)
 
-    #---------- Save the MCMC after the run
-    mcmc_common.save_object(sampler, sampler_file)
+        # Save the MCMC after the run
+        mcmc_common.save_object(sampler, sampler_file1)
 
+    #----- Restore chains
+    else:
+        with open(sampler_file1, 'rb') as f:
+            sampler = pickle.load(f)
+        
     #---------- Burnin
     param_chains = sampler.chain[:, burnin:, :]
     lnL_chains = sampler.lnprobability[:, burnin:]
