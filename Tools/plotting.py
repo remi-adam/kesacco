@@ -473,11 +473,11 @@ def show_map(mapfile, outfile,
                                                     zorder=2, facecolor='lightgray',
                                                     edgecolor='white',
                                                     transform=ax.get_transform('fk5'))
-            txt_ra  = wcs_map.wcs.crval[0]-(wcs_map.wcs.crpix*wcs_map.wcs.cdelt)[0]/dec_mean_cor-0.6
-            txt_dec = wcs_map.wcs.crval[1]-(wcs_map.wcs.crpix*wcs_map.wcs.cdelt)[1]+0.3
-            txt_psf = plt.text(txt_ra, txt_dec, 'PSF',
-                               transform=ax.get_transform('fk5'), fontsize=12,
-                               color='white',  verticalalignment='center')
+            #txt_ra  = wcs_map.wcs.crval[0]-(wcs_map.wcs.crpix*wcs_map.wcs.cdelt)[0]/dec_mean_cor-0.6
+            #txt_dec = wcs_map.wcs.crval[1]-(wcs_map.wcs.crpix*wcs_map.wcs.cdelt)[1]+0.3
+            #txt_psf = plt.text(txt_ra, txt_dec, 'PSF',
+            #                   transform=ax.get_transform('fk5'), fontsize=12,
+            #                   color='white',  verticalalignment='center')
             ax.add_patch(circle_PSF)
 
         # Show on region
@@ -796,9 +796,11 @@ def skymap_quicklook(output_file,
         ps_dec.append(compact_source.spatial[i]['param']['DEC']['value'].to_value('deg'))
     
     #---------- Get the PSF at the considered energy
-    CTA_PSF = get_cta_psf(setup_obs.caldb[0], setup_obs.irf[0],
-                          setup_obs.emin[0].to_value('TeV'), setup_obs.emax[0].to_value('TeV'))
+    #CTA_PSF = get_cta_psf(setup_obs.caldb[0], setup_obs.irf[0],
+    #                      setup_obs.emin[0].to_value('TeV'), setup_obs.emax[0].to_value('TeV'))
+    CTA_PSF = get_cta_psf(setup_obs.caldb[0], setup_obs.irf[0], 0.99, 1.01)
     PSF_tot = np.sqrt(CTA_PSF**2 + smoothing_FWHM.to_value('deg')**2)
+    print('CTA_PSF: ', CTA_PSF, ', PSF_tot:', PSF_tot)
 
     #---------- Choose map center
     if MapCenteredOnTarget:
@@ -1475,6 +1477,10 @@ def show_param_cormat(covfile, outfile):
         cov = np.delete(cov, idx, 1)
         par = np.array(par)[wkeep]
 
+    for ip in range(len(par)):
+        if par[ip][0:2] == '1:':
+            par[ip] = par[ip][2:]
+    
     #----- Compute the correlation matrix
     cor = correlation_from_covariance(cov)
 
@@ -1552,6 +1558,8 @@ def seaborn_corner(dfs, output_fig=None, ci2d=[0.95, 0.68], ci1d=0.68,
         icol = icol+1
     
     # Figure
+    #mylim = [(0,0.1), (2.1,2.6)]
+    
     plt.figure(figsize=figsize)
     for ip in range(Npar):
         for jp in range(Npar):
@@ -1579,6 +1587,7 @@ def seaborn_corner(dfs, output_fig=None, ci2d=[0.95, 0.68], ci1d=0.68,
                 ax = plt.gca()
                 ylims.append(ax.get_ylim()[1])
                 ax.set_xlim(xmin-Dx, xmax+Dx)
+                #ax.set_xlim(mylim[ip][0], mylim[ip][1])
                 ax.set_ylim(0, np.nanmax(np.array(ylims)))
 
                 if ci1d is not None:
@@ -1643,7 +1652,9 @@ def seaborn_corner(dfs, output_fig=None, ci2d=[0.95, 0.68], ci1d=0.68,
 
                 ax.set_xlim(xmin-Dx, xmax+Dx)
                 ax.set_ylim(ymin-Dy, ymax+Dy)
-
+                #ax.set_xlim(mylim[0][0], mylim[0][1])
+                #ax.set_ylim(mylim[1][0], mylim[1][1])
+                
                 if add_grid:
                     #ax.xaxis.set_major_locator(MultipleLocator((xmax+Dx-(xmin-Dx))/5.0))
                     #ax.yaxis.set_major_locator(MultipleLocator((ymax+Dy-(ymin-Dy))/5.0))

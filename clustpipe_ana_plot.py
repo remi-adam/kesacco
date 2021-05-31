@@ -163,11 +163,13 @@ def combined_maps(cpipe,
     CTA_PSF = []
     for i in range(len(cpipe.obs_setup.name)):
         if cpipe.obs_setup.obsid[i] in obsID:
-            CTA_PSF.append(plotting.get_cta_psf(cpipe.obs_setup.caldb[i], cpipe.obs_setup.irf[i],
-                                                cpipe.obs_setup.emin[i].to_value('TeV'),
-                                                cpipe.obs_setup.emax[i].to_value('TeV')))
+            #CTA_PSF.append(plotting.get_cta_psf(cpipe.obs_setup.caldb[i], cpipe.obs_setup.irf[i],
+            #                                    cpipe.obs_setup.emin[i].to_value('TeV'),
+            #                                    cpipe.obs_setup.emax[i].to_value('TeV')))
+            CTA_PSF.append(plotting.get_cta_psf(cpipe.obs_setup.caldb[i], cpipe.obs_setup.irf[i], 0.99, 1.01))
+
     PSF_tot = np.sqrt(np.mean(CTA_PSF)**2 + smoothing_FWHM.to_value('deg')**2)
-    
+
     #========== Show the combined skymap
     file_exist = os.path.isfile(cpipe.output_dir+'/Ana_SkymapTot.fits')
     if file_exist:

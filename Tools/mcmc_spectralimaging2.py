@@ -98,8 +98,8 @@ def build_model_grid(cpipe,
     #===== Loop over all cluster models to be tested
     for imod in range(spatial_npt):
         for jmod in range(spectral_npt):
-            special_condition = 1+jmod+imod*spectral_npt > 49
-            #special_condition = True
+            #special_condition = 1+jmod+imod*spectral_npt > 80
+            special_condition = True
             if special_condition:
                 cl_tmp = str(1+jmod+imod*spectral_npt)+'/'+str(spatial_npt*spectral_npt)
                 print('--- Building cluster template '+cl_tmp)
@@ -662,26 +662,45 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
                                    coord.ra.to_value('deg'), coord.dec.to_value('deg'))
     
     #========== Plot 1: map, Data - model, stack
-    fig = plt.figure(0, figsize=(18, 4))
-    ax = plt.subplot(131, projection=proj)
+    fig = plt.figure(0, figsize=(10, 7))
+    ax = plt.subplot(221, projection=proj)
     plt.imshow(gaussian_filter(np.sum(data, axis=0), sigma=sigma_sm),
                 origin='lower', cmap='magma',norm=SymLogNorm(1, base=10))
     cb = plt.colorbar()
     plt.title('Data (counts)')
-    plt.xlabel('R.A.')
+    plt.xlabel(' ')
     plt.ylabel('Dec.')
     
-    ax = plt.subplot(132, projection=proj)
+    ax = plt.subplot(222, projection=proj)
     plt.imshow(gaussian_filter(np.sum(modbest['total'],axis=0), sigma=sigma_sm),
                origin='lower', cmap='magma', norm=SymLogNorm(1, base=10, vmin=cb.norm.vmin, vmax=cb.norm.vmax))
     plt.colorbar()
     plt.title('Model (counts)')
+    plt.xlabel(' ')
+    plt.ylabel(' ')
+
+    cntmap_ps   = data*0
+    for ips in range(len(modbest['point_sources'])):
+        cntmap_ps += modbest['point_sources'][ips]
+    vmin0 = np.amin(gaussian_filter(np.sum(data-modbest['background']-cntmap_ps, axis=0),sigma=sigma_sm))
+    vmax0 = np.amax(gaussian_filter(np.sum(data-modbest['background']-cntmap_ps, axis=0),sigma=sigma_sm))
+    vmm = np.amax([np.abs(vmin0), np.abs(vmax0)])
+    ax = plt.subplot(223, projection=proj)
+    plt.imshow(gaussian_filter(np.sum(data-modbest['background']-cntmap_ps, axis=0), sigma=sigma_sm),
+               origin='lower', cmap='RdBu', vmin=-vmm, vmax=vmm)
+    plt.colorbar()
+    filt1 = gaussian_filter(np.sum(data-modbest['background']-cntmap_ps, axis=0), sigma=sigma_sm)
+    filt2 = np.sqrt(gaussian_filter(np.sum(modbest['total'], axis=0), sigma=sigma_sm))
+    snr   = 2*sigma_sm*np.sqrt(np.pi) * filt1 / filt2
+    cont = ax.contour(snr, levels=np.array([-9,-7,-5,-3,3,5,7,9]), colors='black')
+    plt.title('Data - background (counts)')
     plt.xlabel('R.A.')
     plt.ylabel('Dec.')
+
     vmin0 = np.amin(gaussian_filter(np.sum(data-modbest['total'], axis=0),sigma=sigma_sm))
     vmax0 = np.amax(gaussian_filter(np.sum(data-modbest['total'], axis=0),sigma=sigma_sm))
     vmm = np.amax([np.abs(vmin0), np.abs(vmax0)])
-    ax = plt.subplot(133, projection=proj)
+    ax = plt.subplot(224, projection=proj)
     plt.imshow(gaussian_filter(np.sum(data-modbest['total'], axis=0), sigma=sigma_sm),
                origin='lower', cmap='RdBu', vmin=-vmm, vmax=vmm)
     plt.colorbar()
@@ -691,8 +710,8 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     cont = ax.contour(snr, levels=np.array([-9,-7,-5,-3,3,5,7,9]), colors='black')
     plt.title('Residual (counts)')
     plt.xlabel('R.A.')
-    plt.ylabel('Dec.')
-    
+    plt.ylabel(' ')
+
     plt.savefig(outdir+'/MCMC_MapResidual.pdf')
     plt.close()
     
@@ -702,27 +721,48 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     for i in range(len(Ebins)):
         Ebinprint = '{:.1f}'.format(Ebins[i][0]*1e-6)+', '+'{:.1f}'.format(Ebins[i][1]*1e-6)
     
-        fig = plt.figure(0, figsize=(18, 4))
-        ax = plt.subplot(131, projection=proj)
+        fig = plt.figure(0, figsize=(10, 7))
+        ax = plt.subplot(221, projection=proj)
         plt.imshow(gaussian_filter(data[i,:,:], sigma=sigma_sm),
                    origin='lower', cmap='magma', norm=SymLogNorm(1, base=10))
         cb = plt.colorbar()
         plt.title('Data (counts) - E=['+Ebinprint+'] GeV')
-        plt.xlabel('R.A.')
+        plt.xlabel(' ')
         plt.ylabel('Dec.')
         
-        ax = plt.subplot(132, projection=proj)
+        ax = plt.subplot(222, projection=proj)
         plt.imshow(gaussian_filter(modbest['total'][i,:,:], sigma=sigma_sm),
                    origin='lower', cmap='magma', norm=SymLogNorm(1, base=10,vmin=cb.norm.vmin, vmax=cb.norm.vmax))
         plt.colorbar()
         plt.title('Model (counts) - E=['+Ebinprint+'] GeV')
+        plt.xlabel(' ')
+        plt.ylabel(' ')
+
+        cntmap_ps   = data[i,:,:]*0
+        for ips in range(len(modbest['point_sources'])):
+            cntmap_ps += (modbest['point_sources'][ips])[i,:,:]
+        
+        vmin0 = np.amin(gaussian_filter((data-modbest['background'])[i,:,:]-cntmap_ps, sigma=sigma_sm))
+        vmax0 = np.amax(gaussian_filter((data-modbest['background'])[i,:,:]-cntmap_ps, sigma=sigma_sm))
+        vmm = np.amax([np.abs(vmin0), np.abs(vmax0)])
+        
+        ax = plt.subplot(223, projection=proj)
+        plt.imshow(gaussian_filter((data-modbest['background'])[i,:,:]-cntmap_ps, sigma=sigma_sm),
+                   origin='lower', cmap='RdBu', vmin=-vmm, vmax=vmm)
+        filt1 = gaussian_filter((data-modbest['background'])[i,:,:]-cntmap_ps, sigma=sigma_sm)
+        filt2 = np.sqrt(gaussian_filter(modbest['total'][i,:,:], sigma=sigma_sm))
+        snr   = 2*sigma_sm*np.sqrt(np.pi) * filt1 / filt2
+        cont = ax.contour(snr, levels=np.array([-9,-7,-5,-3,3,5,7,9]), colors='black')
+        plt.colorbar()
+        plt.title('Data - background (counts) - E=['+Ebinprint+'] GeV')
         plt.xlabel('R.A.')
         plt.ylabel('Dec.')
-
+        
         vmin0 = np.amin(gaussian_filter((data-modbest['total'])[i,:,:], sigma=sigma_sm))
         vmax0 = np.amax(gaussian_filter((data-modbest['total'])[i,:,:], sigma=sigma_sm))
         vmm = np.amax([np.abs(vmin0), np.abs(vmax0)])
-        ax = plt.subplot(133, projection=proj)
+        
+        ax = plt.subplot(224, projection=proj)
         plt.imshow(gaussian_filter((data-modbest['total'])[i,:,:], sigma=sigma_sm),
                    origin='lower', cmap='RdBu', vmin=-vmm, vmax=vmm)
         filt1 = gaussian_filter((data-modbest['total'])[i,:,:], sigma=sigma_sm)
@@ -732,7 +772,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
         plt.colorbar()
         plt.title('Residual (counts) - E=['+Ebinprint+'] GeV')
         plt.xlabel('R.A.')
-        plt.ylabel('Dec.')
+        plt.ylabel(' ')
 
         pdf_pages.savefig(fig)
         plt.close()
@@ -1195,6 +1235,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     plt.yscale('log')
     plt.xlim(np.amin(binsteps), np.amax(binsteps))
     ax = plt.gca()
+    plt.ylim(np.amax(np.array([0.08, ax.get_ylim()[0]])), ax.get_ylim()[1])
     ax.set_xticklabels([])
     plt.legend()
     plt.title('Spectrum within $\\theta = $'+str(theta))
@@ -1232,6 +1273,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     plt.yscale('log')
     plt.xlim(np.amin(binsteps), np.amax(binsteps))
     ax = plt.gca()
+    plt.ylim(np.amax(np.array([0.08, ax.get_ylim()[0]])), ax.get_ylim()[1])
     ax.set_xticklabels([])
     plt.legend()
     plt.title('Spectrum within $\\theta = $'+str(theta))
@@ -1529,8 +1571,9 @@ def run_constraint(input_files,
                      1.0, np.mean(modgrid['bk_spe_val'])])
     par_min = [0,      np.amin(modgrid['spa_val']), np.amin(modgrid['spe_val']),
                0.0, np.amin(modgrid['bk_spe_val'])]
-    par_max = [np.inf, np.amax(modgrid['spa_val']), np.amax(modgrid['spe_val']),
+    par_max = [20.0, np.amax(modgrid['spa_val']), np.amax(modgrid['spe_val']),
                np.inf, np.amax(modgrid['bk_spe_val'])]
+
     for i in range(len(modgrid['models_ps_list'])):
         parname.append('A_{ps,'+str(i+1)+'}')
         parname.append('\\Delta \\alpha_{ps,'+str(i+1)+'}')
@@ -1571,6 +1614,8 @@ def run_constraint(input_files,
     print('    conf                = '+str(conf))
     print('    reset_mcmc          = '+str(reset_mcmc))
     print('    Gaussian likelihood = '+str(GaussLike))
+    print('    Parameter min       = '+str(par_min))
+    print('    Parameter max       = '+str(par_max))
 
     #---------- Defines the start
     backend = emcee.backends.HDFBackend(sampler_file2)

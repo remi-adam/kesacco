@@ -204,7 +204,7 @@ def chains_plots(param_chains,
     df = pd.DataFrame(par_flat, columns=parname_corner)
     plotting.seaborn_corner(df, output_fig=rout_file+'_triangle_seaborn.pdf',
                             n_levels=30, cols=[('royalblue', 'k', 'grey', 'Blues')], 
-                            ci2d=[0.68, 0.95], gridsize=100,
+                            ci2d=[0.68, 0.95], gridsize=100, #truth=[0.045,2.36],truth_style='star', ####
                             linewidth=2.0, alpha=(0.1, 0.3, 1.0), figsize=((Npar+1)*3,(Npar+1)*3))
     plt.close("all")
     
