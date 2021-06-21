@@ -1558,7 +1558,8 @@ def seaborn_corner(dfs, output_fig=None, ci2d=[0.95, 0.68], ci1d=0.68,
         icol = icol+1
     
     # Figure
-    #mylim = [(0,0.1), (2.1,2.6)]
+    #mylim = [(0,5.0), (0.6,1.2), (2.1,2.7), (0.997,1.003), (-0.0015,0.0015), (0.85,1.10), (-0.1,0.1), (0.95,1.05), (-0.05,0.05)]
+    #mylim = [(0,20.0), (0.4,1.6), (2.0,3.0), (0.996,1.004), (-0.002,0.002), (0.7,1.10), (-0.2,0.1), (0.96,1.04), (-0.05,0.05)]
     
     plt.figure(figsize=figsize)
     for ip in range(Npar):
@@ -1587,7 +1588,7 @@ def seaborn_corner(dfs, output_fig=None, ci2d=[0.95, 0.68], ci1d=0.68,
                 ax = plt.gca()
                 ylims.append(ax.get_ylim()[1])
                 ax.set_xlim(xmin-Dx, xmax+Dx)
-                #ax.set_xlim(mylim[ip][0], mylim[ip][1])
+                #ax.set_xlim(mylim[ip][0], mylim[ip][1])##########
                 ax.set_ylim(0, np.nanmax(np.array(ylims)))
 
                 if ci1d is not None:
@@ -1652,8 +1653,8 @@ def seaborn_corner(dfs, output_fig=None, ci2d=[0.95, 0.68], ci1d=0.68,
 
                 ax.set_xlim(xmin-Dx, xmax+Dx)
                 ax.set_ylim(ymin-Dy, ymax+Dy)
-                #ax.set_xlim(mylim[0][0], mylim[0][1])
-                #ax.set_ylim(mylim[1][0], mylim[1][1])
+                #ax.set_xlim(mylim[jp][0], mylim[jp][1])##########
+                #ax.set_ylim(mylim[ip][0], mylim[ip][1])##########
                 
                 if add_grid:
                     #ax.xaxis.set_major_locator(MultipleLocator((xmax+Dx-(xmin-Dx))/5.0))
