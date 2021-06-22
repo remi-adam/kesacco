@@ -157,6 +157,7 @@ class CTAana(object):
     def run_ana_dataprep(self,
                          obsID=None,
                          frac_src_on_reg=0.8,
+                         rad_on_reg=None,
                          exclu_rad=0.2*u.deg,
                          use_model_bkg=False,
                          overwrite_data=True,
@@ -172,6 +173,8 @@ class CTAana(object):
         By default, all of the are used.
         - frac_src_on_reg (float): fraction of source flux in the on region,
         used to define the OnOff analysis
+        - rad_on_reg (quantity): the radius of the on region. If None, frac_src_on_reg
+        is used to compute it.
         - exclu_rad (quantity): exclusion radius for sources in the field of 
         view in onoff analysis
         - use_model_bkg (bool): do we use background model in on off analysis
@@ -385,8 +388,16 @@ class CTAana(object):
         #----- ON/OFF files
         if self.method_ana == 'ONOFF':
             # Get the radius to have frac_src_on_reg * flux tot in the on region
-            rad = tools_onoff.containment_on_source_fraction(self.cluster, frac_src_on_reg,
-                                                             self.spec_emin, self.spec_emax)
+            if rad_on_reg is None:
+                rad = tools_onoff.containment_on_source_fraction(self.cluster, frac_src_on_reg,
+                                                                 self.spec_emin, self.spec_emax)
+                if not self.silent: print('On region radius = '+str(rad)+' (f_source='+str(frac_src_on_reg)+')')
+            else:
+                rad = rad_on_reg
+                frac_src_on_reg = tools_onoff.on_source_fraction(self.cluster, rad_on_reg,
+                                                                 self.spec_emin, self.spec_emax)
+                if not self.silent: print('On source fraction = '+str(frac_src_on_reg)+' (ON_rad='+str(rad)+')')
+
             # Compute an exclusion map to avoid other sources
             exclumap = tools_onoff.build_exclusion_map(self.compact_source,
                                                        self.map_coord, self.map_reso, self.map_fov,
@@ -405,12 +416,11 @@ class CTAana(object):
                 obsdefonoff = self.output_dir+'/Ana_ObsDef_OnOff_Unstack.xml'
                 inmodelonoff = self.output_dir+'/Ana_Model_Input_OnOff_Unstack.xml'
 
-
             # region gen
             onoffexist = os.path.exists(self.output_dir+'/Ana_OnOff_on.reg')
             if not overwrite_data and onoffexist:
                 if not self.silent:
-                    print('-----> Skipping data cubemaking')
+                    print('-----> Skipping ON/OFF filemaking')
             else:
                 onoff = tools_onoff.onoff_filegen(self.output_dir+'/Ana_EventsSelected.xml',
                                                   self.output_dir+'/Ana_Model_Input_OnOffIn.xml',
