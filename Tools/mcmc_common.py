@@ -198,17 +198,43 @@ def chains_plots(param_chains,
     plt.close()
 
     # Corner plot using seaborn
-    #truth = [1.0,0.78,2.36,1.0,0.0,1.0,0.0,1.0,0.0]
-    truth = [1.0,1.0,2.3,1.0,0.0,1.0,0.0,1.0,0.0]
+    #####################
+    #-----> Pure hadronic
+    if 'PureHadronic' in rout_file:
+        if Npar == 2:
+            truth = [0.045,2.36]
+            mylim = [(0,0.10), (2.0,2.6)]
+            smooth = 1.0
+            gridsize = 200
+        else:
+            truth = [1.0,0.78,2.36,1.0,0.0,1.0,0.0,1.0,0.0]
+            mylim = [(0,4.0), (0.4,1.2), (2.0,2.7), (0.994,1.006), (-0.004,0.004), (0.8,1.2), (-0.3,0.3), (0.96,1.04), (-0.05,0.05)]
+            smooth = 2
+            gridsize = 40
+    #-----> Baseline
+    if 'Baseline' in rout_file:
+        if Npar == 2:
+            truth = [0.01,2.3]
+            mylim = [(0,0.10), (2.0,2.6)]
+            smooth = 1.0
+            gridsize = 200
+        else:
+            truth = [1.0,1.0,2.3,1.0,0.0,1.0,0.0,1.0,0.0]
+            mylim = [(0,10.0), (0.3,1.7), (1.8,2.8), (0.994,1.006), (-0.004,0.004), (0.8,1.2), (-0.3,0.3), (0.96,1.04), (-0.05,0.05)]
+            smooth = 2
+            gridsize = 40
+    #####################
     
     parname_corner = []
     for i in range(Npar): parname_corner.append('$'+parname[i]+'$')
     par_flat = param_chains.reshape(param_chains.shape[0]*param_chains.shape[1], param_chains.shape[2])
     df = pd.DataFrame(par_flat, columns=parname_corner)
     plotting.seaborn_corner(df, output_fig=rout_file+'_triangle_seaborn.pdf',
-                            n_levels=30, cols=[('royalblue', 'k', 'grey', 'Blues')], 
-                            ci2d=[0.68, 0.95], gridsize=100,
+                            n_levels=15, cols=[('royalblue', 'k', 'grey', 'Blues')], 
+                            ci2d=[0.68, 0.95],
+                            smoothing1d=smooth, smoothing2d=smooth, gridsize=gridsize,###
                             truth=truth,truth_style='star', ####
+                            limits=mylim,
                             linewidth=2.0, alpha=(0.1, 0.3, 1.0), figsize=((Npar+1)*3,(Npar+1)*3))
     plt.close("all")
     
@@ -218,7 +244,8 @@ def chains_plots(param_chains,
                            color='k',
                            smooth=1,
                            labels=parname_corner,
-                           quantiles=(0.16, 0.84))
+                           quantiles=(0.16, 0.84),
+                           levels=[0.68, 0.95])
     figure.savefig(rout_file+'_triangle_corner.pdf')
     plt.close("all")
 

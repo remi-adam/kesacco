@@ -6,6 +6,7 @@ to spectra.
 import gammalib
 import ctools
 import cscripts
+from kesacco.Tools import utilities
 
 
 #==================================================
@@ -71,6 +72,10 @@ def spectrum(inobs, inmodel, srcname, outfile,
 
     """
 
+    #---------- Collect the bining info
+    ebin_case, ebin_pow, ebin_file = utilities.get_binalg(ebinalg)
+    
+    #---------- Run script
     spec = cscripts.csspec()
 
     spec['inobs']     = inobs 
@@ -85,11 +90,12 @@ def spectrum(inobs, inmodel, srcname, outfile,
     spec['edisp']     = edisp
     spec['outfile']   = outfile
     spec['method']    = method
-    spec['ebinalg']   = ebinalg
+    spec['ebinalg']   = ebin_case
     spec['emin']      = emin 
     spec['emax']      = emax
     spec['enumbins']  = enumbins
-    spec['ebinfile']  = 'NONE'
+    spec['ebinfile']  = ebin_file
+    spec['ebingamma'] = ebin_pow
     spec['statistic'] = statistic
     spec['calc_ts']   = calc_ts
     spec['calc_ulim'] = calc_ulim
@@ -170,7 +176,13 @@ def butterfly(inobs, inmodel, srcname, outfile,
     - create butterfly ascii file
 
     """
-    
+
+    #---------- Collect the bining info
+    ebin_case, ebin_pow, ebin_file = utilities.get_binalg(ebinalg)
+    if ebin_case == 'POW':
+        ebin_case = 'LOG' # Butterfly does not accept POW
+
+    #---------- Run script
     but = ctools.ctbutterfly()
 
     but['inobs']   = inobs
@@ -191,11 +203,11 @@ def butterfly(inobs, inmodel, srcname, outfile,
     but['like_accuracy'] = like_accuracy
     but['max_iter']      = max_iter
     but['matrix']        = matrix
-    but['ebinalg']       = ebinalg
+    but['ebinalg']       = ebin_case
     but['emin']          = emin 
     but['emax']          = emax
     but['enumbins']      = enumbins
-    but['ebinfile']      = 'NONE'
+    but['ebinfile']      = ebin_file
     if logfile is not None: but['logfile'] = logfile
 
     if logfile is not None: but.logFileOpen()
@@ -252,11 +264,16 @@ def residual(inobs, inmodel, outfile,
 
     """
 
+    #---------- Collect the bining info
+    ebin_case, ebin_pow, ebin_file = utilities.get_binalg(ebinalg)
+    
+    #---------- Center
     if res_ra is None:
         res_ra  = cra
     if res_dec is None:
         res_dec = cdec
     
+    #---------- Run script
     rspec = cscripts.csresspec()
 
     rspec['inobs']      = inobs
@@ -272,11 +289,12 @@ def residual(inobs, inmodel, outfile,
     rspec['outfile']    = outfile
     rspec['statistic']  = statistic
     rspec['components'] = components
-    rspec['ebinalg']    = ebinalg
+    rspec['ebinalg']    = ebin_case
     rspec['emin']       = emin
     rspec['emax']       = emax
     rspec['enumbins']   = enumbins
-    rspec['ebinfile']   = 'NONE'
+    rspec['ebinfile']   = ebin_file
+    rspec['ebingamma']  = ebin_pow
     rspec['stack']      = stack
     rspec['coordsys']   = 'CEL'
     rspec['proj']       = 'TAN'

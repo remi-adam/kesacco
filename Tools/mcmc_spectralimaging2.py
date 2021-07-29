@@ -98,7 +98,7 @@ def build_model_grid(cpipe,
     #===== Loop over all cluster models to be tested
     for imod in range(spatial_npt):
         for jmod in range(spectral_npt):
-            #special_condition = 1+jmod+imod*spectral_npt > 80
+            #special_condition = 1+jmod+imod*spectral_npt > 5
             special_condition = True
             if special_condition:
                 cl_tmp = str(1+jmod+imod*spectral_npt)+'/'+str(spatial_npt*spectral_npt)
@@ -619,7 +619,7 @@ def get_mc_model(modgrid, param_chains, Nmc=100):
 # Plot the output fit model
 #==================================================
 
-def modelplot(data, modbest, MC_model, header, Ebins, outdir,
+def modelplot(data, modbest, MC_model, corner_mask, header, Ebins, outdir,
               conf=68.0, FWHM=0.1*u.deg,
               theta=1*u.deg, coord=None, profile_reso=0.05*u.deg):
     """
@@ -664,15 +664,17 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     #========== Plot 1: map, Data - model, stack
     fig = plt.figure(0, figsize=(10, 7))
     ax = plt.subplot(221, projection=proj)
-    plt.imshow(gaussian_filter(np.sum(data, axis=0), sigma=sigma_sm),
-                origin='lower', cmap='magma',norm=SymLogNorm(1, base=10))
+    vmin = np.nanmin(gaussian_filter(np.sum(data, axis=0), sigma=sigma_sm))
+    vmax = np.nanmax(gaussian_filter(np.sum(data, axis=0), sigma=sigma_sm))
+    plt.imshow(gaussian_filter(np.sum(data, axis=0), sigma=sigma_sm)*corner_mask[0,:,:],
+                origin='lower', cmap='magma',norm=SymLogNorm(1, base=10, vmin=vmin, vmax=vmax))
     cb = plt.colorbar()
     plt.title('Data (counts)')
     plt.xlabel(' ')
     plt.ylabel('Dec.')
     
     ax = plt.subplot(222, projection=proj)
-    plt.imshow(gaussian_filter(np.sum(modbest['total'],axis=0), sigma=sigma_sm),
+    plt.imshow(gaussian_filter(np.sum(modbest['total'],axis=0), sigma=sigma_sm)*corner_mask[0,:,:],
                origin='lower', cmap='magma', norm=SymLogNorm(1, base=10, vmin=cb.norm.vmin, vmax=cb.norm.vmax))
     plt.colorbar()
     plt.title('Model (counts)')
@@ -686,28 +688,28 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     vmax0 = np.amax(gaussian_filter(np.sum(data-modbest['background']-cntmap_ps, axis=0),sigma=sigma_sm))
     vmm = np.amax([np.abs(vmin0), np.abs(vmax0)])
     ax = plt.subplot(223, projection=proj)
-    plt.imshow(gaussian_filter(np.sum(data-modbest['background']-cntmap_ps, axis=0), sigma=sigma_sm),
+    plt.imshow(gaussian_filter(np.sum(data-modbest['background']-cntmap_ps, axis=0), sigma=sigma_sm)*corner_mask[0,:,:],
                origin='lower', cmap='RdBu', vmin=-vmm, vmax=vmm)
     plt.colorbar()
     filt1 = gaussian_filter(np.sum(data-modbest['background']-cntmap_ps, axis=0), sigma=sigma_sm)
     filt2 = np.sqrt(gaussian_filter(np.sum(modbest['total'], axis=0), sigma=sigma_sm))
-    snr   = 2*sigma_sm*np.sqrt(np.pi) * filt1 / filt2
-    cont = ax.contour(snr, levels=np.array([-9,-7,-5,-3,3,5,7,9]), colors='black')
+    snr   = 2*sigma_sm*np.sqrt(np.pi) * filt1 / filt2 * corner_mask[0,:,:]
+    cont = ax.contour(snr, levels=np.array([-6,-4,-2,2,4,6,8,10]), colors='black')
     plt.title('Data - background (counts)')
     plt.xlabel('R.A.')
     plt.ylabel('Dec.')
 
-    vmin0 = np.amin(gaussian_filter(np.sum(data-modbest['total'], axis=0),sigma=sigma_sm))
-    vmax0 = np.amax(gaussian_filter(np.sum(data-modbest['total'], axis=0),sigma=sigma_sm))
+    vmin0 = np.amin(gaussian_filter(np.sum(data-modbest['total'], axis=0),sigma=sigma_sm)*corner_mask[0,:,:])
+    vmax0 = np.amax(gaussian_filter(np.sum(data-modbest['total'], axis=0),sigma=sigma_sm)*corner_mask[0,:,:])
     vmm = np.amax([np.abs(vmin0), np.abs(vmax0)])
     ax = plt.subplot(224, projection=proj)
-    plt.imshow(gaussian_filter(np.sum(data-modbest['total'], axis=0), sigma=sigma_sm),
+    plt.imshow(gaussian_filter(np.sum(data-modbest['total'], axis=0), sigma=sigma_sm)*corner_mask[0,:,:],
                origin='lower', cmap='RdBu', vmin=-vmm, vmax=vmm)
     plt.colorbar()
     filt1 = gaussian_filter(np.sum(data-modbest['total'], axis=0), sigma=sigma_sm)
     filt2 = np.sqrt(gaussian_filter(np.sum(modbest['total'], axis=0), sigma=sigma_sm))
-    snr   = 2*sigma_sm*np.sqrt(np.pi) * filt1 / filt2
-    cont = ax.contour(snr, levels=np.array([-9,-7,-5,-3,3,5,7,9]), colors='black')
+    snr   = 2*sigma_sm*np.sqrt(np.pi) * filt1 / filt2 *corner_mask[0,:,:]
+    cont = ax.contour(snr, levels=np.array([-6,-4,-2,2,4,6,8,10]), colors='black')
     plt.title('Residual (counts)')
     plt.xlabel('R.A.')
     plt.ylabel(' ')
@@ -723,15 +725,17 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     
         fig = plt.figure(0, figsize=(10, 7))
         ax = plt.subplot(221, projection=proj)
-        plt.imshow(gaussian_filter(data[i,:,:], sigma=sigma_sm),
-                   origin='lower', cmap='magma', norm=SymLogNorm(1, base=10))
+        vmin = np.nanmin(gaussian_filter(data[i,:,:], sigma=sigma_sm))
+        vmax = np.nanmax(gaussian_filter(data[i,:,:], sigma=sigma_sm))
+        plt.imshow(gaussian_filter(data[i,:,:], sigma=sigma_sm)*corner_mask[0,:,:],
+                   origin='lower', cmap='magma', norm=SymLogNorm(1, base=10, vmin=vmin, vmax=vmax))
         cb = plt.colorbar()
         plt.title('Data (counts) - E=['+Ebinprint+'] GeV')
         plt.xlabel(' ')
         plt.ylabel('Dec.')
         
         ax = plt.subplot(222, projection=proj)
-        plt.imshow(gaussian_filter(modbest['total'][i,:,:], sigma=sigma_sm),
+        plt.imshow(gaussian_filter(modbest['total'][i,:,:], sigma=sigma_sm)*corner_mask[0,:,:],
                    origin='lower', cmap='magma', norm=SymLogNorm(1, base=10,vmin=cb.norm.vmin, vmax=cb.norm.vmax))
         plt.colorbar()
         plt.title('Model (counts) - E=['+Ebinprint+'] GeV')
@@ -747,27 +751,27 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
         vmm = np.amax([np.abs(vmin0), np.abs(vmax0)])
         
         ax = plt.subplot(223, projection=proj)
-        plt.imshow(gaussian_filter((data-modbest['background'])[i,:,:]-cntmap_ps, sigma=sigma_sm),
+        plt.imshow(gaussian_filter((data-modbest['background'])[i,:,:]-cntmap_ps, sigma=sigma_sm)*corner_mask[0,:,:],
                    origin='lower', cmap='RdBu', vmin=-vmm, vmax=vmm)
         filt1 = gaussian_filter((data-modbest['background'])[i,:,:]-cntmap_ps, sigma=sigma_sm)
         filt2 = np.sqrt(gaussian_filter(modbest['total'][i,:,:], sigma=sigma_sm))
-        snr   = 2*sigma_sm*np.sqrt(np.pi) * filt1 / filt2
+        snr   = 2*sigma_sm*np.sqrt(np.pi) * filt1 / filt2 *corner_mask[0,:,:]
         cont = ax.contour(snr, levels=np.array([-9,-7,-5,-3,3,5,7,9]), colors='black')
         plt.colorbar()
         plt.title('Data - background (counts) - E=['+Ebinprint+'] GeV')
         plt.xlabel('R.A.')
         plt.ylabel('Dec.')
         
-        vmin0 = np.amin(gaussian_filter((data-modbest['total'])[i,:,:], sigma=sigma_sm))
-        vmax0 = np.amax(gaussian_filter((data-modbest['total'])[i,:,:], sigma=sigma_sm))
+        vmin0 = np.amin(gaussian_filter((data-modbest['total'])[i,:,:], sigma=sigma_sm)*corner_mask[0,:,:])
+        vmax0 = np.amax(gaussian_filter((data-modbest['total'])[i,:,:], sigma=sigma_sm)*corner_mask[0,:,:])
         vmm = np.amax([np.abs(vmin0), np.abs(vmax0)])
         
         ax = plt.subplot(224, projection=proj)
-        plt.imshow(gaussian_filter((data-modbest['total'])[i,:,:], sigma=sigma_sm),
+        plt.imshow(gaussian_filter((data-modbest['total'])[i,:,:], sigma=sigma_sm)*corner_mask[0,:,:],
                    origin='lower', cmap='RdBu', vmin=-vmm, vmax=vmm)
         filt1 = gaussian_filter((data-modbest['total'])[i,:,:], sigma=sigma_sm)
         filt2 = np.sqrt(gaussian_filter(modbest['total'][i,:,:], sigma=sigma_sm))
-        snr   = 2*sigma_sm*np.sqrt(np.pi) * filt1 / filt2
+        snr   = 2*sigma_sm*np.sqrt(np.pi) * filt1 / filt2 * corner_mask[0,:,:]
         cont = ax.contour(snr, levels=np.array([-9,-7,-5,-3,3,5,7,9]), colors='black')
         plt.colorbar()
         plt.title('Residual (counts) - E=['+Ebinprint+'] GeV')
@@ -780,9 +784,9 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     pdf_pages.close()
     
     #========== Plot 3: profile, background subtracted, stack
-    cntmap_data = np.sum(data, axis=0)
-    cntmap_tot  = np.sum(modbest['total'], axis=0)
-    cntmap_cl   = np.sum(modbest['cluster'], axis=0)
+    cntmap_data = np.sum(data*corner_mask, axis=0)
+    cntmap_tot  = np.sum(modbest['total']*corner_mask, axis=0)
+    cntmap_cl   = np.sum(modbest['cluster']*corner_mask, axis=0)
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -813,7 +817,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
         Nmc = MC_model['cluster'].shape[0]
         p_cl_mc = np.zeros((Nmc, len(p_cl)))
         for i in range(Nmc):
-            r_cl_i, p_cl_i, err_cl_i = map_tools.radial_profile_cts(np.sum(MC_model['cluster'][i,:,:,:],axis=0),
+            r_cl_i, p_cl_i, err_cl_i = map_tools.radial_profile_cts(np.sum(MC_model['cluster'][i,:,:,:]*corner_mask,axis=0),
                                                                     [coord.icrs.ra.to_value('deg'),
                                                                      coord.icrs.dec.to_value('deg')],
                                                                     stddev=np.sqrt(cntmap_cl),
@@ -830,7 +834,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     ax1 = plt.subplot(gs[0])
     ax3 = plt.subplot(gs[1])
 
-    xlim = [np.amin(r_dat)/2.0, np.amax(r_dat)*2.0]
+    xlim = [np.amin(r_dat)/1.1, np.amax(r_dat)*1.1]
     rngyp = 1.2*np.nanmax(p_dat-(p_tot-p_cl)+3*err_dat)
     rngym = 0.5*np.nanmin((p_dat-(p_tot-p_cl))[p_dat-(p_tot-p_cl) > 0])
     ylim = [rngym, rngyp]
@@ -876,10 +880,10 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     plt.close()
 
     #========== Plot 4: profile, background included, stack
-    cntmap_data = np.sum(data, axis=0)
-    cntmap_tot  = np.sum(modbest['total'], axis=0)
-    cntmap_cl   = np.sum(modbest['cluster'], axis=0)
-    cntmap_bk   = np.sum(modbest['background'], axis=0)
+    cntmap_data = np.sum(data*corner_mask, axis=0)
+    cntmap_tot  = np.sum(modbest['total']*corner_mask, axis=0)
+    cntmap_cl   = np.sum(modbest['cluster']*corner_mask, axis=0)
+    cntmap_bk   = np.sum(modbest['background']*corner_mask, axis=0)
     cntmap_ps   = []
     for ips in range(len(modbest['point_sources'])):
         cntmap_ps.append(np.sum(modbest['point_sources'][ips], axis=0))
@@ -935,7 +939,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     ax1 = plt.subplot(gs[0])
     ax3 = plt.subplot(gs[1])
 
-    xlim = [np.amin(r_dat)/2.0, np.amax(r_dat)*2.0]
+    xlim = [np.amin(r_dat)/1.1, np.amax(r_dat)*1.1]
     rngyp = 1.2*np.nanmax(p_dat+3*err_tot)
     rngym = 0.5*np.nanmin((p_dat)[p_dat > 0])
     ylim = [rngym, rngyp]
@@ -988,9 +992,9 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     for i in range(len(Ebins)):
         Ebinprint = '{:.1f}'.format(Ebins[i][0]*1e-6)+', '+'{:.1f}'.format(Ebins[i][1]*1e-6)
 
-        cntmap_data = data[i,:,:]
-        cntmap_tot  = modbest['total'][i,:,:]
-        cntmap_cl   = modbest['cluster'][i,:,:]
+        cntmap_data = data[i,:,:]*corner_mask[i,:,:]
+        cntmap_tot  = modbest['total'][i,:,:]*corner_mask[i,:,:]
+        cntmap_cl   = modbest['cluster'][i,:,:]*corner_mask[i,:,:]
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -1024,7 +1028,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
         ax1 = plt.subplot(gs[0])
         ax3 = plt.subplot(gs[1])
         
-        xlim = [np.amin(r_dat)/2.0, np.amax(r_dat)*2.0]
+        xlim = [np.amin(r_dat)/1.1, np.amax(r_dat)*1.1]
         rngyp = 1.2*np.nanmax(p_dat-(p_tot-p_cl)+3*err_dat)
         rngym = 0.5*np.nanmin((p_dat-(p_tot-p_cl))[p_dat-(p_tot-p_cl) > 0])
         ylim = [rngym, rngyp]
@@ -1073,13 +1077,13 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     for i in range(len(Ebins)):
         Ebinprint = '{:.1f}'.format(Ebins[i][0]*1e-6)+', '+'{:.1f}'.format(Ebins[i][1]*1e-6)
 
-        cntmap_data = data[i,:,:]
-        cntmap_tot = modbest['total'][i,:,:]
-        cntmap_cl  = modbest['cluster'][i,:,:]
-        cntmap_bk  = modbest['background'][i,:,:]
+        cntmap_data = data[i,:,:]*corner_mask[i,:,:]
+        cntmap_tot = modbest['total'][i,:,:]*corner_mask[i,:,:]
+        cntmap_cl  = modbest['cluster'][i,:,:]*corner_mask[i,:,:]
+        cntmap_bk  = modbest['background'][i,:,:]*corner_mask[i,:,:]
         cntmap_ps  = []
         for ips in range(len(modbest['point_sources'])):
-            cntmap_ps.append((modbest['point_sources'][ips])[i,:,:])
+            cntmap_ps.append((modbest['point_sources'][ips])[i,:,:]*corner_mask[i,:,:])
     
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -1133,7 +1137,7 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
         ax1 = plt.subplot(gs[0])
         ax3 = plt.subplot(gs[1])
         
-        xlim = [np.amin(r_dat)/2.0, np.amax(r_dat)*2.0]
+        xlim = [np.amin(r_dat)/1.1, np.amax(r_dat)*1.1]
         rngyp = 1.2*np.nanmax(p_dat+3*err_tot)
         rngym = 0.5*np.nanmin(p_dat[p_dat > 0])
         ylim = [rngym, rngyp]
@@ -1185,9 +1189,10 @@ def modelplot(data, modbest, MC_model, header, Ebins, outdir,
     
     #========== Plot 7: spectrum, background included
     #----- Compute a mask
-    radmapgrid = np.tile(radmap, (len(Ebins),1,1))    
+    radmapgrid = np.tile(radmap, (len(Ebins),1,1))
     mask = radmapgrid*0 + 1
     mask[radmapgrid > theta.to_value('deg')] = 0
+    mask = mask * corner_mask
 
     #----- Get the bins
     Emean = 1e-6*(Ebins['E_MIN']+Ebins['E_MAX'])/2
@@ -1376,10 +1381,51 @@ def read_data(input_files):
 
 
 #==================================================
+# Build a circular mask that masks the corner
+#==================================================
+
+def get_corner_mask(input_files):
+    """
+    Build a circular mask that masks the corner
+    
+    Parameters
+    ----------
+    - input_files (str list): file where the data is stored
+    and file where the grid model is stored
+
+    Output
+    ------
+    - corner_mask (ndarray): 0=mask, 1=unmasked
+
+    """
+    
+    # Get measured data
+    hdu = fits.open(input_files[0])
+    data = hdu[0].data
+    header = hdu[0].header
+    Ebins = hdu[2].data
+    hdu.close()
+    del header['NAXIS3']
+    header['NAXIS'] = 2
+
+    # Build the mask
+    ra_map, dec_map = map_tools.get_radec_map(header)
+    distmap = map_tools.greatcircle(ra_map, dec_map, np.mean(ra_map), np.mean(dec_map))
+
+    corner_mask = distmap*0+1
+    corner_mask[distmap > 0.5*(np.amax(dec_map)-np.amin(dec_map))] = 0
+
+    # Replicate the mask along E
+    corner_mask = np.tile(corner_mask, (len(Ebins), 1,1))
+
+    return corner_mask
+
+
+#==================================================
 # MCMC: Defines log prior
 #==================================================
 
-def lnprior(params, par_min, par_max):
+def lnprior(params, par_min, par_max, g_prior):
     '''
     Return the flat prior on parameters
 
@@ -1388,6 +1434,7 @@ def lnprior(params, par_min, par_max):
     - params (list): the parameters
     - par_min (list): the minimum value for params
     - par_max (list): the maximum value for params
+    - g_prior (tupple array): gaussian prior as [(mu,sigma),(mu,sigma),...]
 
     Output
     ------
@@ -1396,6 +1443,10 @@ def lnprior(params, par_min, par_max):
     '''
 
     prior = 0.0
+    
+    for i in range(len(params)):
+        if not (np.isnan(g_prior[i][0]) or np.isnan(g_prior[i][1])):
+            prior += -0.5*(params[i]-g_prior[i][0])**2 / g_prior[i][1]**2
     
     for i in range(len(params)):
         if params[i] <= par_min[i] or params[i] >= par_max[i] :
@@ -1408,7 +1459,7 @@ def lnprior(params, par_min, par_max):
 # MCMC: Defines log likelihood
 #==================================================
 
-def lnlike(params, data, modgrid, par_min, par_max, gauss=True):
+def lnlike(params, data, modgrid, par_min, par_max, g_prior, mask, gauss=False):
     '''
     Return the log likelihood for the given parameters
 
@@ -1419,15 +1470,16 @@ def lnlike(params, data, modgrid, par_min, par_max, gauss=True):
     - modgrid (Table): grid of model for different scaling to be interpolated
     - par_min (list): the minimum value for params
     - par_max (list): the maximum value for params
+    - g_prior (tupple array): gaussian prior as [(mu,sigma),(mu,sigma),...]
     - gauss (bool): use a gaussian approximation for errors
 
     Output
     ------
     - lnlike (float): the value of the log likelihood
     '''
-
+    
     #---------- Get the prior
-    prior = lnprior(params, par_min, par_max)
+    prior = lnprior(params, par_min, par_max, g_prior)
     if prior == -np.inf: # Should not go for the model if prior out
         return -np.inf
     if np.isinf(prior):
@@ -1436,7 +1488,7 @@ def lnlike(params, data, modgrid, par_min, par_max, gauss=True):
         return -np.inf
     
     #---------- Get the test model
-    if params[0] <= 0: # should never happen, but it does, so debug when so
+    if params[0] <= 0: # should never happen, but debug in case it does
         import pdb
         pdb.set_trace()
 
@@ -1446,14 +1498,14 @@ def lnlike(params, data, modgrid, par_min, par_max, gauss=True):
     # Gaussian likelihood
     if gauss:
         chi2 = (data - test_model['total'])**2/np.sqrt(test_model['total'])**2
-        lnL = -0.5*np.nansum(chi2)
+        lnL = -0.5*np.nansum(chi2*mask)
 
     # Poisson with Bkg
     else:        
         L_i1 = test_model['total']
         L_i2 = data*np.log(test_model['total'])
-        lnL  = -np.nansum(L_i1 - L_i2)
-        
+        lnL  = -np.nansum((L_i1 - L_i2)*mask)
+    
     # In case of NaN, goes to infinity
     if np.isnan(lnL):
         lnL = -np.inf
@@ -1526,13 +1578,15 @@ def run_constraint(input_files,
                    burnin=100,
                    conf=68.0,
                    Nmc=100,
+                   prior=None,
                    GaussLike=False,
                    reset_mcmc=False,
                    run_mcmc=True,
                    FWHM=0.1*u.deg,
                    theta=1.0*u.deg,
                    coord=None,
-                   profile_reso=0.05*u.deg):
+                   profile_reso=0.05*u.deg,
+                   app_corner_mask=False):
     """
     Run the MCMC spectral imaging constraints
         
@@ -1544,6 +1598,7 @@ def run_constraint(input_files,
     - nsteps (int): number of emcee MCMC steps
     - burnin (int): number of point to remove assuming it is burnin
     - conf (float): confidence limit percentage for results
+    - prior (array of tupple): gaussian prior on parameters
     - Nmc (int): number of monte carlo point when resampling the chains
     - GaussLike (bool): use gaussian approximation of the likelihood
     - reset_mcmc (bool): reset the existing MCMC chains?
@@ -1552,6 +1607,7 @@ def run_constraint(input_files,
     - theta (quantity): containment angle for plots
     - coord (SkyCoord): source coordinates for extraction
     - profile_reso (quantity): bin size for profile
+    - app_corner_mask (bool): apply a mask to the corner of the map
 
     Output
     ------
@@ -1563,6 +1619,10 @@ def run_constraint(input_files,
 
     #========== Read the data
     data, modgrid = read_data(input_files)
+    if app_corner_mask:
+        corner_mask   = get_corner_mask(input_files)
+    else:
+        corner_mask = data*0+1
     
     #========== Guess parameter definition
     # Normalization, scaling profile \propto profile_input^eta, CRp index
@@ -1572,11 +1632,11 @@ def run_constraint(input_files,
     par_min = [0,      np.amin(modgrid['spa_val']), np.amin(modgrid['spe_val']),
                0.0, np.amin(modgrid['bk_spe_val'])]
     par_max = [20.0, np.amax(modgrid['spa_val']), np.amax(modgrid['spe_val']),
-               np.inf, np.amax(modgrid['bk_spe_val'])]
+               np.inf, np.amax(modgrid['bk_spe_val'])]    
 
     for i in range(len(modgrid['models_ps_list'])):
         parname.append('A_{ps,'+str(i+1)+'}')
-        parname.append('\\Delta \\alpha_{ps,'+str(i+1)+'}')
+        parname.append('\\Delta \\alpha_{ps,'+str(i+1)+'}')        
         par0 = np.append(par0, 1.0)
         par0 = np.append(par0, np.mean(modgrid['ps_spe_val']))
         par_min.append(0.0)
@@ -1584,6 +1644,14 @@ def run_constraint(input_files,
         par_max.append(np.inf)
         par_max.append(np.amax(modgrid['ps_spe_val']))
 
+    # prior
+    if prior is None:
+        g_prior = []
+        for ip in range(len(parname)):
+            g_prior.append((np.nan, np.nan))
+    else:
+        g_prior = prior
+        
     #========== Names
     sampler_file1  = subdir+'/MCMC_sampler.pkl'
     sampler_file2  = subdir+'/MCMC_sampler.h5'
@@ -1616,6 +1684,8 @@ def run_constraint(input_files,
     print('    Gaussian likelihood = '+str(GaussLike))
     print('    Parameter min       = '+str(par_min))
     print('    Parameter max       = '+str(par_max))
+    print('    Gaussian prior      = '+str(g_prior))
+    print('    Corner mask apps    = '+str(app_corner_mask))
 
     #---------- Defines the start
     backend = emcee.backends.HDFBackend(sampler_file2)
@@ -1631,10 +1701,10 @@ def run_constraint(input_files,
     else:
         print('    No pre-existing sampler, start from scratch')
         backend.reset(nwalkers, ndim)
-
+    
     moves = emcee.moves.StretchMove(a=2.0)
     sampler = emcee.EnsembleSampler(nwalkers, ndim, lnlike,
-                                    args=[data, modgrid, par_min, par_max, GaussLike],
+                                    args=[data, modgrid, par_min, par_max, g_prior, corner_mask, GaussLike],
                                     pool=Pool(cpu_count()), moves=moves,
                                     backend=backend)
 
@@ -1674,6 +1744,6 @@ def run_constraint(input_files,
                              par_best=par_best[0:3], par_percentile=par_percentile[:,[0,1,2]],
                              conf=conf,
                              par_min=par_min[0:3], par_max=par_max[0:3])
-    
-    modelplot(data, Best_model, MC_model, modgrid['header'], modgrid['Ebins'], subdir,
+
+    modelplot(data, Best_model, MC_model, corner_mask, modgrid['header'], modgrid['Ebins'], subdir,
               conf=conf, FWHM=FWHM, theta=theta, coord=coord, profile_reso=profile_reso)

@@ -121,7 +121,7 @@ class ClusterPipe(Common, CTAsim, CTAana):
         #----- Spectrum related
         # Apply energy dispersion
         self.spec_edisp    = False
-        # Energy binning algorithm: LOG or LIN
+        # Energy binning algorithm: LOG, LIN, [POW, n] (n = power), [FILE, f] (f filename)
         self.spec_ebinalg  = 'LOG'
         # Number of bins
         self.spec_enumbins = 10

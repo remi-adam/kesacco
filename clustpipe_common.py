@@ -14,10 +14,14 @@ import pickle
 import gammalib
 import astropy.units as u
 from astropy.coordinates.sky_coordinate import SkyCoord
+from astropy.table import Table
+from astropy.io import fits
+import cscripts
 
 from kesacco.Tools import make_cluster_template
 from kesacco.Tools import build_ctools_model
 from kesacco.Tools import utilities
+
 
 #==================================================
 # Cluster class
@@ -494,3 +498,85 @@ class Common():
             reg.append(numlist)
         
         return reg
+
+    
+    #==================================================
+    # define bin file using csebins
+    #==================================================
+    
+    def def_binfile_csebins(self, irf, caldb, outfile,
+                            aeffthres=0.2, bkgthres=0.5):
+        """
+        Generates energy boundaries for stacked analysis.
+        (http://cta.irap.omp.eu/ctools/users/reference_manual/csebins.html#csebins)
+        
+        Parameters
+        ----------
+        - irf (str): name of instrument response function (e.g. North_z20_50h)
+        - caldb (str): name of calibration database (e.g. prod3b-v2)
+        - outfile (file): Name of the energy boundary output file.
+        - aeffthres (real): Fractional change in effective area that leads to insertion of a new energy boundary.
+        - bkgthres (real): Fractional change in background rate that leads to insertion of a new energy boundary. 
+    
+        Outputs
+        --------
+        outfile is created and can be used in the analysis
+        """
+        
+        bining = cscripts.csebins()
+        bining['inobs']     = 'NONE'
+        bining['irf']       = irf
+        bining['caldb']     = caldb
+        bining['outfile']   = outfile
+        bining['emin']      = self.spec_emin.to_value('TeV')
+        bining['emax']      = self.spec_emax.to_value('TeV')
+        bining['aeffthres'] = aeffthres
+        bining['bkgthres']  = bkgthres
+        bining.execute()
+    
+        if not self.silent:
+            print('     ---> def_binfile_csebins - number of bins is :', bining.ebounds().size()-1)
+
+            
+    #==================================================
+    # define bin file using arbitrary values
+    #==================================================
+    
+    def def_binfile_arb(self, bin_edges, outfile):
+        """
+        Generates energy boundaries for stacked analysis.
+        
+        Parameters
+        ----------
+        - bin_edges (qunatity): the value of the bin edges (Nbin + 1 points).
+        - outfile (file): Name of the energy boundary output file.
+    
+        Outputs
+        --------
+        outfile is created and can be used in the analysis
+        """
+
+        # work in keV to mimic csebins
+        bin_edges = bin_edges.to_value('keV')
+
+        # Check the the bining is fine with emin, emax
+        if self.spec_emin.to_value('keV') > np.amin(bin_edges):
+            print('WARNING: the lower bin is lower than parameter emin. Check bin_edges.')
+        if self.spec_emax.to_value('keV') < np.amin(bin_edges):
+            print('WARNING: the higher bin is higher than parameter emin. Check bin_edges.')
+
+        # Collect Emin,Emax for each bin
+        Emin = bin_edges[0:len(bin_edges)-1]
+        Emax = bin_edges[1:len(bin_edges)]
+
+        # build the table
+        bining = Table([Emin, Emax], names=['E_MIN', 'E_MAX'], units=['keV', 'keV'])
+
+        # build the HDUL and save the file
+        primary_hdu = fits.PrimaryHDU()
+        bining_hdu = fits.BinTableHDU(bining, name='EBOUNDS')
+        hdul = fits.HDUList([primary_hdu, bining_hdu])
+        hdul.writeto(outfile, overwrite=True)
+
+        if not self.silent:
+            print('     ---> def_binfile_arb - bin edges are :', bin_edges*1e-6, 'GeV')

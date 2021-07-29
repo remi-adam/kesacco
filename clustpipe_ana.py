@@ -1638,6 +1638,7 @@ class CTAana(object):
                                      reset_modelgrid=True,
                                      reset_mcmc=True, run_mcmc=True,
                                      GaussLike=False,
+                                     prior=None,
                                      spatial_range=[0.0,2.0],
                                      spatial_npt=11,
                                      spectral_range=[2.0,3.0],
@@ -1653,7 +1654,8 @@ class CTAana(object):
                                      FWHM=0.1*u.deg,
                                      theta=1.0*u.deg,
                                      coord=None,
-                                     profile_reso=0.05*u.deg):
+                                     profile_reso=0.05*u.deg,
+                                     app_corner_mask=False):
         """
         Perform a spectral-imaging analysis to constrain the cluster 
         spectrum and profile simulteneously.
@@ -1668,6 +1670,7 @@ class CTAana(object):
         - reset_mcmc (bool): reset the existing MCMC chains?
         - run_mcmc (bool): run the MCMC sampling?
         - GaussLike (bool): use guassian likelihood or true L scan
+        - prior (list of tupple): gaussian prior[(mean,std),(mean,std),...]
         - spatial_scaling_npt (int): number of point for the scaling parameter
         - spatial_scaling_range (list of min/max): input profile scaling range
         - includeIC (bool): include inverse Compton in the model?
@@ -1687,6 +1690,7 @@ class CTAana(object):
         - theta (quantity): containment angle for plots
         - coord (SkyCoord): source coordinates for extraction (plot)
         - profile_reso (quantity): bin size for profile (plot)
+        - app_corner_mask (bool): apply a mask to the corner of the map
 
         Outputs files
         -------------
@@ -1848,12 +1852,14 @@ class CTAana(object):
                                                  conf=self.mcmc_conf,
                                                  Nmc=self.mcmc_Nmc,
                                                  GaussLike=GaussLike,
+                                                 prior=prior,
                                                  reset_mcmc=reset_mcmc,
                                                  run_mcmc=run_mcmc,
                                                  FWHM=FWHM,
                                                  theta=theta,
                                                  coord=coord,
-                                                 profile_reso=profile_reso)
+                                                 profile_reso=profile_reso,
+                                                 app_corner_mask=app_corner_mask)
             
 
     #==================================================

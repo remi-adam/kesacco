@@ -10,6 +10,7 @@ to OnOff analysis, and other utilities
 import ctools
 import cscripts
 import gammalib
+from kesacco.Tools import utilities
 import numpy as np
 import astropy.units as u
 from scipy.optimize import brentq
@@ -51,7 +52,11 @@ def onoff_filegen(inobs, inmodel,
     - onoff cscript is output
 
     """
+
+    #---------- Collect the bining info
+    ebin_case, ebin_pow, ebin_file = utilities.get_binalg(ebinalg)
     
+    #---------- Run script    
     onoff = cscripts.csphagen()
     
     # Input event list or observation definition XML file.
@@ -89,7 +94,7 @@ def onoff_filegen(inobs, inmodel,
     onoff['prefix'] = prefix
     
     # Algorithm for defining energy bins.
-    onoff['ebinalg'] = ebinalg
+    onoff['ebinalg'] = ebin_case
     
     # Lower energy value for first energy bin (in TeV) if LIN or LOG energy binning algorithms are used.
     onoff['emin'] = emin
@@ -101,10 +106,10 @@ def onoff_filegen(inobs, inmodel,
     onoff['enumbins'] = enumbins
 
     # Name of the file containing the energy binning definition
-    ## onoff['ebinfile'] [file]
+    onoff['ebinfile'] = ebin_file
     
     # Exponent of the power law for POW energy binning.
-    ## onoff['ebingamma'] [real]
+    onoff['ebingamma'] = ebin_pow
     
     # Shape of the source region. So far only CIRCLE exists which defines a circular region around location
     onoff['srcshape'] = 'CIRCLE'

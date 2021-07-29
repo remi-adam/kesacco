@@ -181,4 +181,46 @@ def squeeze_fov(center_fov, fov_ini, center_cluster, theta_cluster, extra=1.1):
     return fov
 
 
+#==================================================
+# Get the bining algorithm proipoerties
+#==================================================
 
+def get_binalg(ebinalg):
+    """
+    Get the properties of the bining algorithm depending on the definition
+    
+    Parameters
+    ----------
+    - ebinalg : attribute of kesacco
+    
+    Outputs
+    --------
+    - ebin_case (str): type of bining algo
+    - ebin_pow (float): power of powerlaw bining
+    - ebin_file (str): file name for FILE bining 
+    """   
+    
+    # Init variable in case undef
+    ebin_pow = 1
+    ebin_file = 'NONE'
+    
+    # Case of LIN, LOG
+    if type(ebinalg) == str :
+        ebin_case = ebinalg
+        
+        # Case of FILE, POW
+    elif type(ebinalg) == list :
+        ebin_case = ebinalg[0]
+        
+        if ebin_case == 'POW':
+            ebin_pow = ebinalg[1]
+        elif ebin_case == 'FILE':
+            ebin_file = ebinalg[1]
+        else:
+            raise ValueError('Only POW or FILE accepted in case ebinalg is a list')
+        
+    # Not def otherwise
+    else :
+        raise ValueError('ebinalg can only be str or list')
+    
+    return ebin_case, ebin_pow, ebin_file

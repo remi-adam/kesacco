@@ -14,6 +14,7 @@ import astropy.units as u
 from astropy.io import fits
 from minot.ClusterTools import map_tools
 from kesacco.Tools import tools_onoff
+from kesacco.Tools import utilities
 
 #==================================================
 # Sky maps
@@ -304,6 +305,10 @@ def resmap(inobs, inmodel, output_map,
     - return a residual map object
     """
 
+    #---------- Collect the bining info
+    ebin_case, ebin_pow, ebin_file = utilities.get_binalg(ebinalg)
+    
+    #---------- Run script
     rmap = cscripts.csresmap()
     
     rmap['inobs']     = inobs
@@ -317,11 +322,12 @@ def resmap(inobs, inmodel, output_map,
     if irf       is not None: rmap['irf']       = irf
     rmap['edisp']     = edisp
     rmap['outmap']    = output_map
-    rmap['ebinalg']   = ebinalg
+    rmap['ebinalg']   = ebin_case
     rmap['emin']      = emin   
     rmap['emax']      = emax
     rmap['enumbins']  = enumbins
-    rmap['ebinfile']  = 'NONE'
+    rmap['ebinfile']  = ebin_file
+    rmap['ebingamma'] = ebin_pow
     rmap['coordsys']  = 'CEL'
     rmap['proj']      = 'TAN'
     rmap['xref']      = cra

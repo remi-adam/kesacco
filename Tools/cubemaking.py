@@ -48,9 +48,14 @@ def counts_cube(output_dir,
     cubed data, in case stack is not requested
 
     """
-
-    npix = utilities.npix_from_fov_def(map_fov, map_reso)
     
+    #---------- Collect the bining info
+    ebin_case, ebin_pow, ebin_file = utilities.get_binalg(ebinalg)
+    
+    #---------- Pixels
+    npix = utilities.npix_from_fov_def(map_fov, map_reso)
+
+    #---------- Run script
     ctscube = ctools.ctbin()
     
     ctscube['inobs']      = output_dir+'/Ana_EventsSelected.xml'
@@ -60,11 +65,12 @@ def counts_cube(output_dir,
         ctscube['outobs'] = output_dir+'/Ana_Countscube.xml'
     ctscube['stack']      = stack
     ctscube['prefix']     = output_dir+'/Ana_Countscube'
-    ctscube['ebinalg']    = ebinalg
+    ctscube['ebinalg']    = ebin_case
     ctscube['emin']       = emin.to_value('TeV')
     ctscube['emax']       = emax.to_value('TeV')
     ctscube['enumbins']   = enumbins
-    ctscube['ebinfile']   = 'NONE'
+    ctscube['ebinfile']   = ebin_file
+    ctscube['ebingamma']  = ebin_pow
     ctscube['usepnt']     = False
     ctscube['nxpix']      = npix
     ctscube['nypix']      = npix
@@ -82,7 +88,7 @@ def counts_cube(output_dir,
     if not silent:
         print(ctscube)
         print('')
-    
+
     return ctscube
 
 
@@ -120,8 +126,13 @@ def exp_cube(output_dir,
     
     """
 
-    npix = utilities.npix_from_fov_def(map_fov, map_reso)
+    #---------- Collect the bining info
+    ebin_case, ebin_pow, ebin_file = utilities.get_binalg(ebinalg)
     
+    #---------- Pixels
+    npix = utilities.npix_from_fov_def(map_fov, map_reso)
+
+    #---------- Run script
     expcube = ctools.ctexpcube()
     
     expcube['inobs']      = output_dir+'/Ana_EventsSelected.xml'
@@ -129,11 +140,12 @@ def exp_cube(output_dir,
     #expcube['caldb']      = 
     #expcube['irf']        = 
     expcube['outcube']    = output_dir+'/Ana_Expcube.fits'
-    expcube['ebinalg']    = ebinalg
+    expcube['ebinalg']    = ebin_case
     expcube['emin']       = emin.to_value('TeV')
     expcube['emax']       = emax.to_value('TeV')
     expcube['enumbins']   = enumbins
-    expcube['ebinfile']   = 'NONE'
+    expcube['ebinfile']   = ebin_file
+    expcube['ebingamma']  = ebin_pow
     expcube['addbounds']  = False
     expcube['usepnt']     = False
     expcube['nxpix']      = npix
@@ -194,8 +206,13 @@ def psf_cube(output_dir,
     - Ana_Psfcube.fits: the fits PSF cube image
     """
 
-    npix = utilities.npix_from_fov_def(map_fov, map_reso)
+    #---------- Collect the bining info
+    ebin_case, ebin_pow, ebin_file = utilities.get_binalg(ebinalg)
     
+    #---------- Pixels
+    npix = utilities.npix_from_fov_def(map_fov, map_reso)
+
+    #---------- Run script    
     psfcube = ctools.ctpsfcube()
 
     psfcube['inobs']      = output_dir+'/Ana_EventsSelected.xml'
@@ -206,11 +223,12 @@ def psf_cube(output_dir,
     #psfcube['caldb']      =
     #psfcube['irf']        =
     psfcube['outcube']    = output_dir+'/Ana_Psfcube.fits'
-    psfcube['ebinalg']    = ebinalg
+    psfcube['ebinalg']    = ebin_case
     psfcube['emin']       = emin.to_value('TeV')
     psfcube['emax']       = emax.to_value('TeV')
     psfcube['enumbins']   = enumbins
-    psfcube['ebinfile']   = 'NONE'
+    psfcube['ebinfile']   = ebin_file
+    psfcube['ebingamma']  = ebin_pow
     psfcube['addbounds']  = False
     psfcube['usepnt']     = False
     psfcube['nxpix']      = npix
@@ -318,8 +336,13 @@ def edisp_cube(output_dir,
     - Ana_Edispcube.fits: the energy dispersion fits file
     """
 
+    #---------- Collect the bining info
+    ebin_case, ebin_pow, ebin_file = utilities.get_binalg(ebinalg)
+    
+    #---------- Pixels
     npix = utilities.npix_from_fov_def(map_fov.to_value('deg'), binsz)
 
+    #---------- Run script
     edcube = ctools.ctedispcube()
 
     edcube['inobs']      = output_dir+'/Ana_EventsSelected.xml'
@@ -327,11 +350,12 @@ def edisp_cube(output_dir,
     #edcube['caldb']    = 
     #edcube['irf']      =
     edcube['outcube']    = output_dir+'/Ana_Edispcube.fits'
-    edcube['ebinalg']    = ebinalg
+    edcube['ebinalg']    = ebin_case
     edcube['emin']       = emin.to_value('TeV')
     edcube['emax']       = emax.to_value('TeV')
     edcube['enumbins']   = enumbins
-    edcube['ebinfile']   = 'NONE'
+    edcube['ebinfile']   = ebin_file
+    edcube['ebingamma']  = ebin_pow
     edcube['addbounds']  = False
     edcube['usepnt']     = False
     edcube['nxpix']      = npix
@@ -394,8 +418,13 @@ def model_cube(output_dir,
     --------
     """
     
-    npix = utilities.npix_from_fov_def(map_fov, map_reso)
+    #---------- Collect the bining info
+    ebin_case, ebin_pow, ebin_file = utilities.get_binalg(ebinalg)
     
+    #---------- Pixels
+    npix = utilities.npix_from_fov_def(map_fov, map_reso)
+
+    #---------- Run script        
     model = ctools.ctmodel()
     
     if stack:
@@ -432,11 +461,12 @@ def model_cube(output_dir,
     model['tmin']      = 'NONE'
     model['tmax']      = 'NONE'
     model['deadc']     = 'NONE'
-    model['ebinalg']   = ebinalg
+    model['ebinalg']   = ebin_case
     model['emin']      = emin.to_value('TeV')
     model['emax']      = emax.to_value('TeV')
     model['enumbins']  = enumbins
-    model['ebinfile']  = 'NONE'
+    model['ebinfile']  = ebin_file
+    model['ebingamma']  = ebin_pow
     model['usepnt']    = False
     model['nxpix']     = npix
     model['nypix']     = npix

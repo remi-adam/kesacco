@@ -1498,8 +1498,10 @@ def show_param_cormat(covfile, outfile):
 
 def seaborn_corner(dfs, output_fig=None, ci2d=[0.95, 0.68], ci1d=0.68,
                    truth=None, truth_style='star', labels=None,
+                   smoothing1d=1,smoothing2d=1,
                    gridsize=100, linewidth=0.75, alpha=(0.3, 0.3, 1.0), n_levels=None,
                    zoom=1.0/10, add_grid=True,
+                   limits=None,
                    figsize=(10,10), fontsize=12,
                    cols = [('orange',None,'orange','Oranges'),
                            ('green',None,'green','Greens'), 
@@ -1519,6 +1521,8 @@ def seaborn_corner(dfs, output_fig=None, ci2d=[0.95, 0.68], ci1d=0.68,
     - truth_style (str): either 'line' or 'star'
     - labels (list): list of label for the datasets
     - gridsize (int): the number of cells in the grid (higher=nicer=slower)
+    - smoothing1d (float): the width of the smoothing kernel for 1d distribution
+    - smoothing2d (float): the width of the smoothing kernel for 2d distribution
     - linewidth (float): linewidth of the contours
     - alpha (tuple): alpha parameters for the histogram, histogram CI, and contours plot
     - n_levels (int): if set, will draw a 'diffuse' filled contour plot with n_levels
@@ -1526,6 +1530,7 @@ def seaborn_corner(dfs, output_fig=None, ci2d=[0.95, 0.68], ci1d=0.68,
     The give nnumber corresponds to the fractional size of the 2D distribution 
     to add on each side. If negative, will zoom in the plot.
     - add_grid (bool): add the grid in the plot
+    - limits (list of tupple): the limit for each parameters
     - figsize (tuple): the size of the figure
     - fontsize (int): the font size
     - cols (list of 4-tupples): deal with the colors for the dataframes. Each tupple
@@ -1558,9 +1563,6 @@ def seaborn_corner(dfs, output_fig=None, ci2d=[0.95, 0.68], ci1d=0.68,
         icol = icol+1
     
     # Figure
-    #mylim = [(0,5.0), (0.6,1.2), (2.1,2.7), (0.997,1.003), (-0.0015,0.0015), (0.85,1.10), (-0.1,0.1), (0.95,1.05), (-0.05,0.05)]
-    #mylim = [(0,20.0), (0.4,1.6), (2.0,3.0), (0.996,1.004), (-0.002,0.002), (0.7,1.10), (-0.2,0.1), (0.96,1.04), (-0.05,0.05)]
-    
     plt.figure(figsize=figsize)
     for ip in range(Npar):
         for jp in range(Npar):
@@ -1578,22 +1580,25 @@ def seaborn_corner(dfs, output_fig=None, ci2d=[0.95, 0.68], ci1d=0.68,
                 Dx = (xmax - xmin)*zoom
                 for idx, df in enumerate(dfs, start=0):
                     if labels is not None:
-                        sns.histplot(x=df.columns[ip], data=df, kde=True, kde_kws={'cut':3},
+                        sns.histplot(x=df.columns[ip], data=df, kde=True,
+                                     kde_kws={'cut':3, 'bw_adjust':smoothing1d},
                                      color=cols[idx][0], binrange=[xmin-Dx,xmax+Dx],
                                      alpha=alpha[0], edgecolor=cols[idx][1], stat='density', label=labels[idx])
                     else:
-                        sns.histplot(x=df.columns[ip], data=df, kde=True, kde_kws={'cut':3},
+                        sns.histplot(x=df.columns[ip], data=df, kde=True,
+                                     kde_kws={'cut':3, 'bw_adjust':smoothing1d},
                                      color=cols[idx][0], binrange=[xmin-Dx,xmax+Dx],
                                      alpha=alpha[0], edgecolor=cols[idx][1], stat='density')
                 ax = plt.gca()
                 ylims.append(ax.get_ylim()[1])
                 ax.set_xlim(xmin-Dx, xmax+Dx)
-                #ax.set_xlim(mylim[ip][0], mylim[ip][1])##########
+                if limits is not None:
+                    ax.set_xlim(limits[ip][0], limits[ip][1])
                 ax.set_ylim(0, np.nanmax(np.array(ylims)))
 
                 if ci1d is not None:
                     for idx, df in enumerate(dfs, start=0):
-                        perc = np.percentile(df[df.columns[ip]], [100 - (100-ci1d*100)/2.0, (100-ci1d*100)/2.0])
+                        perc = np.percentile(df[df.columns[ip]], [100-(100-ci1d*100)/2.0, (100-ci1d*100)/2.0])
                         # Get the KDE line for filling below
                         xkde = ax.lines[idx].get_xdata()
                         ykde = ax.lines[idx].get_ydata()
@@ -1640,9 +1645,11 @@ def seaborn_corner(dfs, output_fig=None, ci2d=[0.95, 0.68], ci1d=0.68,
                     ylims2.append(np.nanmax(df[df.columns[ip]]))
                     sns.kdeplot(x=df.columns[jp], y=df.columns[ip], data=df, gridsize=gridsize, 
                                 n_levels=n_levels, levels=levels, thresh=levels[0], fill=True, 
-                                cmap=cols[idx][3], alpha=alpha[2])
+                                cmap=cols[idx][3], alpha=alpha[2],
+                                bw_adjust=smoothing2d)
                     sns.kdeplot(x=df.columns[jp], y=df.columns[ip], data=df, gridsize=gridsize, 
-                                levels=levels[0:-1], color=cols[idx][2], linewidths=linewidth)
+                                levels=levels[0:-1], color=cols[idx][2], linewidths=linewidth,
+                                bw_adjust=smoothing2d)
                 ax = plt.gca()
                 xmin = np.nanmin(np.array(xlims1))
                 xmax = np.nanmax(np.array(xlims2))
@@ -1653,8 +1660,9 @@ def seaborn_corner(dfs, output_fig=None, ci2d=[0.95, 0.68], ci1d=0.68,
 
                 ax.set_xlim(xmin-Dx, xmax+Dx)
                 ax.set_ylim(ymin-Dy, ymax+Dy)
-                #ax.set_xlim(mylim[jp][0], mylim[jp][1])##########
-                #ax.set_ylim(mylim[ip][0], mylim[ip][1])##########
+                if limits is not None:
+                    ax.set_xlim(limits[jp][0], limits[jp][1])
+                    ax.set_ylim(limits[ip][0], limits[ip][1])
                 
                 if add_grid:
                     #ax.xaxis.set_major_locator(MultipleLocator((xmax+Dx-(xmin-Dx))/5.0))
