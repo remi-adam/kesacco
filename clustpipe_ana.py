@@ -1655,7 +1655,9 @@ class CTAana(object):
                                      theta=1.0*u.deg,
                                      coord=None,
                                      profile_reso=0.05*u.deg,
-                                     app_corner_mask=False):
+                                     app_corner_mask=False,
+                                     run_minuit=False,
+                                     start_num=0):
         """
         Perform a spectral-imaging analysis to constrain the cluster 
         spectrum and profile simulteneously.
@@ -1691,6 +1693,9 @@ class CTAana(object):
         - coord (SkyCoord): source coordinates for extraction (plot)
         - profile_reso (quantity): bin size for profile (plot)
         - app_corner_mask (bool): apply a mask to the corner of the map
+        - run_minuit (bool): run iminuit before MCMC
+        - start_num (int): starting number for the grid model construction. This
+        can be used when we run the code in several terminal to compute many models in parallel
 
         Outputs files
         -------------
@@ -1799,7 +1804,8 @@ class CTAana(object):
                                                        spectral_value, spectral_idx,
                                                        bk_spectral_value, bk_spectral_idx,
                                                        ps_spectral_value, ps_spectral_idx,
-                                                       includeIC=includeIC, rm_tmp=rm_tmp)
+                                                       includeIC=includeIC, rm_tmp=rm_tmp,
+                                                       start_num=start_num)
         #===== Validation of the grid interpolation
         if Ngrid_validation>0:
             print('')
@@ -1859,7 +1865,8 @@ class CTAana(object):
                                                  theta=theta,
                                                  coord=coord,
                                                  profile_reso=profile_reso,
-                                                 app_corner_mask=app_corner_mask)
+                                                 app_corner_mask=app_corner_mask,
+                                                 run_minuit=run_minuit)
             
 
     #==================================================

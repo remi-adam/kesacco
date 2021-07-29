@@ -6,6 +6,7 @@ This file contains the modules which perform the MCMC spectral imaging constrain
 # Requested imports
 #==================================================
 
+import sys
 import pickle
 import copy
 import os
@@ -55,7 +56,8 @@ def build_model_grid(cpipe,
                      ps_spectral_value,
                      ps_spectral_idx,
                      includeIC=False,
-                     rm_tmp=False):
+                     rm_tmp=False,
+                     start_num=0):
     """
     Build a grid of models for the cluster and background
         
@@ -78,6 +80,7 @@ def build_model_grid(cpipe,
     for the point source
     - includeIC (bool): include inverse Compton in the model
     - rm_tmp (bool): remove temporary files
+    - start_num (int): starting number for the template building
 
     Output
     ------
@@ -98,8 +101,8 @@ def build_model_grid(cpipe,
     #===== Loop over all cluster models to be tested
     for imod in range(spatial_npt):
         for jmod in range(spectral_npt):
-            #special_condition = 1+jmod+imod*spectral_npt > 5
-            special_condition = True
+            special_condition = 1+jmod+imod*spectral_npt >= start_num
+            #special_condition = True
             if special_condition:
                 cl_tmp = str(1+jmod+imod*spectral_npt)+'/'+str(spatial_npt*spectral_npt)
                 print('--- Building cluster template '+cl_tmp)
@@ -1568,6 +1571,55 @@ def model_specimg(modgrid, params):
 
 
 #==================================================
+# iminuit fit
+#==================================================
+
+def iminuit_fit(data, modgrid, parname, par0, par_min, par_max, filesave):
+    '''
+    Fit the model to the data using iminuit
+
+    Parameters
+    ----------
+
+    Output
+    ------
+    '''
+    try:
+        from iminuit import Minuit
+    
+        def iminuit_lnlike(params):
+            test_model = model_specimg(modgrid, params)
+            L_i1 = test_model['total']
+            L_i2 = data*np.log(test_model['total'])
+            return np.nansum((L_i1 - L_i2))
+        
+        m = Minuit(iminuit_lnlike, par0, name=parname)
+        m.errordef = Minuit.LIKELIHOOD
+        
+        # Def limnits
+        limits = []
+        for ip in range(len(par_min)):
+            limits.append((par_min[ip], par_max[ip]))
+        m.limits = limits
+    
+        print(m)
+        # run fit
+        m.migrad()  # finds minimum of least_squares function
+        m.hesse()   # accurately computes uncertainties
+        m.minos()   # non symmetric or parabolic errors
+        print(m)
+    
+        orig_stdout = sys.stdout
+        f = open(filesave, 'w')
+        sys.stdout = f
+        print(m)
+        sys.stdout = orig_stdout
+        f.close()
+    except:
+        print('')
+        print('-----> iminuit fit failed.')
+
+#==================================================
 # MCMC: run the fit
 #==================================================
 
@@ -1586,7 +1638,8 @@ def run_constraint(input_files,
                    theta=1.0*u.deg,
                    coord=None,
                    profile_reso=0.05*u.deg,
-                   app_corner_mask=False):
+                   app_corner_mask=False,
+                   run_minuit=False):
     """
     Run the MCMC spectral imaging constraints
         
@@ -1608,6 +1661,7 @@ def run_constraint(input_files,
     - coord (SkyCoord): source coordinates for extraction
     - profile_reso (quantity): bin size for profile
     - app_corner_mask (bool): apply a mask to the corner of the map
+    - run_minuit (bool): run iminuit before MCMC
 
     Output
     ------
@@ -1651,7 +1705,12 @@ def run_constraint(input_files,
             g_prior.append((np.nan, np.nan))
     else:
         g_prior = prior
-        
+
+    #========== iMinuit fit
+    if run_minuit:
+        file_iminuit =  subdir+'/iMinuit_results.txt'
+        iminuit_fit(data, modgrid, parname, par0, par_min, par_max, file_iminuit)
+    
     #========== Names
     sampler_file1  = subdir+'/MCMC_sampler.pkl'
     sampler_file2  = subdir+'/MCMC_sampler.h5'
