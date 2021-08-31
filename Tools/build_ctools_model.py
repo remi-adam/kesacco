@@ -148,7 +148,7 @@ def compact_sources(model_tot, source_dict, work_dir,
             raise ValueError('Spectral model not available')
 
         # EBL absorb
-        if EBL_model is not None and source_dict.redshift[ips] is not None:
+        if EBL_model is not None and EBL_model is not 'none' and source_dict.redshift[ips] is not None:
             absorb = cluster_spectra.get_ebl_absorb(energy.to_value('GeV'),
                                                     source_dict.redshift[ips], EBL_model)
             absmin = np.amin(absorb[absorb > 0])
