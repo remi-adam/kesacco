@@ -199,6 +199,10 @@ def chains_plots(param_chains,
 
     # Corner plot using seaborn
     #####################
+    truth = None
+    mylim = None
+    smooth = 1
+    gridsize = 100
     #-----> Pure hadronic
     if 'PureHadronic' in rout_file:
         if Npar == 2:
