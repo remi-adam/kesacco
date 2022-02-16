@@ -93,7 +93,7 @@ def chains_statistics(param_chains,
     
     if outfile is not None:
         file = open(outfile,'w')
-    
+        
     Npar = len(param_chains[0,0,:])
 
     wbest = (lnL_chains == np.amax(lnL_chains))

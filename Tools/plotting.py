@@ -9,6 +9,7 @@ with Ana and Sim modules.
 #==================================================
 
 import os
+import glob
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.pylab as pl
@@ -175,7 +176,15 @@ def get_cta_psf(caldb, irf, emin, emax, w8_slope=-2, case='FWHM'):
     CTOOLS_dir = os.getenv('CTOOLS')
 
     # Read data
-    data_file = CTOOLS_dir+'/share/caldb/data/cta/'+caldb+'/bcf/'+irf+'/irf_file.fits'
+    data_files = glob.glob(CTOOLS_dir+'/share/caldb/data/cta/'+caldb+'/bcf/'+irf+'/*')
+    if len(data_files) == 1:
+        data_file = data_files[0]
+    if len(data_files) > 1:
+        data_file = data_files[0]
+        print('Warning: multiple files found in the IRF directory. Using the first one.')
+    if len(data_files) < 1:
+        raise ValueError('No IRF found in the directory')
+
     hdul = fits.open(data_file)
     data_PSF = hdul[2].data
     hdul.close()
@@ -1074,7 +1083,6 @@ def show_model_spectrum(xml_file, plotfile,
     plt.figure(figsize=(12,8))
     plt.loglog()
     plt.grid()
-    colors = pl.cm.jet(np.linspace(0,1,len(models)))
     
     for imod in range(len(models)):
         model = models[imod]
@@ -1088,7 +1096,7 @@ def show_model_spectrum(xml_file, plotfile,
                 value  = spectrum.eval(energy)
                 x.append(energy.TeV())
                 y.append(value)
-            plt.loglog(x, y, linewidth=3, color=colors[imod], label=model.name()+' ('+spectrum.type()+')')
+            plt.loglog(x, y, linewidth=3, label=model.name()+' ('+spectrum.type()+')')
 
     plt.xlabel('Energy (TeV)')
     plt.ylabel(r'dN/dE (ph s$^{-1}$ cm$^{-2}$ MeV$^{-1}$)')
