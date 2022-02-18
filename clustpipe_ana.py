@@ -1422,8 +1422,19 @@ class CTAana(object):
                                        self.output_dir+'/Sim_Model_Spectrum.txt',
                                        ClusterName=self.cluster.name)
             model_exp.save(self.output_dir+'/Ana_Expected_Cluster.xml')
-            
-            #----- Compute the expected count map
+
+            #----- Compute the expected total count map
+            modcube_tot = cubemaking.model_cube(self.output_dir,
+                                                self.map_reso, self.map_coord, self.map_fov,
+                                                self.spec_emin, self.spec_emax, self.spec_enumbins,
+                                                self.spec_ebinalg,
+                                                edisp=self.spec_edisp,
+                                                stack=True,silent=self.silent,
+                                                logfile=self.output_dir+'/Ana_Expected_Total_Counts_log.txt',
+                                                inmodel_usr=self.output_dir+'/Ana_Model_Input_Stack.xml',
+                                                outmap_usr=self.output_dir+'/Ana_Expected_Total_Counts.fits')
+
+            #----- Compute the expected cluster count map
             modcube_Cl = cubemaking.model_cube(self.output_dir,
                                                self.map_reso, self.map_coord, self.map_fov,
                                                self.spec_emin, self.spec_emax,
@@ -1435,6 +1446,9 @@ class CTAana(object):
                                                outmap_usr=self.output_dir+'/Ana_Expected_Cluster_Counts.fits')
             
             #----- Extract the profile
+            tcube = fits.open(self.output_dir+'/Ana_Expected_Total_Counts.fits')
+            tmodel_cnt_map = np.sum(tcube[0].data, axis=0)
+            
             mcube = fits.open(self.output_dir+'/Ana_Expected_Cluster_Counts.fits')
             header = mcube[0].header
             model_cnt_map = np.sum(mcube[0].data, axis=0)
@@ -1444,7 +1458,7 @@ class CTAana(object):
             r_mod, p_mod, err_mod = radial_profile_cts(model_cnt_map,
                                                        [self.cluster.coord.icrs.ra.to_value('deg'),
                                                         self.cluster.coord.icrs.dec.to_value('deg')],
-                                                       stddev=np.sqrt(model_cnt_map), header=header,
+                                                       stddev=np.sqrt(tmodel_cnt_map), header=header,
                                                        binsize=profile_reso.to_value('deg'),
                                                        stat='POISSON',
                                                        counts2brightness=True)
