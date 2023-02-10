@@ -15,7 +15,7 @@ setup(
     description='Keen Event Simulation and Analysis for CTA Cluster Observations: python code to simulate and analyse galaxy cluster data with CTA',
     long_description=long_description,  #this is the readme 
     long_description_content_type='text/markdown',
-    url='https://github.com/remi-adam/minot',
+    url='https://github.com/remi-adam/kesacco',
     author='Remi Adam',
     author_email='remi.adam@oca.eu',
     license='BSD',
