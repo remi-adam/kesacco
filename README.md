@@ -39,11 +39,17 @@ to produce CTA analysis results.
 <p style="margin-bottom:3cm;"> </p>
 
 ## Environment
-The code works with python 3. It should work with python 2, although several features may fail. Please make sure that you are in the correct environment when you run the code. In addition, the kesacco directory should be in your python path so it can be found.
+The code works with python 3. It should work with python 2, although several features may fail. Please make sure that you are in the correct environment when you run the code.
 
 ## Installation
-To install these tools, just fork the repository to your favorite location in your machine.
-The software depends on standard python package (non-exhaustive list yet):
+You can use pip to install the package:
+
+```
+pip install kesacco
+```
+
+#### Dependencies 
+The software depends on standard python package (non-exhaustive list):
 - astropy
 - matplotlib
 - random
@@ -55,4 +61,7 @@ The software depends on standard python package (non-exhaustive list yet):
 But also:
 - gammalib (http://cta.irap.omp.eu/gammalib/)
 - ctools (http://cta.irap.omp.eu/ctools/)
+- emcee (https://emcee.readthedocs.io/en/stable/)
+- corner (https://corner.readthedocs.io/en/latest/)
 - minot (see https://github.com/remi-adam/minot)
+

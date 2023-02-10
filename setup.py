@@ -34,5 +34,9 @@ setup(
         'astropy >= 1.2.1',
         'matplotlib',
         'ebltable',
+        'emcee',
+        'corner',
+        'ctools',
+        'minot'
     ]
 )

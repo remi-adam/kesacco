@@ -14,3 +14,7 @@
 # Possible hidden files 
 .idea
 
+# Packages
+*.egg-info
+dist
+build
