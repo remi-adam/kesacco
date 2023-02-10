@@ -856,7 +856,8 @@ def modelplot(data, modbest, MC_model, corner_mask, header, Ebins, outdir,
     ax1.set_xscale('log')
     ax1.set_yscale('log')
     ax1.set_xlim(xlim[0], xlim[1])
-    ax1.set_ylim(ylim[0], ylim[1])
+    #ax1.set_ylim(ylim[0], ylim[1])     <<<<<-------------->>>>>
+    ax1.set_ylim(1e1, 1e5)
     ax1.set_xticks([])
     ax1.legend()
     
@@ -1282,6 +1283,7 @@ def modelplot(data, modbest, MC_model, corner_mask, header, Ebins, outdir,
     plt.xlim(np.amin(binsteps), np.amax(binsteps))
     ax = plt.gca()
     plt.ylim(np.amax(np.array([0.08, ax.get_ylim()[0]])), ax.get_ylim()[1])
+    plt.ylim(1e-1, 1e4)                       #                  <<<<<<<------------------>>>>>>
     ax.set_xticklabels([])
     plt.legend()
     plt.title('Spectrum within $\\theta = $'+str(theta))
